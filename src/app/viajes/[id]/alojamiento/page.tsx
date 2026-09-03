@@ -5,6 +5,7 @@ import { Cabecera } from "@/components/Cabecera";
 import { useData } from "@/lib/store";
 import { alojamientosDe } from "@/lib/catalogo";
 import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
+import { urlBusquedaAlojamiento } from "@/lib/afiliados";
 
 export default function AlojamientoPage() {
   const params = useParams<{ id: string }>();
@@ -42,6 +43,21 @@ export default function AlojamientoPage() {
     <main className="flex-1 px-6 py-10">
       <div className="mx-auto max-w-xl">
         <Cabecera titulo="Alojamiento" subtitulo={`Opciones para ${destino.nombre}, valoradas en el contexto del viaje completo.`} volverA={`/viajes/${viaje.id}`} />
+
+        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
+          <h2 className="mb-1 font-medium">Buscar y reservar de verdad</h2>
+          <p className="mb-3 text-xs text-neutral-400">
+            Las opciones de abajo son orientativas para comparar. Para reservar de verdad, te llevamos a Booking.com con estas fechas.
+          </p>
+          <a
+            href={urlBusquedaAlojamiento(destino.nombre, viaje.fechaSalida, viaje.fechaRegreso)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:border-neutral-900"
+          >
+            🏨 Buscar en Booking.com
+          </a>
+        </section>
 
         <ul className="space-y-3">
           {opciones.map((o) => {

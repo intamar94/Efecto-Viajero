@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
+import { extraerTextoDePdf, interpretarReserva } from "@/lib/extraerDocumento";
 import type { DocumentoViaje } from "@/lib/types";
 
 const TIPOS = ["vuelo", "tren", "autobus", "hotel", "seguro", "actividad", "otro"];
@@ -21,6 +22,11 @@ export default function VaultPage() {
   const [hora, setHora] = useState("");
   const [direccion, setDireccion] = useState("");
 
+  const [textoPegado, setTextoPegado] = useState("");
+  const [procesando, setProcesando] = useState(false);
+  const [errorImportar, setErrorImportar] = useState<string | null>(null);
+  const [campoExtraido, setCampoExtraido] = useState<Set<string>>(new Set());
+
   if (!viaje) {
     return (
       <main className="flex-1 px-6 py-10">
@@ -29,6 +35,59 @@ export default function VaultPage() {
         </div>
       </main>
     );
+  }
+
+  function aplicarExtraccion(texto: string) {
+    const r = interpretarReserva(texto);
+    const encontrados = new Set<string>();
+    setTipo(r.tipo);
+    if (r.proveedor) {
+      setProveedor(r.proveedor);
+      encontrados.add("proveedor");
+    }
+    if (r.referencia) {
+      setReferencia(r.referencia);
+      encontrados.add("referencia");
+    }
+    if (r.fecha) {
+      setFecha(r.fecha);
+      encontrados.add("fecha");
+    }
+    if (r.hora) {
+      setHora(r.hora);
+      encontrados.add("hora");
+    }
+    if (r.direccion) {
+      setDireccion(r.direccion);
+      encontrados.add("direccion");
+    }
+    setCampoExtraido(encontrados);
+    if (encontrados.size === 0) {
+      setErrorImportar("No hemos reconocido datos claros en el texto. Revisa y rellena a mano.");
+    } else {
+      setErrorImportar(null);
+    }
+  }
+
+  function extraerDeTexto() {
+    if (!textoPegado.trim()) return;
+    aplicarExtraccion(textoPegado);
+  }
+
+  async function extraerDePdf(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!archivo) return;
+    setProcesando(true);
+    setErrorImportar(null);
+    try {
+      const texto = await extraerTextoDePdf(archivo);
+      aplicarExtraccion(texto);
+    } catch {
+      setErrorImportar("No hemos podido leer ese PDF. Prueba a copiar el texto y pegarlo, o rellena a mano.");
+    } finally {
+      setProcesando(false);
+    }
   }
 
   function agregar(e: React.FormEvent) {
@@ -49,6 +108,8 @@ export default function VaultPage() {
     setFecha("");
     setHora("");
     setDireccion("");
+    setTextoPegado("");
+    setCampoExtraido(new Set());
   }
 
   function eliminar(id: string) {
@@ -61,7 +122,7 @@ export default function VaultPage() {
       <div className="mx-auto max-w-xl">
         <Cabecera
           titulo="Travel Vault"
-          subtitulo="Guarda aquí los datos de tus reservas. Introdúcelos a mano (esta versión no extrae datos automáticamente de PDFs o emails)."
+          subtitulo="Guarda aquí los datos de tus reservas."
           volverA={`/viajes/${viaje.id}`}
         />
 
@@ -86,6 +147,44 @@ export default function VaultPage() {
             ))}
           </ul>
         )}
+
+        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
+          <h2 className="mb-1 font-medium">Importar desde un documento</h2>
+          <p className="mb-3 text-xs text-neutral-400">
+            Sube el PDF que te descargaste, o pega el texto de tu email de confirmación. Se lee en tu navegador — no se
+            envía a ningún servidor. Extracción heurística orientativa: revisa los datos abajo antes de guardar.
+          </p>
+
+          <label className="mb-3 block">
+            <span className="mb-1 block text-sm text-neutral-600">Subir PDF</span>
+            <input type="file" accept="application/pdf" onChange={extraerDePdf} disabled={procesando} className="input" />
+          </label>
+
+          <label className="mb-2 block">
+            <span className="mb-1 block text-sm text-neutral-600">O pegar texto (email, confirmación...)</span>
+            <textarea
+              className="input min-h-20"
+              placeholder="Pega aquí el texto de tu email de confirmación..."
+              value={textoPegado}
+              onChange={(e) => setTextoPegado(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={extraerDeTexto}
+            disabled={procesando || !textoPegado.trim()}
+            className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:border-neutral-900 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {procesando ? "Leyendo…" : "Extraer datos"}
+          </button>
+
+          {errorImportar && <p className="mt-3 text-sm text-amber-600">{errorImportar}</p>}
+          {campoExtraido.size > 0 && (
+            <p className="mt-3 text-sm text-emerald-700">
+              Hemos rellenado el formulario de abajo con lo que hemos reconocido — revísalo antes de guardar.
+            </p>
+          )}
+        </section>
 
         <form onSubmit={agregar} className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-5">
           <select className="input" value={tipo} onChange={(e) => setTipo(e.target.value)}>

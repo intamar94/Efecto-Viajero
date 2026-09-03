@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
+import { URL_BUS, URL_TREN, urlBusquedaVuelos } from "@/lib/afiliados";
 import type { ModoTransporte, TramoTransporte } from "@/lib/types";
 
 const MODOS: { valor: ModoTransporte; etiqueta: string }[] = [
@@ -79,6 +80,29 @@ export default function TransportePage() {
     <main className="flex-1 px-6 py-10">
       <div className="mx-auto max-w-xl">
         <Cabecera titulo="Transporte" subtitulo="Cómo os movéis durante el viaje, tramo a tramo." volverA={`/viajes/${viaje.id}`} />
+
+        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
+          <h2 className="mb-1 font-medium">Buscar y reservar de verdad</h2>
+          <p className="mb-3 text-xs text-neutral-400">
+            Te lleva a la web real del proveedor para completar la reserva. Vuelve aquí y guarda el ticket en el Travel Vault.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={urlBusquedaVuelos(viaje.destino, undefined, viaje.fechaSalida, viaje.fechaRegreso)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:border-neutral-900"
+            >
+              ✈️ Buscar vuelos
+            </a>
+            <a href={URL_TREN} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:border-neutral-900">
+              🚆 Trainline
+            </a>
+            <a href={URL_BUS} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:border-neutral-900">
+              🚌 FlixBus
+            </a>
+          </div>
+        </section>
 
         {ordenados.length === 0 ? (
           <p className="mb-6 text-sm text-neutral-500">Todavía no hay tramos de transporte.</p>

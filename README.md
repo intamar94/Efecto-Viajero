@@ -34,8 +34,11 @@ construir por depender de esos contratos externos.
   comparación de precio.
 - **B07 Actividades** — bolsa de posibilidades con estados disponible →
   planificada → reservada → realizada.
-- **B08 Travel Vault** — reservas guardadas a mano (sin extracción
-  automática de PDFs/emails: no hay IA conectada a la app).
+- **B08 Travel Vault** — reservas a mano, o **importadas de verdad**:
+  sube el PDF descargado (se lee en el navegador con `pdfjs-dist`, sin
+  servidor) o pega el texto del email, y se extraen tipo/proveedor/
+  localizador/fecha/hora/dirección con heurísticas (no IA) para revisar
+  antes de guardar.
 - **B09 Presupuesto** — planificado vs. disponible, en vivo, agregando
   transporte + alojamiento + actividades.
 - **B11+B12+B13 Travel Mode** — "ahora" según fecha real, "tengo X horas
@@ -55,6 +58,14 @@ construir por depender de esos contratos externos.
   2-5 conclusiones accionables al principio del hub del viaje.
 - **B10 Preparación offline** — no construido (necesita una estrategia
   de caché/PWA que no forma parte de este recorte).
+- **B20 Integraciones (recorte real)** — en Transporte y Alojamiento hay
+  botones que llevan a Google Flights / Booking.com / Trainline /
+  FlixBus con destino y fechas ya escritos, para completar la reserva de
+  verdad en la web del proveedor. Ganar comisión de esos enlaces
+  requiere darse de alta en un programa de afiliados real (Booking.com
+  Partner Program, o un agregador como TravelPayouts) — alta, KYC y
+  datos bancarios que no se pueden hacer desde una sesión de código; el
+  ID de afiliado se rellena en `src/lib/afiliados.ts` cuando se tenga.
 
 Persistencia: `localStorage` en el navegador (capa `src/lib/store.tsx`),
 pensada para sustituirse por un backend real sin tocar las pantallas.
@@ -107,15 +118,18 @@ src/
     requisitos.ts               motor de requisitos por viajero/destino
     compatibilidad.ts           B04+B09: presupuesto y sugerencia de ajuste
     travelBrain.ts              B19: agrega todo en un resumen accionable
+    afiliados.ts                 B20: enlaces de salida a buscadores reales
+    extraerDocumento.ts          B08: lectura de PDF (pdfjs-dist) + heurística de campos
     edad.ts, fecha.ts, id.ts    utilidades
+public/pdf.worker.min.mjs       worker de pdfjs-dist, servido como estático
 ```
 
 ## Pendiente
 
 - **B10** preparación offline (requiere estrategia PWA/caché).
-- **B20** integraciones reales (aerolíneas, hoteles, seguros, fuentes
-  oficiales) — necesita contratos y credenciales externas que no
-  existen en este entorno.
-- Sustituir el parseo heurístico de `/planificar` por un LLM real.
+- **B20** integración de pago/reserva dentro de la app y comisión de
+  afiliado real (falta darse de alta en un programa de afiliados).
+- Sustituir el parseo heurístico de `/planificar` y de la extracción de
+  documentos por un LLM real.
 - Sincronización real entre dispositivos para viajes compartidos
   (cuenta + backend).
