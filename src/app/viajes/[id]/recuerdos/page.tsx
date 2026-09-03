@@ -21,7 +21,7 @@ export default function RecuerdosPage() {
 
   if (!viaje) {
     return (
-      <main className="flex-1 px-6 py-10">
+      <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
           <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
         </div>
@@ -75,12 +75,12 @@ export default function RecuerdosPage() {
   const ordenados = [...viaje.recuerdos].sort((a, b) => (a.fecha ?? "").localeCompare(b.fecha ?? ""));
 
   return (
-    <main className="flex-1 px-6 py-10">
+    <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
         <Cabecera titulo="Recuerdos" subtitulo="Tus fotos reales, ordenadas solas en una línea de tiempo." volverA={`/viajes/${viaje.id}`} />
         <ViajeToolsNav viajeId={viaje.id} />
 
-        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
+        <section className="card mb-6">
           <label className="block">
             <span className="mb-1 block text-sm font-medium text-neutral-700">Elige fotos de tu dispositivo</span>
             <input type="file" accept="image/*" multiple onChange={importarFotos} disabled={procesandoFotos} className="input" />
@@ -99,7 +99,7 @@ export default function RecuerdosPage() {
           <ol className="mb-6 space-y-3 border-l border-neutral-200 pl-4">
             {ordenados.map((r) => (
               <li key={r.id} className="relative">
-                <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-neutral-900" />
+                <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-marino-600" />
                 <div className="flex items-start justify-between gap-3">
                   {r.fotoDataUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -119,12 +119,12 @@ export default function RecuerdosPage() {
           </ol>
         )}
 
-        <form onSubmit={agregar} className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-5">
+        <form onSubmit={agregar} className="card space-y-3">
           <p className="text-sm font-medium text-neutral-700">O añade un momento sin foto</p>
           <input className="input" placeholder="¿Qué pasó?" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
           <input type="date" className="input" value={fecha} onChange={(e) => setFecha(e.target.value)} />
           <textarea className="input min-h-20" placeholder="Nota (opcional)" value={nota} onChange={(e) => setNota(e.target.value)} />
-          <button type="submit" className="w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
+          <button type="submit" className="btn-primary w-full">
             + Guardar momento
           </button>
         </form>

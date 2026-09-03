@@ -50,7 +50,7 @@ export default function NuevoViajeroPage() {
   }
 
   return (
-    <main className="flex-1 px-6 py-10">
+    <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
         <Cabecera titulo="Añadir viajero" volverA="/viajeros" />
 
@@ -61,7 +61,7 @@ export default function NuevoViajeroPage() {
               type="button"
               onClick={() => setTipo(op)}
               className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                tipo === op ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900"
+                tipo === op ? "bg-marino-700 text-white" : "text-neutral-500 hover:text-neutral-900"
               }`}
             >
               {op === "persona" ? "🧑 Persona" : "🐾 Mascota"}
@@ -109,7 +109,7 @@ export default function NuevoViajeroPage() {
             </>
           )}
 
-          <button type="submit" className="w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
+          <button type="submit" className="btn-primary w-full">
             Guardar viajero
           </button>
         </form>

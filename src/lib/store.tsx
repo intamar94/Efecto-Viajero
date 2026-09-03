@@ -46,7 +46,7 @@ interface DataContextValue {
   crearViaje: (
     datos: Omit<
       Viaje,
-      "id" | "createdAt" | "transporte" | "actividades" | "documentos" | "souvenirs" | "participantes" | "votaciones" | "recuerdos"
+      "id" | "createdAt" | "transporte" | "actividades" | "documentos" | "participantes" | "votaciones" | "recuerdos"
     >
   ) => Viaje;
   actualizarViaje: (id: string, cambios: Partial<Viaje>) => void;
@@ -148,7 +148,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       transporte: [],
       actividades: [],
       documentos: [],
-      souvenirs: [],
       participantes: [],
       votaciones: [],
       recuerdos: [],

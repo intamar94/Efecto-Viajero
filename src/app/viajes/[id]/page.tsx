@@ -11,27 +11,22 @@ import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
 import { alojamientosDe, actividadesDe } from "@/lib/catalogo";
 import { calcularPresupuesto, sugerirAjustePresupuesto } from "@/lib/compatibilidad";
 import { resumenViaje } from "@/lib/travelBrain";
-import type { ContextoViaje, EstadoRequisito, ModoPlanificacion, Viaje } from "@/lib/types";
-
-const MODOS: { valor: ModoPlanificacion; etiqueta: string; descripcion: string }[] = [
-  { valor: "completo", etiqueta: "🗓️ Planificarlo completo", descripcion: "Días, horarios y actividades definidos." },
-  { valor: "poco_a_poco", etiqueta: "🧩 Organizarlo poco a poco", descripcion: "Solo lo importante; el resto se completa después." },
-  { valor: "dejarse_llevar", etiqueta: "🌿 Dejarse llevar", descripcion: "Vuelos y alojamiento fijos; el resto queda abierto." },
-];
+import { MODOS } from "@/lib/modos";
+import type { ContextoViaje, EstadoRequisito, Viaje } from "@/lib/types";
 
 const SECCIONES = [
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
   { href: "actividades", icono: "🎒", titulo: "Actividades" },
   { href: "vault", icono: "📁", titulo: "Travel Vault" },
-  { href: "souvenirs", icono: "🎁", titulo: "Souvenirs" },
+  { href: "souvenirs", icono: "🎁", titulo: "Qué comprar" },
   { href: "compartido", icono: "👥", titulo: "Compartido" },
   { href: "recuerdos", icono: "📸", titulo: "Recuerdos" },
 ] as const;
 
 const NIVEL_ESTILO: Record<string, string> = {
   alerta: "border-red-200 bg-red-50 text-red-700",
-  aviso: "border-amber-200 bg-amber-50 text-amber-700",
+  aviso: "border-coral-200 bg-coral-50 text-coral-700",
   ok: "border-emerald-200 bg-emerald-50 text-emerald-700",
 };
 
@@ -56,6 +51,7 @@ export default function ViajeDetallePage() {
   const { obtenerViaje, actualizarViaje, eliminarViaje, viajeros } = useData();
   const [mostrarAjuste, setMostrarAjuste] = useState(false);
   const [editandoViajeros, setEditandoViajeros] = useState(false);
+  const [editandoModo, setEditandoModo] = useState(false);
   const [requisitosAbiertos, setRequisitosAbiertos] = useState<Set<string>>(new Set());
   const viaje = obtenerViaje(params.id);
 
@@ -72,7 +68,7 @@ export default function ViajeDetallePage() {
 
   if (!viaje) {
     return (
-      <main className="flex-1 px-6 py-10">
+      <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
           <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
         </div>
@@ -89,7 +85,7 @@ export default function ViajeDetallePage() {
     alojamiento: alojamientoElegido ? alojamientoElegido.nombre : "Sin elegir",
     actividades: `${numActividadesEnMarcha} en marcha · ${numActividadesDisponibles} disponibles`,
     vault: viaje.documentos.length > 0 ? `${viaje.documentos.length} documento(s)` : "Vacío",
-    souvenirs: viaje.souvenirs.length > 0 ? `${viaje.souvenirs.length} en la lista` : "Vacío",
+    souvenirs: destino ? "Consejos de compras" : "Sin datos del destino",
     compartido: viaje.participantes.length > 0 ? `${viaje.participantes.length} participante(s)` : "Solo tú",
     recuerdos: viaje.recuerdos.length > 0 ? `${viaje.recuerdos.length} momento(s)` : "Sin momentos aún",
   };
@@ -119,7 +115,7 @@ export default function ViajeDetallePage() {
   }
 
   return (
-    <main className="flex-1 px-6 py-10">
+    <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-2xl">
         <Cabecera titulo={viaje.destino} subtitulo={subtituloFechas(viaje)} volverA="/viajes" />
 
@@ -139,15 +135,15 @@ export default function ViajeDetallePage() {
         )}
 
         <div className="mb-6 flex gap-2">
-          <Link href={`/viajes/${viaje.id}/actividades`} className="flex-1 rounded-xl bg-neutral-900 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-neutral-700">
-            📍 Modo viaje
+          <Link href={`/viajes/${viaje.id}/actividades`} className="btn-primary flex-1">
+            📍 Qué hacer ahora
           </Link>
-          <Link href={`/viajes/${viaje.id}/resolver`} className="flex-1 rounded-xl border border-neutral-200 px-4 py-2.5 text-center text-sm font-medium text-neutral-700 hover:border-neutral-900">
+          <Link href={`/viajes/${viaje.id}/resolver`} className="btn-secondary flex-1">
             🆘 Necesito ayuda
           </Link>
         </div>
 
-        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
+        <section className="card mb-6">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-medium">Viajeros</h2>
             <button onClick={() => setEditandoViajeros((v) => !v)} className="text-sm text-neutral-500 hover:text-neutral-900">
@@ -196,26 +192,45 @@ export default function ViajeDetallePage() {
             ))}
         </section>
 
-        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
-          <h2 className="mb-3 font-medium">¿Cómo quieres organizar este viaje?</h2>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {MODOS.map((m) => (
-              <button
-                key={m.valor}
-                onClick={() => actualizarViaje(viaje.id, { modoPlanificacion: m.valor })}
-                className={`rounded-xl border p-3 text-left text-sm transition ${
-                  viaje.modoPlanificacion === m.valor ? "border-neutral-900 bg-neutral-50" : "border-neutral-200 hover:border-neutral-400"
-                }`}
-              >
-                <p className="font-medium">{m.etiqueta}</p>
-                <p className="mt-0.5 text-xs text-neutral-500">{m.descripcion}</p>
-              </button>
-            ))}
+        {/* El modo ya se elige al crear el viaje: aquí solo se muestra y se
+            cambia si hace falta, en vez de volver a ocupar media pantalla
+            con las tres opciones. */}
+        <section className="card mb-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-medium">Cómo se organiza</h2>
+              <p className="mt-0.5 text-sm text-neutral-500">
+                {MODOS.find((m) => m.valor === viaje.modoPlanificacion)?.etiqueta ?? "Todavía sin decidir"}
+              </p>
+            </div>
+            <button onClick={() => setEditandoModo((v) => !v)} className="shrink-0 text-sm text-neutral-500 hover:text-neutral-900">
+              {editandoModo ? "Listo" : "Cambiar"}
+            </button>
           </div>
+
+          {editandoModo && (
+            <div className="mt-3 grid gap-2">
+              {MODOS.map((m) => (
+                <button
+                  key={m.valor}
+                  onClick={() => {
+                    actualizarViaje(viaje.id, { modoPlanificacion: m.valor });
+                    setEditandoModo(false);
+                  }}
+                  className={`rounded-xl border p-3 text-left text-sm transition ${
+                    viaje.modoPlanificacion === m.valor ? "border-marino-500 bg-marino-50" : "border-neutral-200 hover:border-neutral-400"
+                  }`}
+                >
+                  <p className="font-medium">{m.etiqueta}</p>
+                  <p className="mt-0.5 text-xs text-neutral-500">{m.descripcion}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         {presupuesto && presupuesto.presupuestoTotal !== undefined && (
-          <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
+          <section className="card mb-6">
             <h2 className="mb-3 font-medium">Presupuesto</h2>
             <div className="flex items-baseline justify-between text-sm">
               <span className="text-neutral-500">Planificado</span>
@@ -223,7 +238,7 @@ export default function ViajeDetallePage() {
             </div>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
               <div
-                className={`h-full rounded-full ${presupuesto.excedido ? "bg-red-500" : "bg-neutral-900"}`}
+                className={`h-full rounded-full ${presupuesto.excedido ? "bg-red-500" : "bg-marino-600"}`}
                 style={{ width: `${Math.min((presupuesto.total / presupuesto.presupuestoTotal) * 100, 100)}%` }}
               />
             </div>
@@ -247,11 +262,11 @@ export default function ViajeDetallePage() {
                         actualizarViaje(viaje.id, sugerencia.aplicar(viaje));
                         setMostrarAjuste(false);
                       }}
-                      className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700"
+                      className="btn-primary px-3 py-1.5"
                     >
                       Ajustar automáticamente
                     </button>
-                    <button onClick={() => setMostrarAjuste(false)} className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:border-neutral-900">
+                    <button onClick={() => setMostrarAjuste(false)} className="btn-secondary px-3 py-1.5">
                       Decidir yo
                     </button>
                   </div>
@@ -265,7 +280,7 @@ export default function ViajeDetallePage() {
           </section>
         )}
 
-        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
+        <section className="card mb-6">
           <div className="mb-1 flex items-center justify-between">
             <h2 className="font-medium">Requisitos</h2>
           </div>

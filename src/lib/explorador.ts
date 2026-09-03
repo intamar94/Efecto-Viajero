@@ -164,17 +164,6 @@ export function interpretarTexto(texto: string): NecesidadesViaje {
   };
 }
 
-export interface CriterioEvaluado {
-  etiqueta: string;
-  cumplido: boolean;
-}
-
-export interface DestinoCompatible {
-  destino: Destino;
-  porcentaje: number;
-  criterios: CriterioEvaluado[];
-}
-
 function sinAcentos(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
@@ -183,9 +172,8 @@ function escaparRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Caso A de la sección 6 del prompt maestro: el viajero ya menciona un
-// destino en el texto libre. Caso B (sin coincidencia): se explora por
-// compatibilidad en evaluarCompatibilidad().
+// Si el viajero ya nombra el destino al contar lo que quiere hacer, se
+// usa para rellenar el campo y no volver a preguntarlo.
 // Usa límites de palabra para no confundir un gentilicio ("comida
 // italiana") con el país ("Italia") — includes() los trataba igual.
 export function detectarDestinoExplicito(texto: string, destinos: Destino[] = DESTINOS): Destino | undefined {
@@ -195,71 +183,4 @@ export function detectarDestinoExplicito(texto: string, destinos: Destino[] = DE
     const pais = sinAcentos(d.pais.toLowerCase());
     return new RegExp(`\\b${escaparRegex(nombre)}\\b`).test(t) || new RegExp(`\\b${escaparRegex(pais)}\\b`).test(t);
   });
-}
-
-export function evaluarCompatibilidad(necesidades: NecesidadesViaje, destinos: Destino[] = DESTINOS): DestinoCompatible[] {
-  const resultados = destinos.map((destino) => {
-    const criterios: CriterioEvaluado[] = [];
-    let puntosObtenidos = 0;
-    let puntosPosibles = 0;
-
-    if (necesidades.intereses.length > 0) {
-      const peso = 40;
-      const coincidencias = necesidades.intereses.filter((i) => destino.tags.includes(i));
-      puntosPosibles += peso;
-      puntosObtenidos += peso * (coincidencias.length / necesidades.intereses.length);
-      for (const interes of necesidades.intereses) {
-        criterios.push({ etiqueta: `Interés: ${interes}`, cumplido: destino.tags.includes(interes) });
-      }
-    }
-
-    if (necesidades.presupuestoMax && necesidades.duracionDias) {
-      const peso = 20;
-      const estimado = destino.presupuestoDiaEstimado.medio * necesidades.duracionDias;
-      puntosPosibles += peso;
-      const cumplido = estimado <= necesidades.presupuestoMax;
-      const casiCumplido = !cumplido && estimado <= necesidades.presupuestoMax * 1.15;
-      puntosObtenidos += cumplido ? peso : casiCumplido ? peso * 0.5 : 0;
-      criterios.push({
-        etiqueta: `Presupuesto (~${Math.round(estimado)}€ estimados para ${necesidades.duracionDias} días vs. ${necesidades.presupuestoMax}€ máx.)`,
-        cumplido,
-      });
-    }
-
-    if (necesidades.mascota) {
-      const peso = 15;
-      puntosPosibles += peso;
-      puntosObtenidos += destino.mascotaFriendly ? peso : 0;
-      criterios.push({ etiqueta: "Compatible con mascota", cumplido: destino.mascotaFriendly });
-    }
-
-    if (necesidades.sinConducirMucho) {
-      const peso = 10;
-      puntosPosibles += peso;
-      puntosObtenidos += destino.distanciaConduccionCorta ? peso : 0;
-      criterios.push({ etiqueta: "Distancias cortas / sin conducir demasiado", cumplido: destino.distanciaConduccionCorta });
-    }
-
-    if (necesidades.ritmo) {
-      const peso = 10;
-      puntosPosibles += peso;
-      const cumplido = destino.ritmo.includes(necesidades.ritmo);
-      puntosObtenidos += cumplido ? peso : 0;
-      criterios.push({ etiqueta: `Ritmo ${necesidades.ritmo}`, cumplido });
-    }
-
-    if (necesidades.climaCalido !== undefined) {
-      const peso = 5;
-      puntosPosibles += peso;
-      const cumplido = destino.climaCalido === necesidades.climaCalido;
-      puntosObtenidos += cumplido ? peso : 0;
-      criterios.push({ etiqueta: necesidades.climaCalido ? "Clima cálido" : "Clima fresco/frío", cumplido });
-    }
-
-    const porcentaje = puntosPosibles === 0 ? 50 : Math.round((puntosObtenidos / puntosPosibles) * 100);
-
-    return { destino, porcentaje, criterios };
-  });
-
-  return resultados.sort((a, b) => b.porcentaje - a.porcentaje);
 }

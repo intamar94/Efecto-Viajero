@@ -10,12 +10,69 @@ export const AFILIADO = {
   bookingAid: "", // Partner ID de Booking.com Affiliate Partner Program
 };
 
+export interface EnlaceBusqueda {
+  id: string;
+  nombre: string;
+  icono: string;
+  descripcion: string;
+  url: string;
+}
+
 export function urlBusquedaAlojamiento(destino: string, checkin?: string, checkout?: string): string {
   const params = new URLSearchParams({ ss: destino });
   if (checkin) params.set("checkin", checkin);
   if (checkout) params.set("checkout", checkout);
   if (AFILIADO.bookingAid) params.set("aid", AFILIADO.bookingAid);
   return `https://www.booking.com/searchresults.html?${params.toString()}`;
+}
+
+function urlAirbnb(destino: string, checkin?: string, checkout?: string): string {
+  const params = new URLSearchParams();
+  if (checkin) params.set("checkin", checkin);
+  if (checkout) params.set("checkout", checkout);
+  const query = params.toString();
+  return `https://www.airbnb.com/s/${encodeURIComponent(destino)}/homes${query ? `?${query}` : ""}`;
+}
+
+function urlHostelworld(destino: string): string {
+  return `https://www.hostelworld.com/search?search_keywords=${encodeURIComponent(destino)}`;
+}
+
+// Cada web cubre un tipo de viaje distinto, así que se presentan las
+// cuatro con su para-qué en vez de empujar a una sola. Couchsurfing no
+// tiene un patrón de URL de búsqueda público y estable: se enlaza su web
+// general en vez de inventar parámetros que podrían no funcionar.
+export function buscadoresAlojamiento(destino: string, checkin?: string, checkout?: string): EnlaceBusqueda[] {
+  return [
+    {
+      id: "booking",
+      nombre: "Booking.com",
+      icono: "🏨",
+      descripcion: "Hoteles y apartamentos, con cancelación gratis en muchas opciones.",
+      url: urlBusquedaAlojamiento(destino, checkin, checkout),
+    },
+    {
+      id: "airbnb",
+      nombre: "Airbnb",
+      icono: "🏡",
+      descripcion: "Casas y pisos completos: sale mejor en grupo o estancias largas.",
+      url: urlAirbnb(destino, checkin, checkout),
+    },
+    {
+      id: "hostelworld",
+      nombre: "Hostelworld",
+      icono: "🛏️",
+      descripcion: "Hostales y albergues: lo más barato y lo más social.",
+      url: urlHostelworld(destino),
+    },
+    {
+      id: "couchsurfing",
+      nombre: "Couchsurfing",
+      icono: "🛋️",
+      descripcion: "Alojarse gratis con anfitriones locales. Hay que crear perfil y pedirlo con antelación.",
+      url: "https://www.couchsurfing.com/",
+    },
+  ];
 }
 
 export function urlBusquedaVuelos(destino: string, origen?: string, fechaSalida?: string, fechaRegreso?: string): string {

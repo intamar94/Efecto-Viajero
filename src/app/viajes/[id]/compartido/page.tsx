@@ -20,7 +20,7 @@ export default function CompartidoPage() {
 
   if (!viaje) {
     return (
-      <main className="flex-1 px-6 py-10">
+      <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
           <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
         </div>
@@ -65,7 +65,7 @@ export default function CompartidoPage() {
   }
 
   return (
-    <main className="flex-1 px-6 py-10">
+    <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
         <Cabecera
           titulo="Compartido"
@@ -74,7 +74,7 @@ export default function CompartidoPage() {
         />
         <ViajeToolsNav viajeId={viaje.id} />
 
-        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
+        <section className="card mb-6">
           <h2 className="mb-3 font-medium">Participantes</h2>
           {viaje.participantes.length === 0 ? (
             <p className="mb-3 text-sm text-neutral-500">Solo estás tú por ahora.</p>
@@ -92,13 +92,13 @@ export default function CompartidoPage() {
           )}
           <form onSubmit={agregarParticipante} className="flex gap-2">
             <input className="input" placeholder="Nombre" value={nombreParticipante} onChange={(e) => setNombreParticipante(e.target.value)} />
-            <button type="submit" className="shrink-0 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700">
+            <button type="submit" className="btn-primary shrink-0 px-3 py-2">
               + Añadir
             </button>
           </form>
         </section>
 
-        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
+        <section className="card mb-6">
           <h2 className="mb-3 font-medium">Decisiones del grupo</h2>
 
           <ul className="mb-4 space-y-3">
@@ -141,7 +141,7 @@ export default function CompartidoPage() {
                           </option>
                         ))}
                       </select>
-                      <button onClick={() => votar(v.id)} className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700">
+                      <button onClick={() => votar(v.id)} className="btn-primary px-3 py-1.5">
                         Votar
                       </button>
                     </div>
@@ -167,7 +167,7 @@ export default function CompartidoPage() {
                 + Otra opción
               </button>
             )}
-            <button type="submit" className="w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
+            <button type="submit" className="btn-primary w-full">
               Crear votación
             </button>
           </form>

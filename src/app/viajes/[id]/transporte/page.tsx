@@ -8,6 +8,8 @@ import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { URL_BUS, URL_TREN, urlBusquedaVuelos } from "@/lib/afiliados";
+import { transporteLocalDe } from "@/lib/catalogo";
+import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
 import type { ModoTransporte, TramoTransporte } from "@/lib/types";
 
 const MODOS: { valor: ModoTransporte; etiqueta: string }[] = [
@@ -36,6 +38,7 @@ export default function TransportePage() {
   const params = useParams<{ id: string }>();
   const { obtenerViaje, actualizarViaje } = useData();
   const viaje = obtenerViaje(params.id);
+  const destino = viaje ? buscarDestinoPorId(viaje.destinoId) ?? buscarDestinoPorNombre(viaje.destino) : undefined;
 
   const [modo, setModo] = useState<ModoTransporte>("tren");
   const [origen, setOrigen] = useState("");
@@ -48,7 +51,7 @@ export default function TransportePage() {
 
   if (!viaje) {
     return (
-      <main className="flex-1 px-6 py-10">
+      <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
           <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
         </div>
@@ -88,20 +91,21 @@ export default function TransportePage() {
   }
 
   const ordenados = [...viaje.transporte].sort((a, b) => (a.horaSalida ?? "").localeCompare(b.horaSalida ?? ""));
+  const local = destino ? transporteLocalDe(destino) : undefined;
 
   return (
-    <main className="flex-1 px-6 py-10">
+    <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
-        <Cabecera titulo="Transporte" subtitulo="Cómo os movéis durante el viaje, tramo a tramo." volverA={`/viajes/${viaje.id}`} />
+        <Cabecera titulo="Transporte" subtitulo="Cómo llegar y cómo moverte una vez allí." volverA={`/viajes/${viaje.id}`} />
         <ViajeToolsNav viajeId={viaje.id} />
 
-        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
-          <h2 className="mb-1 font-medium">Buscar y reservar de verdad</h2>
+        <section className="card mb-6">
+          <h2 className="mb-1 font-medium">Cómo llegar</h2>
           <p className="mb-3 text-xs text-neutral-400">
             Te lleva a la web real del proveedor para completar la reserva. Vuelve aquí y guarda el ticket en el Travel Vault.
           </p>
 
-          <div className="mb-3 flex items-center gap-2 text-sm">
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
             <span className="text-neutral-500">Saliendo desde:</span>
             {editandoOrigen ? (
               <form onSubmit={guardarOrigen} className="flex flex-1 gap-2">
@@ -112,7 +116,7 @@ export default function TransportePage() {
                   onChange={(e) => setCiudadOrigenInput(e.target.value)}
                   autoFocus
                 />
-                <button type="submit" className="shrink-0 rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700">
+                <button type="submit" className="btn-primary shrink-0 px-3 py-1.5 text-xs">
                   Guardar
                 </button>
               </form>
@@ -123,7 +127,7 @@ export default function TransportePage() {
                   setCiudadOrigenInput(viaje.contexto.ciudadOrigen ?? "");
                   setEditandoOrigen(true);
                 }}
-                className="font-medium text-neutral-700 underline hover:text-neutral-900"
+                className="font-medium text-marino-700 underline hover:text-marino-900"
               >
                 {viaje.contexto.ciudadOrigen ?? "sin definir — añadir"}
               </button>
@@ -135,30 +139,74 @@ export default function TransportePage() {
               href={urlBusquedaVuelos(viaje.destino, viaje.contexto.ciudadOrigen, viaje.fechaSalida, viaje.fechaRegreso)}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:border-neutral-900"
+              className="btn-secondary px-3 py-1.5 text-xs"
             >
               ✈️ Buscar vuelos
             </a>
-            <a href={URL_TREN} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:border-neutral-900">
+            <a href={URL_TREN} target="_blank" rel="noopener noreferrer" className="btn-secondary px-3 py-1.5 text-xs">
               🚆 Trainline
             </a>
-            <a href={URL_BUS} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:border-neutral-900">
+            <a href={URL_BUS} target="_blank" rel="noopener noreferrer" className="btn-secondary px-3 py-1.5 text-xs">
               🚌 FlixBus
             </a>
           </div>
+
           <p className="mt-3 text-sm text-neutral-500">
             Cuando reserves, guarda el ticket en el{" "}
-            <Link href={`/viajes/${viaje.id}/vault`} className="underline">
+            <Link href={`/viajes/${viaje.id}/vault`} className="text-marino-600 underline">
               Travel Vault
-            </Link>{" "}
-            para tenerlo a mano en el viaje.
+            </Link>
+            .
           </p>
         </section>
 
+        {/* Moverse por dentro del destino es la parte que ningún buscador
+            de vuelos resuelve, y la que más dinero y tiempo hace perder
+            cuando se descubre al llegar. */}
+        {local && (
+          <section className="mb-6 rounded-2xl border border-marino-200 bg-marino-50 p-5">
+            <h2 className="mb-1 font-medium text-marino-900">Moverte por {destino?.nombre}</h2>
+            <p className="mb-3 text-xs text-marino-700/70">Transporte local: qué hay y cómo se paga.</p>
+
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {local.medios.map((m) => (
+                <span key={m} className="rounded-full border border-marino-200 bg-white px-2.5 py-1 text-xs font-medium text-marino-700">
+                  {m}
+                </span>
+              ))}
+            </div>
+
+            <dl className="space-y-2 text-sm">
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-marino-700/60">Cómo se paga</dt>
+                <dd className="text-neutral-700">{local.comoSePaga}</dd>
+              </div>
+              {local.apps && (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-marino-700/60">Apps útiles</dt>
+                  <dd className="text-neutral-700">{local.apps}</dd>
+                </div>
+              )}
+              {local.aviso && (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-coral-700">Ojo con esto</dt>
+                  <dd className="text-neutral-700">{local.aviso}</dd>
+                </div>
+              )}
+            </dl>
+
+            <p className="mt-3 text-xs text-marino-700/60">
+              Información general del país, sin precios porque cambian cada temporada. Confirma tarifas en la estación o
+              en la oficina de turismo al llegar.
+            </p>
+          </section>
+        )}
+
+        <h2 className="mb-2 font-medium">Tus tramos</h2>
         {ordenados.length === 0 ? (
-          <p className="mb-6 text-sm text-neutral-500">Todavía no hay tramos de transporte.</p>
+          <p className="mb-4 text-sm text-neutral-500">Todavía no hay tramos guardados.</p>
         ) : (
-          <ol className="mb-6 space-y-2">
+          <ol className="mb-4 space-y-2">
             {ordenados.map((t) => (
               <li key={t.id} className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm">
                 <span>
@@ -166,7 +214,7 @@ export default function TransportePage() {
                   {t.horaSalida && <span className="text-neutral-500"> · {t.horaSalida.replace("T", " ")}</span>}
                   {t.costeEstimado !== undefined && <span className="text-neutral-500"> · {t.costeEstimado}€</span>}
                 </span>
-                <button onClick={() => eliminar(t.id)} className="text-neutral-400 hover:text-red-600">
+                <button onClick={() => eliminar(t.id)} className="text-xs text-neutral-400 hover:text-red-600">
                   Eliminar
                 </button>
               </li>
@@ -175,7 +223,7 @@ export default function TransportePage() {
         )}
 
         {mostrarFormulario ? (
-          <form onSubmit={agregar} className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-5">
+          <form onSubmit={agregar} className="card space-y-3">
             <select className="input" value={modo} onChange={(e) => setModo(e.target.value as ModoTransporte)}>
               {MODOS.map((m) => (
                 <option key={m.valor} value={m.valor}>
@@ -191,7 +239,7 @@ export default function TransportePage() {
               <input type="datetime-local" className="input" value={horaSalida} onChange={(e) => setHoraSalida(e.target.value)} />
               <input type="number" className="input" placeholder="Coste € (opcional)" value={coste} onChange={(e) => setCoste(e.target.value)} />
             </div>
-            <button type="submit" className="w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
+            <button type="submit" className="btn-primary w-full">
               + Añadir tramo
             </button>
           </form>

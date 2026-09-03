@@ -109,6 +109,11 @@ export interface ActividadDestino {
   duracionHoras: number;
   costeEstimado: number;
   apta: string[]; // interior, exterior, familiar, tranquilo...
+  // Clasificaciones explícitas para poder filtrar sin adivinar a partir
+  // de `apta`: son las tres preguntas que de verdad condicionan el plan
+  // del día (¿me pilla la lluvia?, ¿puedo llevar al perro?, ¿cuesta?).
+  entorno: "exterior" | "interior" | "mixto";
+  admiteMascotas: boolean;
   descripcion: string;
 }
 
@@ -117,15 +122,32 @@ export interface ActividadViaje {
   estado: EstadoActividad;
 }
 
+// Categorías del Travel Vault. El documento se archiva solo en una de
+// ellas al subirlo; el usuario solo interviene si la detección falla.
+export type CategoriaDocumento =
+  | "vuelo"
+  | "tren_bus"
+  | "alojamiento"
+  | "transporte_local"
+  | "entrada"
+  | "seguro"
+  | "documento_personal"
+  | "otro";
+
 export interface DocumentoViaje {
   id: string;
-  tipo: string; // vuelo, tren, hotel, seguro, otro
+  tipo: CategoriaDocumento;
   proveedor: string;
   referencia?: string;
   fecha?: string;
   hora?: string;
   direccion?: string;
   notas?: string;
+  // Marca si la categoría la puso la detección automática: sirve para
+  // avisar de que conviene revisarla, y para dejar de avisar cuando el
+  // usuario ya la ha corregido a mano.
+  autoClasificado?: boolean;
+  nombreArchivo?: string;
 }
 
 export interface SouvenirDestino {
@@ -136,12 +158,6 @@ export interface SouvenirDestino {
   descripcion: string;
   datoCurioso: string;
   avisoEquipaje?: string; // p. ej. líquidos o frágiles, para saber si va en cabina o facturado
-}
-
-export interface SouvenirAsignado {
-  id: string;
-  souvenirId: string;
-  paraNombre: string;
 }
 
 export interface Votacion {
@@ -174,7 +190,6 @@ export interface Viaje {
   alojamientoId?: string; // referencia a una OpcionAlojamiento generada por catalogo.ts
   actividades: ActividadViaje[];
   documentos: DocumentoViaje[];
-  souvenirs: SouvenirAsignado[];
   participantes: string[]; // nombres, viaje compartido local
   votaciones: Votacion[];
   recuerdos: Recuerdo[];
@@ -199,6 +214,16 @@ export interface ResultadoRequisito {
   motivo: string;
   fuente?: string;
   fechaComprobacion: string; // ISO date, para dejar claro que no es permanente
+}
+
+// Cómo moverse DENTRO del destino, que es lo que no resuelve ningún
+// buscador de vuelos: qué medios hay, con qué se paga y qué conviene
+// saber antes de subirse.
+export interface TransporteLocal {
+  medios: string[];
+  comoSePaga: string;
+  apps?: string;
+  aviso?: string;
 }
 
 export interface Destino {

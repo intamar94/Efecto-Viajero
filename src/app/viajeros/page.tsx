@@ -9,13 +9,13 @@ export default function ViajerosPage() {
   const { hidratado, viajeros } = useData();
 
   return (
-    <main className="flex-1 px-6 py-10">
+    <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-2xl">
         <Cabecera titulo="Viajeros" subtitulo="Personas y mascotas. Estos datos se reutilizan en todos los viajes." />
 
         <Link
           href="/viajeros/nuevo"
-          className="mb-6 inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700"
+          className="btn-primary mb-6"
         >
           + Añadir viajero
         </Link>

@@ -1,27 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { useData } from "@/lib/store";
-import { detectarDestinoExplicito, evaluarCompatibilidad, interpretarTexto, type NecesidadesViaje } from "@/lib/explorador";
-import { DESTINOS } from "@/lib/destinos";
-import type { Destino } from "@/lib/types";
+import { detectarDestinoExplicito, interpretarTexto, type NecesidadesViaje } from "@/lib/explorador";
+import { buscarDestinoPorNombre } from "@/lib/destinos";
+import { MODOS } from "@/lib/modos";
+import type { ModoPlanificacion } from "@/lib/types";
 
 const EJEMPLOS = [
-  "Una semana con mi pareja, nuestra hija de 6 años y el gato. Naturaleza, pueblos tranquilos, máximo 1500 euros y sin conducir demasiado.",
-  "Quiero ir a Italia una semana desde Madrid, buena comida y pueblos bonitos.",
-  "Somos dos adultos y una niña de 6 años. Queremos aventura, playa y actividades para ella.",
+  "Comer bien, pasear por pueblos con calma y nada de madrugar.",
+  "Playa por la mañana y algo de aventura por la tarde, con nuestra hija de 6 años.",
+  "Museos, mercados y sitios donde podamos llevar al perro.",
 ];
 
+// Lo que el texto revela sin preguntar. Se muestra para que se vea que se
+// ha leído, no para que haya que tocarlo.
 function resumenLegible(n: NecesidadesViaje): string[] {
   const partes: string[] = [];
-  if (n.ciudadOrigen) partes.push(`desde ${n.ciudadOrigen}`);
-  if (n.duracionDias) partes.push(`${n.duracionDias} días`);
-  if (n.presupuestoMax) partes.push(`hasta ${n.presupuestoMax}€`);
   if (n.numAdultos) partes.push(`${n.numAdultos} adultos`);
   for (const edad of n.edadesMenores) partes.push(`menor de ${edad} años`);
   if (n.mascota) partes.push("🐾 con mascota");
+  if (n.presupuestoMax) partes.push(`hasta ${n.presupuestoMax}€`);
   if (n.ritmo) partes.push(`ritmo ${n.ritmo}`);
   if (n.sinConducirMucho) partes.push("sin conducir mucho");
   partes.push(...n.intereses);
@@ -31,165 +32,197 @@ function resumenLegible(n: NecesidadesViaje): string[] {
 export default function PlanificarPage() {
   const router = useRouter();
   const { crearViaje } = useData();
+
+  const [paso, setPaso] = useState<"describir" | "completar">("describir");
   const [texto, setTexto] = useState("");
   const [necesidades, setNecesidades] = useState<NecesidadesViaje | null>(null);
-  const [destinoDetectadoId, setDestinoDetectadoId] = useState<string | null>(null);
-  const [abierto, setAbierto] = useState<string | null>(null);
-  const [creando, setCreando] = useState<string | null>(null);
-  const [editandoTexto, setEditandoTexto] = useState(false);
+  const [creando, setCreando] = useState(false);
 
-  const destinoDetectado = destinoDetectadoId ? DESTINOS.find((d) => d.id === destinoDetectadoId) : undefined;
+  const [destinoInput, setDestinoInput] = useState("");
+  const [origenInput, setOrigenInput] = useState("");
+  const [fechaSalida, setFechaSalida] = useState("");
+  const [fechaRegreso, setFechaRegreso] = useState("");
+  const [duracionInput, setDuracionInput] = useState("");
+  const [modo, setModo] = useState<ModoPlanificacion | null>(null);
 
-  const resultados = useMemo(() => {
-    if (!necesidades) return [];
-    return evaluarCompatibilidad(necesidades, destinoDetectado ? [destinoDetectado] : DESTINOS);
-  }, [necesidades, destinoDetectado]);
-
-  // Al descubrir (primera vez o al editar), el resultado sustituye al
-  // formulario en la parte de arriba de la página en vez de apilarse
-  // debajo de él: así no hay que hacer scroll para verlo.
-  function descubrir(e?: React.FormEvent) {
-    e?.preventDefault();
+  // El texto libre ya no sirve para elegir destino entre una lista de
+  // porcentajes: sirve para saber qué quiere hacer el viajero. Los datos
+  // duros (dónde, desde dónde, cuándo, cómo) se preguntan una sola vez y
+  // solo los que no se hayan podido leer del texto.
+  function describir(e: React.FormEvent) {
+    e.preventDefault();
     if (!texto.trim()) return;
-    setNecesidades(interpretarTexto(texto));
-    setDestinoDetectadoId(detectarDestinoExplicito(texto)?.id ?? null);
-    setAbierto(null);
-    setEditandoTexto(false);
+    const n = interpretarTexto(texto);
+    setNecesidades(n);
+    setDestinoInput(detectarDestinoExplicito(texto)?.nombre ?? "");
+    setOrigenInput(n.ciudadOrigen ?? "");
+    setDuracionInput(n.duracionDias ? String(n.duracionDias) : "");
+    setPaso("completar");
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // El viaje se crea aquí mismo, sin pasar por un formulario aparte: sin
-  // fechas exactas obligatorias (basta con la duración, si se conoce) y
-  // sin exigir viajeros guardados de antemano. Lo que el texto ya reveló
-  // sobre quién viaja (adultos, menores, mascota) se guarda en el
-  // contexto para no volver a preguntarlo cuando se nombren de verdad.
-  function crearViajeCon(destino: Destino) {
-    if (!necesidades) return;
-    setCreando(destino.id);
+  function crear(e: React.FormEvent) {
+    e.preventDefault();
+    if (!necesidades || !destinoInput.trim()) return;
+    setCreando(true);
+
+    const destinoTexto = destinoInput.trim();
+    const catalogado = buscarDestinoPorNombre(destinoTexto);
+    const dias = Number.parseInt(duracionInput, 10);
+
     const nuevo = crearViaje({
-      destino: destino.nombre,
-      destinoId: destino.id,
+      destino: catalogado?.nombre ?? destinoTexto,
+      destinoId: catalogado?.id,
       viajerosIds: [],
+      fechaSalida: fechaSalida || undefined,
+      fechaRegreso: fechaRegreso || undefined,
+      modoPlanificacion: modo ?? undefined,
       contexto: {
         presupuestoTotal: necesidades.presupuestoMax,
-        duracionDias: necesidades.duracionDias,
+        duracionDias: Number.isNaN(dias) ? undefined : dias,
         numAdultos: necesidades.numAdultos,
         edadesMenores: necesidades.edadesMenores.length > 0 ? necesidades.edadesMenores : undefined,
         mascota: necesidades.mascota || undefined,
-        ciudadOrigen: necesidades.ciudadOrigen,
+        ciudadOrigen: origenInput.trim() || undefined,
       },
     });
     router.push(`/viajes/${nuevo.id}`);
   }
 
-  return (
-    <main className="flex-1 px-6 py-10">
-      <div className="mx-auto max-w-2xl">
-        <Cabecera titulo="Planificar un viaje" subtitulo="Cuéntanos qué viaje tienes en mente." />
+  if (paso === "describir") {
+    return (
+      <main className="flex-1 px-5 py-8">
+        <div className="mx-auto max-w-xl">
+          <Cabecera titulo="Planificar un viaje" subtitulo="Empecemos por lo que te apetece hacer." />
 
-        {!necesidades ? (
-          <>
-            <form onSubmit={descubrir} className="mb-3 rounded-2xl border border-neutral-200 bg-white p-4">
-              <textarea
-                className="input min-h-28 resize-y"
-                placeholder="Puedes escribirlo como quieras: quién viaja, cuándo, con qué presupuesto, si quieres algo tranquilo o de aventura. No necesitas conocer el destino ni rellenar un formulario."
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-              />
-              <button type="submit" className="mt-3 w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
-                Descubrir mi viaje
-              </button>
-            </form>
+          <form onSubmit={describir} className="card mb-3">
+            <label className="mb-2 block text-sm font-medium text-neutral-700">¿Qué esperas hacer en este viaje?</label>
+            <textarea
+              className="input min-h-32 resize-y"
+              placeholder="Escríbelo como se lo contarías a un amigo: qué te apetece, con quién vas, qué no quieres. Los datos concretos (dónde, cuándo) te los pedimos después, y solo los que hagan falta."
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+            />
+            <button type="submit" className="btn-primary mt-3 w-full">
+              Continuar →
+            </button>
+          </form>
 
-            <div className="mb-8 flex flex-wrap gap-2">
-              {EJEMPLOS.map((ej) => (
-                <button
-                  key={ej}
-                  onClick={() => setTexto(ej)}
-                  className="rounded-full border border-neutral-200 px-3 py-1 text-xs text-neutral-500 hover:border-neutral-900 hover:text-neutral-900"
-                >
-                  {ej.length > 46 ? `${ej.slice(0, 46)}…` : ej}
-                </button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="mb-4 flex flex-wrap items-center gap-1.5 text-sm text-neutral-500">
-              <span>Entendido:</span>
-              {resumenLegible(necesidades).map((parte, i) => (
-                <span key={i} className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
-                  {parte}
-                </span>
-              ))}
-              {resumenLegible(necesidades).length === 0 && <span className="text-neutral-400">sin criterios específicos</span>}
+          <div className="flex flex-wrap gap-2">
+            {EJEMPLOS.map((ej) => (
               <button
-                type="button"
-                onClick={() => setEditandoTexto((v) => !v)}
-                className="ml-auto shrink-0 text-xs text-neutral-400 underline hover:text-neutral-900"
+                key={ej}
+                onClick={() => setTexto(ej)}
+                className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-500 transition hover:border-coral-300 hover:text-neutral-900"
               >
-                {editandoTexto ? "Ocultar" : "✏️ Editar lo que escribiste"}
+                {ej.length > 42 ? `${ej.slice(0, 42)}…` : ej}
               </button>
-            </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    );
+  }
 
-            {editandoTexto && (
-              <form onSubmit={descubrir} className="mb-6 rounded-2xl border border-neutral-200 bg-white p-4">
-                <textarea className="input min-h-28 resize-y" value={texto} onChange={(e) => setTexto(e.target.value)} />
-                <button type="submit" className="mt-3 w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
-                  Actualizar
-                </button>
-              </form>
-            )}
+  const entendido = necesidades ? resumenLegible(necesidades) : [];
 
-            {resultados.length > 0 && (
-              <ul className="space-y-3">
-                {resultados.slice(0, 6).map(({ destino, porcentaje, criterios }) => (
-                  <li key={destino.id} className="rounded-2xl border border-neutral-200 bg-white p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{destino.nombre}</p>
-                        <p className="text-sm text-neutral-500">{destino.descripcion}</p>
-                      </div>
-                      {!destinoDetectado && <span className="text-xl font-semibold tabular-nums">{porcentaje}%</span>}
-                    </div>
+  return (
+    <main className="flex-1 px-5 py-8">
+      <div className="mx-auto max-w-xl">
+        <Cabecera titulo="Solo faltan estos datos" subtitulo="Lo demás ya lo hemos leído de lo que escribiste." />
 
-                    {!destinoDetectado && (
-                      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
-                        <div className="h-full rounded-full bg-neutral-900" style={{ width: `${porcentaje}%` }} />
-                      </div>
-                    )}
-
-                    <div className="mt-3 flex items-center justify-between">
-                      <button
-                        onClick={() => setAbierto(abierto === destino.id ? null : destino.id)}
-                        className="text-sm text-neutral-500 hover:text-neutral-900"
-                      >
-                        {abierto === destino.id ? "Ocultar detalle" : destinoDetectado ? "Ver por qué encaja" : "¿Por qué este porcentaje?"}
-                      </button>
-                      <button
-                        onClick={() => crearViajeCon(destino)}
-                        disabled={creando !== null}
-                        className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
-                      >
-                        {creando === destino.id ? "Creando…" : destinoDetectado ? "Continuar con este destino →" : "Crear viaje →"}
-                      </button>
-                    </div>
-
-                    {abierto === destino.id && (
-                      <ul className="mt-3 space-y-1 border-t border-neutral-100 pt-3 text-sm">
-                        {criterios.map((c, i) => (
-                          <li key={i} className={c.cumplido ? "text-emerald-700" : "text-neutral-400"}>
-                            {c.cumplido ? "✓" : "✗"} {c.etiqueta}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
+        {entendido.length > 0 && (
+          <div className="mb-5 flex flex-wrap items-center gap-1.5 rounded-2xl bg-marino-50 px-4 py-3 text-sm">
+            <span className="text-marino-700">Hemos entendido:</span>
+            {entendido.map((parte, i) => (
+              <span key={i} className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-marino-800">
+                {parte}
+              </span>
+            ))}
+          </div>
         )}
+
+        <form onSubmit={crear} className="card space-y-5">
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">
+              ¿A dónde vas? <span className="text-coral-600">*</span>
+            </span>
+            <input
+              className="input"
+              placeholder="ej. Japón, Toscana, Algarve…"
+              value={destinoInput}
+              onChange={(e) => setDestinoInput(e.target.value)}
+              autoFocus={!destinoInput}
+              required
+            />
+            {destinoInput && buscarDestinoPorNombre(destinoInput.trim()) && (
+              <span className="mt-1 block text-xs text-emerald-700">
+                ✓ Tenemos requisitos, actividades y transporte local de este destino.
+              </span>
+            )}
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">¿Desde dónde sales?</span>
+            <input className="input" placeholder="ej. Madrid" value={origenInput} onChange={(e) => setOrigenInput(e.target.value)} />
+            <span className="mt-1 block text-xs text-neutral-400">Lo necesitamos para buscar vuelos y trenes de verdad.</span>
+          </label>
+
+          <div>
+            <span className="mb-1 block text-sm font-medium text-neutral-700">¿Cuándo?</span>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs text-neutral-500">Salida</span>
+                <input type="date" className="input" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-neutral-500">Regreso</span>
+                <input type="date" className="input" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} />
+              </label>
+            </div>
+            {/* Sin fechas cerradas todavía se puede planificar: con los días
+                basta para calcular presupuesto y llenar el plan. */}
+            <label className="mt-2 block">
+              <span className="mb-1 block text-xs text-neutral-500">Si aún no tienes fechas, ¿cuántos días?</span>
+              <input
+                type="number"
+                min="1"
+                className="input"
+                placeholder="ej. 10"
+                value={duracionInput}
+                onChange={(e) => setDuracionInput(e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div>
+            <span className="mb-2 block text-sm font-medium text-neutral-700">¿Cómo quieres que se desarrolle?</span>
+            <div className="grid gap-2">
+              {MODOS.map((m) => (
+                <button
+                  key={m.valor}
+                  type="button"
+                  onClick={() => setModo(modo === m.valor ? null : m.valor)}
+                  className={`rounded-xl border p-3 text-left transition ${
+                    modo === m.valor ? "border-marino-500 bg-marino-50" : "border-neutral-200 hover:border-neutral-400"
+                  }`}
+                >
+                  <span className="block text-sm font-medium">{m.etiqueta}</span>
+                  <span className="block text-xs text-neutral-500">{m.descripcion}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2 border-t border-neutral-100 pt-4">
+            <button type="submit" disabled={creando || !destinoInput.trim()} className="btn-primary flex-1">
+              {creando ? "Creando…" : "Crear el viaje →"}
+            </button>
+            <button type="button" onClick={() => setPaso("describir")} className="btn-secondary">
+              Volver
+            </button>
+          </div>
+        </form>
       </div>
     </main>
   );

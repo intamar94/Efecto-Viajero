@@ -9,13 +9,13 @@ export default function ViajesPage() {
   const ordenados = [...viajes].sort((a, b) => (a.fechaSalida ?? "9999").localeCompare(b.fechaSalida ?? "9999"));
 
   return (
-    <main className="flex-1 px-6 py-10">
+    <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-2xl">
         <Cabecera titulo="Mis viajes" subtitulo="Viajes creados, con sus requisitos y estado." />
 
         <Link
           href="/planificar"
-          className="mb-6 inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700"
+          className="btn-primary mb-6"
         >
           ➕ Planificar un viaje
         </Link>

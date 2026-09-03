@@ -7,7 +7,7 @@ import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { alojamientosDe } from "@/lib/catalogo";
 import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
-import { urlBusquedaAlojamiento } from "@/lib/afiliados";
+import { buscadoresAlojamiento } from "@/lib/afiliados";
 
 export default function AlojamientoPage() {
   const params = useParams<{ id: string }>();
@@ -17,7 +17,7 @@ export default function AlojamientoPage() {
 
   if (!viaje) {
     return (
-      <main className="flex-1 px-6 py-10">
+      <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
           <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
         </div>
@@ -25,90 +25,101 @@ export default function AlojamientoPage() {
     );
   }
 
-  if (!destino) {
-    return (
-      <main className="flex-1 px-6 py-10">
-        <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Alojamiento" volverA={`/viajes/${viaje.id}`} />
-          <p className="text-sm text-neutral-500">
-            No hay referencia de precios disponible para &quot;{viaje.destino}&quot; (no coincide con ningún destino del sistema).
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  const opciones = alojamientosDe(destino);
-  const usadaEnPresupuesto = opciones.find((o) => o.id === viaje.alojamientoId);
+  const buscadores = buscadoresAlojamiento(viaje.destino, viaje.fechaSalida, viaje.fechaRegreso);
+  const referencias = destino ? alojamientosDe(destino) : [];
+  const usadaEnPresupuesto = referencias.find((o) => o.id === viaje.alojamientoId);
 
   return (
-    <main className="flex-1 px-6 py-10">
+    <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
-        <Cabecera titulo="Alojamiento" subtitulo={`Reservar en ${destino.nombre} y estimar el gasto de alojamiento.`} volverA={`/viajes/${viaje.id}`} />
+        <Cabecera titulo="Alojamiento" subtitulo={`Dónde dormir en ${viaje.destino}.`} volverA={`/viajes/${viaje.id}`} />
         <ViajeToolsNav viajeId={viaje.id} />
 
-        <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
-          <h2 className="mb-3 font-medium">Reservar de verdad</h2>
-          <a
-            href={urlBusquedaAlojamiento(destino.nombre, viaje.fechaSalida, viaje.fechaRegreso)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700"
-          >
-            🏨 Buscar en Booking.com
-          </a>
-          <p className="mt-3 text-sm text-neutral-500">
-            Cuando confirmes la reserva, guarda el documento en el{" "}
-            <Link href={`/viajes/${viaje.id}/vault`} className="underline">
+        {/* Cuatro webs distintas porque cubren viajes distintos: no tiene
+            sentido empujar a una sola cuando el mismo viajero puede querer
+            hotel en pareja y albergue solo. */}
+        <section className="card mb-6">
+          <h2 className="mb-1 font-medium">Buscar y reservar</h2>
+          <p className="mb-4 text-xs text-neutral-400">
+            La reserva se hace en la web del proveedor, con tu destino y fechas ya puestos.
+          </p>
+
+          <ul className="space-y-2">
+            {buscadores.map((b) => (
+              <li key={b.id}>
+                <a
+                  href={b.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 rounded-xl border border-neutral-200 px-4 py-3 transition hover:border-marino-500 hover:bg-marino-50"
+                >
+                  <span className="text-xl">{b.icono}</span>
+                  <span className="flex-1">
+                    <span className="block text-sm font-medium text-neutral-900">{b.nombre}</span>
+                    <span className="block text-xs text-neutral-500">{b.descripcion}</span>
+                  </span>
+                  <span className="text-neutral-300 transition group-hover:translate-x-0.5 group-hover:text-marino-600">↗</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-4 text-sm text-neutral-500">
+            Cuando confirmes, sube el documento al{" "}
+            <Link href={`/viajes/${viaje.id}/vault`} className="text-marino-600 underline">
               Travel Vault
             </Link>{" "}
-            para tenerlo a mano en el viaje.
+            y se archiva solo.
           </p>
         </section>
 
-        <section className="rounded-2xl border border-neutral-200 bg-white p-5">
-          <h2 className="mb-1 font-medium">Cuánto puedes esperar pagar</h2>
-          <p className="mb-4 text-xs text-neutral-400">
-            Referencia orientativa por zona — no son alojamientos reales ni una reserva. Sirve solo para calcular el presupuesto del viaje.
-          </p>
-          <ul className="space-y-3">
-            {opciones.map((o) => {
-              const usada = viaje.alojamientoId === o.id;
-              return (
-                <li key={o.id} className="rounded-xl border border-neutral-200 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium capitalize">{o.ubicacion}</p>
-                      <p className="text-sm text-neutral-500">{o.nombre}</p>
-                    </div>
-                    <p className="text-lg font-semibold tabular-nums">{o.precioNoche}€/noche</p>
-                  </div>
-
-                  <ul className="mt-3 space-y-1 text-sm">
-                    {o.pros.map((p, i) => (
-                      <li key={i} className="text-emerald-700">✓ {p}</li>
-                    ))}
-                    {o.contras.map((c, i) => (
-                      <li key={i} className="text-neutral-500">✗ {c}</li>
-                    ))}
-                  </ul>
-
-                  <button
-                    onClick={() => actualizarViaje(viaje.id, { alojamientoId: usada ? undefined : o.id })}
-                    className={`mt-3 text-sm underline ${usada ? "text-neutral-900" : "text-neutral-400 hover:text-neutral-900"}`}
-                  >
-                    {usada ? "✓ En tu presupuesto — quitar" : "Usar para mi presupuesto"}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {!usadaEnPresupuesto && (
-            <p className="mt-4 text-xs text-neutral-400">
-              Elige una zona de referencia para que el presupuesto del viaje cuente el alojamiento.
+        {/* Esto es un consejo de cuánto presupuestar, no una lista de
+            alojamientos que se puedan elegir aquí: por eso va con el
+            formato de consejo y no con el de tarjeta seleccionable. */}
+        {referencias.length > 0 && (
+          <section className="tip">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-coral-700">Consejo</p>
+            <h2 className="mb-1 font-medium text-neutral-900">Cuánto contar por noche</h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              En {destino?.nombre}, según la zona donde duermas, esto es lo que conviene presupuestar. Son cifras
+              orientativas por zona — no son alojamientos reales ni una reserva.
             </p>
-          )}
-        </section>
+
+            <ul className="space-y-3">
+              {referencias.map((o) => {
+                const usada = viaje.alojamientoId === o.id;
+                return (
+                  <li key={o.id} className="rounded-xl bg-white/80 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium capitalize text-neutral-900">{o.ubicacion}</p>
+                        <p className="mt-1 text-xs text-emerald-700">✓ {o.pros.join(" · ")}</p>
+                        <p className="text-xs text-neutral-500">✗ {o.contras.join(" · ")}</p>
+                      </div>
+                      <p className="shrink-0 text-lg font-semibold tabular-nums text-neutral-900">
+                        {o.precioNoche}€
+                        <span className="block text-right text-xs font-normal text-neutral-400">por noche</span>
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => actualizarViaje(viaje.id, { alojamientoId: usada ? undefined : o.id })}
+                      className={`mt-2 text-xs underline ${usada ? "text-marino-700" : "text-neutral-400 hover:text-neutral-900"}`}
+                    >
+                      {usada ? "✓ Contando esta zona en el presupuesto — quitar" : "Contar esta zona en mi presupuesto"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {!usadaEnPresupuesto && (
+              <p className="mt-4 text-xs text-neutral-500">
+                Elige una zona de referencia y el presupuesto del viaje empezará a contar el alojamiento.
+              </p>
+            )}
+          </section>
+        )}
       </div>
     </main>
   );

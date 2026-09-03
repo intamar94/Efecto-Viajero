@@ -6,18 +6,7 @@ import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
-
-// Número de emergencias único a nivel nacional. Es información pública y
-// estable, pero conviene confirmarla al llegar: algunos países reparten
-// policía/ambulancia/bomberos en números distintos.
-const EMERGENCIAS_POR_PAIS: Record<string, string> = {
-  SI: "112", AT: "112", DE: "112", PT: "112", IT: "112", ES: "112", GR: "112", FR: "112", NL: "112",
-  CR: "911",
-  MA: "19 (policía) / 15 (ambulancia)",
-  TH: "191 (policía) / 1669 (ambulancia) / 1155 (policía turística)",
-  CO: "123",
-  JP: "110 (policía) / 119 (ambulancia y bomberos)",
-};
+import { CONTACTOS_POR_PAIS, urlBuscarConsulado } from "@/lib/emergencias";
 
 const PROBLEMAS = [
   {
@@ -26,7 +15,7 @@ const PROBLEMAS = [
     titulo: "Perdí el pasaporte o el DNI",
     pasos: [
       "Denuncia la pérdida o robo en la policía local y guarda la copia de la denuncia.",
-      "Contacta con la embajada o consulado de tu país para un documento de viaje de emergencia.",
+      "Contacta con tu embajada o consulado para un documento de viaje de emergencia (enlace arriba).",
       "Revisa si tu seguro de viaje cubre gestiones o gastos asociados.",
     ],
   },
@@ -89,20 +78,20 @@ const PROBLEMAS = [
     pasos: [
       "Dentro de la UE, la Tarjeta Sanitaria Europea da acceso a asistencia pública si la tienes.",
       "Fuera de la UE, revisa tu seguro de viaje y su teléfono de asistencia.",
-      "Para una urgencia grave, el número de emergencias local es el paso más rápido (112 en la UE).",
+      "Para una urgencia grave, usa el número de emergencias de arriba.",
     ],
   },
 ];
 
 export default function ResolverPage() {
   const params = useParams<{ id: string }>();
-  const { obtenerViaje } = useData();
+  const { obtenerViaje, viajeros } = useData();
   const viaje = obtenerViaje(params.id);
   const [abierto, setAbierto] = useState<string | null>(null);
 
   if (!viaje) {
     return (
-      <main className="flex-1 px-6 py-10">
+      <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
           <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
         </div>
@@ -111,24 +100,97 @@ export default function ResolverPage() {
   }
 
   const destino = buscarDestinoPorId(viaje.destinoId) ?? buscarDestinoPorNombre(viaje.destino);
-  const emergencias = destino ? EMERGENCIAS_POR_PAIS[destino.paisCodigo] : undefined;
+  const contacto = destino ? CONTACTOS_POR_PAIS[destino.paisCodigo] : undefined;
+
+  // El consulado que sirve a cada viajero depende de SU nacionalidad, no
+  // del destino: se usa la que ya está registrada en Viajeros para que la
+  // búsqueda sea la correcta desde el primer clic.
+  const nacionalidad = viajeros
+    .filter((v) => viaje.viajerosIds.includes(v.id) && v.tipo === "persona")
+    .map((v) => (v.tipo === "persona" ? v.nacionalidad : undefined))
+    .find(Boolean);
+  const paisDestino = destino?.pais ?? viaje.destino;
 
   return (
-    <main className="flex-1 px-6 py-10">
+    <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
-        <Cabecera titulo="🆘 Necesito ayuda" subtitulo="Pasos orientativos. En una urgencia real, prioriza siempre el número de emergencias local." volverA={`/viajes/${viaje.id}`} />
+        <Cabecera
+          titulo="Necesito ayuda"
+          subtitulo="Pasos orientativos. En una urgencia real, llama primero al número de emergencias."
+          volverA={`/viajes/${viaje.id}`}
+        />
         <ViajeToolsNav viajeId={viaje.id} />
 
-        {emergencias && (
-          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            <span className="font-medium">Emergencias en {destino?.pais}: {emergencias}</span>
-          </div>
-        )}
+        <section className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-red-700">Emergencias en {paisDestino}</p>
+          {contacto ? (
+            <>
+              <p className="text-xl font-semibold text-red-900">{contacto.emergencias}</p>
+              {contacto.telefonoTurista && (
+                <p className="mt-1 text-sm text-red-800">
+                  <span className="font-medium">Atención al turista:</span> {contacto.telefonoTurista}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-red-800">
+              No tenemos ficha verificada para este destino. En la UE el número único es <strong>112</strong>; fuera,
+              confírmalo al llegar en tu alojamiento o en el aeropuerto.
+            </p>
+          )}
+        </section>
 
-        <ul className="space-y-3">
+        <section className="card mb-6">
+          <h2 className="mb-3 font-medium">Autoridades y consulado</h2>
+          <ul className="space-y-2 text-sm">
+            {contacto?.autoridad && (
+              <li>
+                <a
+                  href={contacto.autoridad.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-4 py-3 transition hover:border-marino-500 hover:bg-marino-50"
+                >
+                  <span>
+                    <span className="block font-medium text-neutral-900">🏛️ {contacto.autoridad.nombre}</span>
+                    <span className="block text-xs text-neutral-500">Web oficial: denuncias, comisarías y avisos.</span>
+                  </span>
+                  <span className="text-neutral-300">↗</span>
+                </a>
+              </li>
+            )}
+            <li>
+              <a
+                href={urlBuscarConsulado(paisDestino, nacionalidad)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-4 py-3 transition hover:border-marino-500 hover:bg-marino-50"
+              >
+                <span>
+                  <span className="block font-medium text-neutral-900">
+                    🛂 {nacionalidad ? `Consulado de ${nacionalidad} en ${paisDestino}` : `Tu consulado en ${paisDestino}`}
+                  </span>
+                  <span className="block text-xs text-neutral-500">
+                    {nacionalidad
+                      ? "Dirección y teléfono actualizados, con la nacionalidad de tu ficha de viajero."
+                      : "Añade la nacionalidad en Viajeros y la búsqueda saldrá directa."}
+                  </span>
+                </span>
+                <span className="text-neutral-300">↗</span>
+              </a>
+            </li>
+          </ul>
+          <p className="mt-3 text-xs text-neutral-400">
+            No guardamos teléfonos ni correos de consulados: cambian a menudo y dar uno caducado en una urgencia es peor
+            que no dar ninguno. El enlace te lleva a la información oficial vigente.
+          </p>
+        </section>
+
+        <h2 className="mb-2 font-medium">¿Qué te ha pasado?</h2>
+        <ul className="space-y-2">
           {PROBLEMAS.map((p) => (
-            <li key={p.id} className="rounded-2xl border border-neutral-200 bg-white p-5">
-              <button onClick={() => setAbierto(abierto === p.id ? null : p.id)} className="flex w-full items-center justify-between text-left">
+            <li key={p.id} className="rounded-2xl border border-neutral-200 bg-white p-4">
+              <button onClick={() => setAbierto(abierto === p.id ? null : p.id)} className="flex w-full items-center justify-between gap-3 text-left">
                 <span className="font-medium">
                   {p.icono} {p.titulo}
                 </span>

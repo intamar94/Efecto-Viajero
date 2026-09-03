@@ -30,7 +30,7 @@ export function ViajeToolsNav({ viajeId }: { viajeId: string }) {
             key={h.href}
             href={href}
             className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-              activo ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 text-neutral-600 hover:border-neutral-900"
+              activo ? "border-marino-700 bg-marino-700 text-white" : "border-neutral-200 text-neutral-600 hover:border-marino-500"
             }`}
           >
             {h.icono} {h.titulo}

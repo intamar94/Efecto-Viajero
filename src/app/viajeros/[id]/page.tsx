@@ -36,7 +36,7 @@ export default function ViajeroDetallePage() {
 
   if (!viajero) {
     return (
-      <main className="flex-1 px-6 py-10">
+      <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
           <Cabecera titulo="Viajero no encontrado" volverA="/viajeros" />
         </div>
@@ -76,7 +76,7 @@ export default function ViajeroDetallePage() {
   }
 
   return (
-    <main className="flex-1 px-6 py-10">
+    <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
         <Cabecera
           titulo={`${viajero.tipo === "persona" ? "🧑" : "🐾"} ${viajero.nombre}`}
@@ -155,7 +155,7 @@ export default function ViajeroDetallePage() {
               onChange={(e) => setNuevoDocLugar(e.target.value)}
             />
             <input type="date" className="input" value={nuevoDocVencimiento} onChange={(e) => setNuevoDocVencimiento(e.target.value)} />
-            <button type="submit" className="col-span-2 rounded-xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700">
+            <button type="submit" className="btn-primary col-span-2">
               + Añadir documento
             </button>
           </form>
