@@ -23,8 +23,11 @@ const TIPOS_DOCUMENTO: { valor: TipoDocumento; etiqueta: string }[] = [
 export default function ViajeroDetallePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { obtenerViajero, actualizarViajero, eliminarViajero } = useData();
+  const { obtenerViajero, actualizarViajero, eliminarViajero, viajes } = useData();
   const viajero = obtenerViajero(params.id);
+  const historial = viajero
+    ? [...viajes].filter((v) => v.viajerosIds.includes(viajero.id)).sort((a, b) => b.fechaSalida.localeCompare(a.fechaSalida))
+    : [];
 
   const [nuevoDocTipo, setNuevoDocTipo] = useState<TipoDocumento>("pasaporte");
   const [nuevoDocNombre, setNuevoDocNombre] = useState("");
@@ -148,6 +151,23 @@ export default function ViajeroDetallePage() {
             </button>
           </form>
         </section>
+
+        {historial.length > 0 && (
+          <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-6">
+            <h2 className="mb-1 font-medium">Historial de viajes</h2>
+            <p className="mb-4 text-xs text-neutral-400">Ayuda a sugerir, pero el viaje actual siempre manda.</p>
+            <ul className="space-y-2">
+              {historial.map((v) => (
+                <li key={v.id}>
+                  <Link href={`/viajes/${v.id}`} className="flex items-center justify-between rounded-xl bg-neutral-50 px-4 py-2 text-sm hover:bg-neutral-100">
+                    <span>{v.destino}</span>
+                    <span className="text-neutral-500">{v.fechaSalida}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="flex items-center justify-between">
           <Link href="/viajes/nuevo" className="text-sm text-neutral-500 hover:text-neutral-900">

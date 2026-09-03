@@ -56,6 +56,94 @@ export interface ContextoViaje {
   duracionDias?: number;
 }
 
+export type ModoPlanificacion = "completo" | "poco_a_poco" | "dejarse_llevar";
+
+export type ModoTransporte =
+  | "avion"
+  | "tren"
+  | "autobus"
+  | "metro"
+  | "taxi"
+  | "coche_alquiler"
+  | "a_pie"
+  | "otro";
+
+export interface TramoTransporte {
+  id: string;
+  modo: ModoTransporte;
+  origen: string;
+  destino: string;
+  horaSalida?: string; // ISO datetime local, ej "2026-10-12T09:40"
+  costeEstimado?: number;
+  notas?: string;
+}
+
+export interface OpcionAlojamiento {
+  id: string;
+  nombre: string;
+  ubicacion: "centro" | "afueras" | "cerca de estación/aeropuerto";
+  precioNoche: number;
+  mascotaFriendly: boolean;
+  pros: string[];
+  contras: string[];
+}
+
+export type EstadoActividad = "disponible" | "planificada" | "reservada" | "realizada" | "descartada";
+
+export interface ActividadDestino {
+  id: string;
+  nombre: string;
+  tipo: string; // naturaleza, gastronomia, cultura, playa, compras...
+  duracionHoras: number;
+  costeEstimado: number;
+  apta: string[]; // interior, exterior, familiar, tranquilo...
+  descripcion: string;
+}
+
+export interface ActividadViaje {
+  actividadId: string; // referencia a ActividadDestino.id
+  estado: EstadoActividad;
+}
+
+export interface DocumentoViaje {
+  id: string;
+  tipo: string; // vuelo, tren, hotel, seguro, otro
+  proveedor: string;
+  referencia?: string;
+  fecha?: string;
+  hora?: string;
+  direccion?: string;
+  notas?: string;
+}
+
+export interface SouvenirDestino {
+  id: string;
+  nombre: string;
+  origen: string;
+  precioAprox: string;
+  descripcion: string;
+}
+
+export interface SouvenirAsignado {
+  id: string;
+  souvenirId: string;
+  paraNombre: string;
+}
+
+export interface Votacion {
+  id: string;
+  pregunta: string;
+  opciones: string[];
+  votos: Record<string, string>; // nombreParticipante -> opción elegida
+}
+
+export interface Recuerdo {
+  id: string;
+  titulo: string;
+  fecha?: string;
+  nota?: string;
+}
+
 export interface Viaje {
   id: string;
   destino: string;
@@ -65,6 +153,16 @@ export interface Viaje {
   fechaRegreso: string; // ISO date
   contexto: ContextoViaje;
   createdAt: string;
+
+  modoPlanificacion?: ModoPlanificacion;
+  transporte: TramoTransporte[];
+  alojamientoId?: string; // referencia a una OpcionAlojamiento generada por catalogo.ts
+  actividades: ActividadViaje[];
+  documentos: DocumentoViaje[];
+  souvenirs: SouvenirAsignado[];
+  participantes: string[]; // nombres, viaje compartido local
+  votaciones: Votacion[];
+  recuerdos: Recuerdo[];
 }
 
 export type EstadoRequisito = "verde" | "amarillo" | "rojo";

@@ -6,42 +6,63 @@ Una plataforma que entiende al viajero, el contexto del viaje y las
 condiciones reales, y consigue que todo el viaje encaje — no otra agencia
 de viajes, comparador o chatbot de itinerarios.
 
-## Estado actual (MVP — B01 + B02)
+## Estado actual (B01–B19)
 
-Este primer recorte demuestra el núcleo descrito en el prompt maestro:
+Todos los bloques del roadmap están implementados a nivel funcional,
+dentro de las limitaciones honestas de este entorno: **no hay backend,
+IA conectada a la app, ni contratos con aerolíneas/hoteles/fuentes
+oficiales**. Donde el bloque original pide eso (extracción automática de
+PDFs, integraciones reales, sincronizar el mismo viaje entre varios
+móviles), se ha construido el patrón de interacción con datos de
+demostración claramente señalados como tales — nunca presentados como
+reales. **B20 (integraciones reales)** queda explícitamente sin
+construir por depender de esos contratos externos.
 
-> Usuario → describe el viaje → el sistema lo entiende → selecciona
-> viajeros → si no hay destino, propone destinos compatibles; si lo
-> hay, continúa → comprueba compatibilidad → construye una primera
-> propuesta → detecta requisitos.
-
-Implementado:
-
-- **Pantalla principal** limpia con tres entradas: Planificar un viaje /
-  Mis viajes / Viajeros.
-- **Viajeros**: personas y mascotas como datos permanentes (documentos,
-  nacionalidad, microchip, etc.), reutilizables en cualquier viaje.
-- **Planificar un viaje** (puerta única, caso A/B de la sección 6): una
-  caja de texto libre traduce la descripción a necesidades estructuradas
-  (duración, presupuesto, mascota, intereses, ritmo…). Si el texto ya
-  menciona un destino, lo detecta y confirma directamente; si no, calcula
-  compatibilidad porcentual contra un dataset de destinos, con
-  explicación de cada criterio. El resultado aparece de inmediato tras
-  escribir — sin ningún campo que rellenar o corregir a mano; para
-  ajustar algo, se reescribe la descripción en lenguaje natural, que
-  sigue siendo la única interfaz.
-- **Mis viajes**: creación de viaje reutilizando los viajeros guardados
-  (sin repetir datos, todos preseleccionados por defecto), y un **motor
-  de requisitos** de demostración que clasifica cada viajero en 🟢 No
-  detectado / 🟡 Revisar / 🔴 Obligatorio por documentación, visado,
-  salud y requisitos de mascota.
+- **B01 Viajeros + entrada** — pantalla principal, ficha de personas y
+  mascotas con documentos, creación básica de viaje.
+- **B02 Comprensión del viaje** — `/planificar`: texto libre →
+  necesidades estructuradas, detección de destino explícito o
+  compatibilidad con destinos, sin fricción de edición.
+- **B03 Construcción flexible** — elegir cómo organizar el viaje
+  (completo / poco a poco / dejarse llevar) en el hub del viaje.
+- **B04 Compatibilidad** — si el presupuesto se excede, la app sugiere
+  un ajuste concreto ("Cambiar a alojamiento más barato", "Quitar la
+  actividad más cara") con "Ajustar automáticamente" o "Decidir yo".
+- **B05 Transporte** — tramos combinables (avión/tren/bus/coche…) con
+  coste y hora.
+- **B06 Alojamiento** — 3 opciones por destino con pros/contras y
+  comparación de precio.
+- **B07 Actividades** — bolsa de posibilidades con estados disponible →
+  planificada → reservada → realizada.
+- **B08 Travel Vault** — reservas guardadas a mano (sin extracción
+  automática de PDFs/emails: no hay IA conectada a la app).
+- **B09 Presupuesto** — planificado vs. disponible, en vivo, agregando
+  transporte + alojamiento + actividades.
+- **B11+B12+B13 Travel Mode** — "ahora" según fecha real, "tengo X horas
+  libres", y adaptación (lluvia / cansancio / transporte perdido) sobre
+  el catálogo de actividades.
+- **B14 Souvenirs** — catálogo por destino + lista de regalos.
+- **B15 Modo Resolver** — pasos de referencia para problemas comunes
+  (pasaporte perdido, vuelo cancelado, etc.).
+- **B16 Viajes compartidos** — participantes y votaciones **en este
+  dispositivo**; sincronizar entre varios móviles necesita cuenta y
+  backend reales, señalado explícitamente en la pantalla.
+- **B17 Travel Memory** — línea de tiempo de momentos del viaje.
+- **B18 Memoria del viajero** — historial de viajes anteriores en la
+  ficha del viajero (solo lectura; el viaje actual siempre manda).
+- **B19 Travel Brain** — no es una pantalla más: agrega requisitos +
+  presupuesto + transporte + alojamiento + actividades en un resumen de
+  2-5 conclusiones accionables al principio del hub del viaje.
+- **B10 Preparación offline** — no construido (necesita una estrategia
+  de caché/PWA que no forma parte de este recorte).
 
 Persistencia: `localStorage` en el navegador (capa `src/lib/store.tsx`),
 pensada para sustituirse por un backend real sin tocar las pantallas.
 
-El motor de requisitos y el dataset de destinos son **heurísticos y
-orientativos** — no sustituyen fuentes oficiales; cada resultado incluye
-un aviso en ese sentido, tal como exige el diseño del producto.
+El motor de requisitos y los catálogos (destinos, alojamiento,
+actividades, souvenirs) son **heurísticos y orientativos** — no
+sustituyen fuentes oficiales ni proveedores reales; cada resultado deja
+claro que es una estimación.
 
 ## Desarrollo
 
@@ -61,29 +82,40 @@ npm run build
 
 ```
 src/
-  app/               rutas (Next.js App Router)
-    viajeros/        listar, crear, editar viajeros
-    viajes/          listar, crear, ver viaje + requisitos
-    planificar/      puerta única: texto libre → necesidades → destino(s)
-  components/        UI compartida (cabecera, badge de estado)
+  app/
+    viajeros/                listar, crear, editar viajeros (+ historial B18)
+    planificar/               puerta única B02: texto libre → necesidades → destino(s)
+    viajes/
+      nuevo/                  crear viaje (viajeros preseleccionados)
+      [id]/                   hub: resumen (B19), B03, presupuesto (B09), requisitos
+        transporte/           B05
+        alojamiento/          B06
+        actividades/          B07 (bolsa de posibilidades)
+        vault/                B08 (Travel Vault)
+        modo/                 B11+B12+B13 (Travel Mode)
+        resolver/             B15 (Modo Resolver)
+        souvenirs/            B14
+        compartido/           B16 (participantes + votaciones locales)
+        recuerdos/            B17 (Travel Memory)
+  components/                 UI compartida (cabecera, badge de estado)
   lib/
-    types.ts         modelo de datos
-    store.tsx         persistencia (localStorage) + contexto React
-    destinos.ts       dataset de destinos de demostración
-    explorador.ts     parseo NL → necesidades + detección de destino + scoring
-    requisitos.ts     motor de requisitos por viajero/destino
-    edad.ts, id.ts    utilidades
+    types.ts                  modelo de datos
+    store.tsx                 persistencia (localStorage) + contexto React
+    destinos.ts                dataset de destinos de demostración
+    catalogo.ts                alojamiento/actividades/souvenirs generados por destino
+    explorador.ts              parseo NL → necesidades + detección de destino + scoring
+    requisitos.ts               motor de requisitos por viajero/destino
+    compatibilidad.ts           B04+B09: presupuesto y sugerencia de ajuste
+    travelBrain.ts              B19: agrega todo en un resumen accionable
+    edad.ts, fecha.ts, id.ts    utilidades
 ```
 
-## Próximos bloques
+## Pendiente
 
-B02 avanzado con LLM real (el parseo actual es heurístico), B03
-construcción flexible del viaje (planificar completo / poco a poco /
-dejarse llevar), B04 compatibilidad con resolución de conflictos, B05
-transporte combinado, B06 alojamiento, B07 actividades + bolsa de
-posibilidades, B08 Travel Vault, B09 presupuesto vivo, B10 preparación
-offline, B11 Travel Mode, B12 adaptación en tiempo real, B13 exploración
-local, B14 souvenirs, B15 modo Resolver, B16 viajes compartidos, B17
-memoria del viaje, B18 memoria del viajero, B19 Travel Brain, B20
-integraciones — ver el prompt maestro del producto para el detalle de
-cada bloque.
+- **B10** preparación offline (requiere estrategia PWA/caché).
+- **B20** integraciones reales (aerolíneas, hoteles, seguros, fuentes
+  oficiales) — necesita contratos y credenciales externas que no
+  existen en este entorno.
+- Sustituir el parseo heurístico de `/planificar` por un LLM real.
+- Sincronización real entre dispositivos para viajes compartidos
+  (cuenta + backend).

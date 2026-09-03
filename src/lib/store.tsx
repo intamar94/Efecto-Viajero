@@ -39,7 +39,12 @@ interface DataContextValue {
   actualizarViajero: (id: string, cambios: Partial<Viajero>) => void;
   eliminarViajero: (id: string) => void;
   obtenerViajero: (id: string) => Viajero | undefined;
-  crearViaje: (datos: Omit<Viaje, "id" | "createdAt">) => Viaje;
+  crearViaje: (
+    datos: Omit<
+      Viaje,
+      "id" | "createdAt" | "transporte" | "actividades" | "documentos" | "souvenirs" | "participantes" | "votaciones" | "recuerdos"
+    >
+  ) => Viaje;
   actualizarViaje: (id: string, cambios: Partial<Viaje>) => void;
   eliminarViaje: (id: string) => void;
   obtenerViaje: (id: string) => Viaje | undefined;
@@ -114,7 +119,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   const crearViaje = useCallback<DataContextValue["crearViaje"]>((datos) => {
-    const nuevo: Viaje = { ...datos, id: generarId(), createdAt: new Date().toISOString() };
+    const nuevo: Viaje = {
+      ...datos,
+      id: generarId(),
+      createdAt: new Date().toISOString(),
+      transporte: [],
+      actividades: [],
+      documentos: [],
+      souvenirs: [],
+      participantes: [],
+      votaciones: [],
+      recuerdos: [],
+    };
     setViajes((prev) => [...prev, nuevo]);
     return nuevo;
   }, []);
