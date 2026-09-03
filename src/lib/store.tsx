@@ -30,8 +30,12 @@ function escribirEnStorage<T>(clave: string, valor: T) {
   window.localStorage.setItem(clave, JSON.stringify(valor));
 }
 
+const MENSAJE_ERROR_GUARDADO =
+  "No se ha podido guardar el último cambio: el almacenamiento del navegador está lleno. Borra fotos antiguas en Recuerdos o libera espacio en el dispositivo.";
+
 interface DataContextValue {
   hidratado: boolean;
+  errorGuardado: string | null;
   viajeros: Viajero[];
   viajes: Viaje[];
   crearPersona: (datos: Omit<PersonaViajero, "id" | "tipo" | "documentos" | "createdAt"> & { documentos?: Documento[] }) => PersonaViajero;
@@ -56,6 +60,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [hidratado, setHidratado] = useState(false);
   const [viajeros, setViajeros] = useState<Viajero[]>([]);
   const [viajes, setViajes] = useState<Viaje[]>([]);
+  const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
 
   useEffect(() => {
     // Se lee localStorage tras montar (no en el render) para que el HTML
@@ -67,12 +72,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setHidratado(true);
   }, []);
 
+  // localStorage.setItem puede lanzar (cuota llena — las fotos de Recuerdos
+  // son lo más probable que la agote). Sin este try/catch el cambio se
+  // pierde en silencio: el usuario ve que "no se guarda" sin ningún aviso.
   useEffect(() => {
-    if (hidratado) escribirEnStorage(CLAVE_VIAJEROS, viajeros);
+    if (!hidratado) return;
+    try {
+      escribirEnStorage(CLAVE_VIAJEROS, viajeros);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setErrorGuardado(null);
+    } catch {
+      setErrorGuardado(MENSAJE_ERROR_GUARDADO);
+    }
   }, [viajeros, hidratado]);
 
   useEffect(() => {
-    if (hidratado) escribirEnStorage(CLAVE_VIAJES, viajes);
+    if (!hidratado) return;
+    try {
+      escribirEnStorage(CLAVE_VIAJES, viajes);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setErrorGuardado(null);
+    } catch {
+      setErrorGuardado(MENSAJE_ERROR_GUARDADO);
+    }
   }, [viajes, hidratado]);
 
   const crearPersona = useCallback<DataContextValue["crearPersona"]>((datos) => {
@@ -151,6 +173,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const value = useMemo<DataContextValue>(
     () => ({
       hidratado,
+      errorGuardado,
       viajeros,
       viajes,
       crearPersona,
@@ -165,6 +188,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }),
     [
       hidratado,
+      errorGuardado,
       viajeros,
       viajes,
       crearPersona,

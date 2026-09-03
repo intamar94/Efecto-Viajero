@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
+import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { URL_BUS, URL_TREN, urlBusquedaVuelos } from "@/lib/afiliados";
@@ -42,6 +43,8 @@ export default function TransportePage() {
   const [horaSalida, setHoraSalida] = useState("");
   const [coste, setCoste] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [ciudadOrigenInput, setCiudadOrigenInput] = useState("");
+  const [editandoOrigen, setEditandoOrigen] = useState(false);
 
   if (!viaje) {
     return (
@@ -77,21 +80,59 @@ export default function TransportePage() {
     actualizarViaje(viaje.id, { transporte: viaje.transporte.filter((t) => t.id !== id) });
   }
 
+  function guardarOrigen(e: React.FormEvent) {
+    e.preventDefault();
+    if (!viaje) return;
+    actualizarViaje(viaje.id, { contexto: { ...viaje.contexto, ciudadOrigen: ciudadOrigenInput.trim() || undefined } });
+    setEditandoOrigen(false);
+  }
+
   const ordenados = [...viaje.transporte].sort((a, b) => (a.horaSalida ?? "").localeCompare(b.horaSalida ?? ""));
 
   return (
     <main className="flex-1 px-6 py-10">
       <div className="mx-auto max-w-xl">
         <Cabecera titulo="Transporte" subtitulo="Cómo os movéis durante el viaje, tramo a tramo." volverA={`/viajes/${viaje.id}`} />
+        <ViajeToolsNav viajeId={viaje.id} />
 
         <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
           <h2 className="mb-1 font-medium">Buscar y reservar de verdad</h2>
           <p className="mb-3 text-xs text-neutral-400">
             Te lleva a la web real del proveedor para completar la reserva. Vuelve aquí y guarda el ticket en el Travel Vault.
           </p>
+
+          <div className="mb-3 flex items-center gap-2 text-sm">
+            <span className="text-neutral-500">Saliendo desde:</span>
+            {editandoOrigen ? (
+              <form onSubmit={guardarOrigen} className="flex flex-1 gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="ej. Madrid"
+                  value={ciudadOrigenInput}
+                  onChange={(e) => setCiudadOrigenInput(e.target.value)}
+                  autoFocus
+                />
+                <button type="submit" className="shrink-0 rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700">
+                  Guardar
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setCiudadOrigenInput(viaje.contexto.ciudadOrigen ?? "");
+                  setEditandoOrigen(true);
+                }}
+                className="font-medium text-neutral-700 underline hover:text-neutral-900"
+              >
+                {viaje.contexto.ciudadOrigen ?? "sin definir — añadir"}
+              </button>
+            )}
+          </div>
+
           <div className="flex flex-wrap gap-2">
             <a
-              href={urlBusquedaVuelos(viaje.destino, undefined, viaje.fechaSalida, viaje.fechaRegreso)}
+              href={urlBusquedaVuelos(viaje.destino, viaje.contexto.ciudadOrigen, viaje.fechaSalida, viaje.fechaRegreso)}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:border-neutral-900"

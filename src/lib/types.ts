@@ -62,6 +62,10 @@ export interface ContextoViaje {
   numAdultos?: number;
   edadesMenores?: number[];
   mascota?: boolean;
+  // Ciudad desde la que se sale, no el destino. Se usa para las búsquedas
+  // de vuelos (necesitan origen y destino) — no confundir con el origen
+  // de un tramo de transporte concreto, que ya vive en TramoTransporte.
+  ciudadOrigen?: string;
 }
 
 export type ModoPlanificacion = "completo" | "poco_a_poco" | "dejarse_llevar";

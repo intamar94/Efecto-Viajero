@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
+import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 
@@ -71,6 +72,7 @@ export default function CompartidoPage() {
           subtitulo="Participantes y decisiones en grupo, en este dispositivo. Compartir el mismo viaje entre varios móviles necesita cuenta y backend — no está construido en esta versión."
           volverA={`/viajes/${viaje.id}`}
         />
+        <ViajeToolsNav viajeId={viaje.id} />
 
         <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
           <h2 className="mb-3 font-medium">Participantes</h2>

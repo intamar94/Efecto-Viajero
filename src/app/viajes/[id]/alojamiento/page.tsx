@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
+import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { alojamientosDe } from "@/lib/catalogo";
 import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
@@ -44,6 +45,7 @@ export default function AlojamientoPage() {
     <main className="flex-1 px-6 py-10">
       <div className="mx-auto max-w-xl">
         <Cabecera titulo="Alojamiento" subtitulo={`Reservar en ${destino.nombre} y estimar el gasto de alojamiento.`} volverA={`/viajes/${viaje.id}`} />
+        <ViajeToolsNav viajeId={viaje.id} />
 
         <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
           <h2 className="mb-3 font-medium">Reservar de verdad</h2>

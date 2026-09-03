@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
+import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { fechaDeImagen, miniaturaDeImagen } from "@/lib/fotos";
@@ -77,6 +78,7 @@ export default function RecuerdosPage() {
     <main className="flex-1 px-6 py-10">
       <div className="mx-auto max-w-xl">
         <Cabecera titulo="Recuerdos" subtitulo="Tus fotos reales, ordenadas solas en una línea de tiempo." volverA={`/viajes/${viaje.id}`} />
+        <ViajeToolsNav viajeId={viaje.id} />
 
         <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
           <label className="block">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
+import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
 
@@ -116,6 +117,7 @@ export default function ResolverPage() {
     <main className="flex-1 px-6 py-10">
       <div className="mx-auto max-w-xl">
         <Cabecera titulo="🆘 Necesito ayuda" subtitulo="Pasos orientativos. En una urgencia real, prioriza siempre el número de emergencias local." volverA={`/viajes/${viaje.id}`} />
+        <ViajeToolsNav viajeId={viaje.id} />
 
         {emergencias && (
           <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">

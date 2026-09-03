@@ -16,6 +16,7 @@ export interface NecesidadesViaje {
   ritmo?: RitmoViaje;
   sinConducirMucho: boolean;
   climaCalido?: boolean;
+  ciudadOrigen?: string;
 }
 
 const MAPA_INTERESES: Record<string, string> = {
@@ -79,6 +80,30 @@ function extraerDuracionDias(t: string): number | undefined {
   return undefined;
 }
 
+// Palabras que cortan la captura de la ciudad de origen si aparecen justo
+// después (ej. "desde Madrid y queremos..." no debe capturar "y queremos").
+const STOPWORDS_CORTE = new Set([
+  "y", "e", "o", "u", "el", "la", "los", "las", "que", "con", "para", "a", "de", "en", "un", "una", "unos", "unas", "pero",
+]);
+
+// Ciudad de SALIDA, no el destino — hace falta para buscar vuelos de
+// verdad (origen + destino). Heurístico: solo capta el patrón más común
+// ("desde X", "vivimos en X"...); si no aparece, queda sin definir y se
+// puede rellenar a mano después en Transporte.
+function extraerCiudadOrigen(texto: string): string | undefined {
+  const m = texto.match(
+    /\b(?:desde|saliendo de|partiendo de|salimos de|salgo de|vivo en|vivimos en)\s+([A-Za-zÁÉÍÓÚÑáéíóúñ]+(?:\s+[A-Za-zÁÉÍÓÚÑáéíóúñ]+){0,2})/i
+  );
+  if (!m) return undefined;
+  const limpio: string[] = [];
+  for (const p of m[1].split(/\s+/)) {
+    if (STOPWORDS_CORTE.has(p.toLowerCase())) break;
+    limpio.push(p);
+  }
+  if (limpio.length === 0) return undefined;
+  return limpio.map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(" ");
+}
+
 export function interpretarTexto(texto: string): NecesidadesViaje {
   const t = texto.toLowerCase();
 
@@ -122,6 +147,8 @@ export function interpretarTexto(texto: string): NecesidadesViaje {
   else if (/fr[ií]o|nieve|invierno/.test(t)) climaCalido = false;
   else if (intereses.has("playa")) climaCalido = true;
 
+  const ciudadOrigen = extraerCiudadOrigen(texto);
+
   return {
     textoOriginal: texto,
     duracionDias,
@@ -133,6 +160,7 @@ export function interpretarTexto(texto: string): NecesidadesViaje {
     ritmo,
     sinConducirMucho,
     climaCalido,
+    ciudadOrigen,
   };
 }
 

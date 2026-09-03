@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
+import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { extraerTextoDePdf, interpretarReserva } from "@/lib/extraerDocumento";
@@ -125,6 +126,7 @@ export default function VaultPage() {
           subtitulo="Guarda aquí los datos de tus reservas."
           volverA={`/viajes/${viaje.id}`}
         />
+        <ViajeToolsNav viajeId={viaje.id} />
 
         {viaje.documentos.length === 0 ? (
           <p className="mb-6 text-sm text-neutral-500">Todavía no hay reservas guardadas.</p>

@@ -178,10 +178,7 @@ export default function ViajeroDetallePage() {
           </section>
         )}
 
-        <div className="flex items-center justify-between">
-          <Link href="/planificar" className="text-sm text-neutral-500 hover:text-neutral-900">
-            Planificar un viaje →
-          </Link>
+        <div className="flex justify-end">
           <button onClick={borrarViajero} className="text-sm text-red-600 hover:text-red-800">
             Eliminar viajero
           </button>
