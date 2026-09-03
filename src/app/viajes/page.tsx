@@ -17,8 +17,8 @@ export default function ViajesPage() {
           <Link href="/viajes/nuevo" className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
             + Nuevo viaje
           </Link>
-          <Link href="/explorar" className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:border-neutral-900">
-            🧭 Explorar destino primero
+          <Link href="/planificar" className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:border-neutral-900">
+            ➕ Planificar con ayuda del sistema
           </Link>
         </div>
 

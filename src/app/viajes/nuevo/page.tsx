@@ -22,6 +22,7 @@ function NuevoViajeInner() {
 
   const destinoIdInicial = searchParams.get("destinoId") ?? undefined;
   const duracionInicial = searchParams.get("duracion");
+  const presupuestoInicial = searchParams.get("presupuesto");
   const destinoSugerido = buscarDestinoPorId(destinoIdInicial);
 
   const [destinoId] = useState(destinoIdInicial);
@@ -29,7 +30,7 @@ function NuevoViajeInner() {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [fechaSalida, setFechaSalida] = useState("");
   const [fechaRegreso, setFechaRegreso] = useState("");
-  const [presupuesto, setPresupuesto] = useState("");
+  const [presupuesto, setPresupuesto] = useState(presupuestoInicial ?? "");
 
   function toggleViajero(id: string) {
     setSeleccionados((prev) => {

@@ -109,6 +109,19 @@ export function interpretarTexto(texto: string): NecesidadesViaje {
   };
 }
 
+export const INTERESES_SUGERIDOS = [
+  "naturaleza",
+  "pueblos",
+  "playa",
+  "aventura",
+  "romantico",
+  "gastronomia",
+  "montana",
+  "ciudad",
+  "familiar",
+  "cultura",
+];
+
 export interface CriterioEvaluado {
   etiqueta: string;
   cumplido: boolean;
@@ -118,6 +131,14 @@ export interface DestinoCompatible {
   destino: Destino;
   porcentaje: number;
   criterios: CriterioEvaluado[];
+}
+
+// Caso A de la sección 6 del prompt maestro: el viajero ya menciona un
+// destino en el texto libre. Caso B (sin coincidencia): se explora por
+// compatibilidad en evaluarCompatibilidad().
+export function detectarDestinoExplicito(texto: string, destinos: Destino[] = DESTINOS): Destino | undefined {
+  const t = texto.toLowerCase();
+  return destinos.find((d) => t.includes(d.nombre.toLowerCase()) || t.includes(d.pais.toLowerCase()));
 }
 
 export function evaluarCompatibilidad(necesidades: NecesidadesViaje, destinos: Destino[] = DESTINOS): DestinoCompatible[] {

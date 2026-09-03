@@ -2,20 +2,20 @@ import Link from "next/link";
 
 const OPCIONES = [
   {
-    href: "/explorar",
-    icono: "🧭",
-    titulo: "Explorar un viaje",
-    descripcion: "Aún no sabes el destino. Cuéntanos cómo quieres viajar.",
+    href: "/planificar",
+    icono: "➕",
+    titulo: "Planificar un viaje",
+    descripcion: "Con o sin destino en mente: cuéntanos qué viaje quieres hacer.",
   },
   {
     href: "/viajes",
-    icono: "🗺️",
+    icono: "📋",
     titulo: "Mis viajes",
     descripcion: "Viajes ya creados: requisitos, plan y estado.",
   },
   {
     href: "/viajeros",
-    icono: "🧑‍🤝‍🧑",
+    icono: "👥",
     titulo: "Viajeros",
     descripcion: "Personas y mascotas: documentos y datos permanentes.",
   },
