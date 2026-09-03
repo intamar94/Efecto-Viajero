@@ -61,9 +61,13 @@ export default function SouvenirsPage() {
         <ul className="mb-6 space-y-3">
           {catalogo.map((s) => (
             <li key={s.id} className="rounded-2xl border border-neutral-200 bg-white p-5">
-              <p className="font-medium">{s.nombre}</p>
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-medium">{s.nombre}</p>
+                <p className="shrink-0 text-sm font-medium text-neutral-700">{s.precioAprox}</p>
+              </div>
               <p className="text-sm text-neutral-500">{s.descripcion}</p>
-              <p className="mt-1 text-xs text-neutral-400">{s.precioAprox}</p>
+              <p className="mt-2 rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-600">💡 {s.datoCurioso}</p>
+              {s.avisoEquipaje && <p className="mt-2 text-xs text-amber-700">✈️ {s.avisoEquipaje}</p>}
               <div className="mt-3 flex gap-2">
                 <input
                   className="input"

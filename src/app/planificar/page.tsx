@@ -1,14 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
+import { useData } from "@/lib/store";
 import { detectarDestinoExplicito, evaluarCompatibilidad, interpretarTexto, type NecesidadesViaje } from "@/lib/explorador";
 import { DESTINOS } from "@/lib/destinos";
+import type { Destino } from "@/lib/types";
 
 const EJEMPLOS = [
-  "Quiero viajar 7 días con mi gato, naturaleza, pueblos tranquilos, máximo 1500 euros y sin conducir demasiado.",
-  "Quiero ir a Italia 7 días, buena comida y pueblos bonitos.",
+  "Una semana con mi pareja, nuestra hija de 6 años y el gato. Naturaleza, pueblos tranquilos, máximo 1500 euros y sin conducir demasiado.",
+  "Quiero ir a Italia una semana, buena comida y pueblos bonitos.",
   "Somos dos adultos y una niña de 6 años. Queremos aventura, playa y actividades para ella.",
 ];
 
@@ -26,10 +28,13 @@ function resumenLegible(n: NecesidadesViaje): string[] {
 }
 
 export default function PlanificarPage() {
+  const router = useRouter();
+  const { crearViaje } = useData();
   const [texto, setTexto] = useState("");
   const [necesidades, setNecesidades] = useState<NecesidadesViaje | null>(null);
   const [destinoDetectadoId, setDestinoDetectadoId] = useState<string | null>(null);
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [creando, setCreando] = useState<string | null>(null);
 
   const destinoDetectado = destinoDetectadoId ? DESTINOS.find((d) => d.id === destinoDetectadoId) : undefined;
 
@@ -46,6 +51,29 @@ export default function PlanificarPage() {
     setAbierto(null);
   }
 
+  // El viaje se crea aquí mismo, sin pasar por un formulario aparte: sin
+  // fechas exactas obligatorias (basta con la duración, si se conoce) y
+  // sin exigir viajeros guardados de antemano. Lo que el texto ya reveló
+  // sobre quién viaja (adultos, menores, mascota) se guarda en el
+  // contexto para no volver a preguntarlo cuando se nombren de verdad.
+  function crearViajeCon(destino: Destino) {
+    if (!necesidades) return;
+    setCreando(destino.id);
+    const nuevo = crearViaje({
+      destino: destino.nombre,
+      destinoId: destino.id,
+      viajerosIds: [],
+      contexto: {
+        presupuestoTotal: necesidades.presupuestoMax,
+        duracionDias: necesidades.duracionDias,
+        numAdultos: necesidades.numAdultos,
+        edadesMenores: necesidades.edadesMenores.length > 0 ? necesidades.edadesMenores : undefined,
+        mascota: necesidades.mascota || undefined,
+      },
+    });
+    router.push(`/viajes/${nuevo.id}`);
+  }
+
   return (
     <main className="flex-1 px-6 py-10">
       <div className="mx-auto max-w-2xl">
@@ -54,7 +82,7 @@ export default function PlanificarPage() {
         <form onSubmit={descubrir} className="mb-3 rounded-2xl border border-neutral-200 bg-white p-4">
           <textarea
             className="input min-h-28 resize-y"
-            placeholder="Puedes escribirlo como quieras. No necesitas conocer el destino ni rellenar un formulario."
+            placeholder="Puedes escribirlo como quieras: quién viaja, cuándo, con qué presupuesto, si quieres algo tranquilo o de aventura. No necesitas conocer el destino ni rellenar un formulario."
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
           />
@@ -114,14 +142,13 @@ export default function PlanificarPage() {
                   >
                     {abierto === destino.id ? "Ocultar detalle" : destinoDetectado ? "Ver por qué encaja" : "¿Por qué este porcentaje?"}
                   </button>
-                  <Link
-                    href={`/viajes/nuevo?destinoId=${destino.id}${necesidades?.duracionDias ? `&duracion=${necesidades.duracionDias}` : ""}${
-                      necesidades?.presupuestoMax ? `&presupuesto=${necesidades.presupuestoMax}` : ""
-                    }`}
-                    className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700"
+                  <button
+                    onClick={() => crearViajeCon(destino)}
+                    disabled={creando !== null}
+                    className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
                   >
-                    {destinoDetectado ? "Continuar con este destino →" : "Crear viaje →"}
-                  </Link>
+                    {creando === destino.id ? "Creando…" : destinoDetectado ? "Continuar con este destino →" : "Crear viaje →"}
+                  </button>
                 </div>
 
                 {abierto === destino.id && (

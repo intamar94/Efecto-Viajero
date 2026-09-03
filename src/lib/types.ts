@@ -15,11 +15,12 @@ export type TipoDocumento =
 export interface Documento {
   id: string;
   tipo: TipoDocumento;
-  nombre: string;
-  numero?: string;
-  fechaEmision?: string; // ISO date
-  fechaVencimiento?: string; // ISO date
-  notas?: string;
+  // Solo hace falta rellenarlo cuando el tipo por sí solo no identifica el
+  // documento (ej. "vacuna" → "rabia"). Para el resto se usa la etiqueta
+  // del tipo al mostrarlo.
+  nombre?: string;
+  lugarExpedicion?: string;
+  fechaVencimiento?: string; // ISO date — "fecha válida" del documento
 }
 
 export interface PersonaViajero {
@@ -54,6 +55,13 @@ export type RitmoViaje = "tranquilo" | "medio" | "intenso";
 export interface ContextoViaje {
   presupuestoTotal?: number;
   duracionDias?: number;
+  // Lo que ya entendimos del texto libre en /planificar, antes de que el
+  // usuario haya puesto nombre a nadie: cuántos adultos, edades de los
+  // menores y si viaja una mascota. Sirve para no perder esa información
+  // mientras no se han creado o asignado los viajeros de verdad.
+  numAdultos?: number;
+  edadesMenores?: number[];
+  mascota?: boolean;
 }
 
 export type ModoPlanificacion = "completo" | "poco_a_poco" | "dejarse_llevar";
@@ -122,6 +130,8 @@ export interface SouvenirDestino {
   origen: string;
   precioAprox: string;
   descripcion: string;
+  datoCurioso: string;
+  avisoEquipaje?: string; // p. ej. líquidos o frágiles, para saber si va en cabina o facturado
 }
 
 export interface SouvenirAsignado {
@@ -142,6 +152,7 @@ export interface Recuerdo {
   titulo: string;
   fecha?: string;
   nota?: string;
+  fotoDataUrl?: string; // miniatura real de la foto elegida, redimensionada en el navegador
 }
 
 export interface Viaje {
@@ -149,8 +160,8 @@ export interface Viaje {
   destino: string;
   destinoId?: string; // referencia a Destino.id si viene del explorador
   viajerosIds: string[];
-  fechaSalida: string; // ISO date
-  fechaRegreso: string; // ISO date
+  fechaSalida?: string; // ISO date; sin confirmar todavía si no está
+  fechaRegreso?: string; // ISO date; sin confirmar todavía si no está
   contexto: ContextoViaje;
   createdAt: string;
 

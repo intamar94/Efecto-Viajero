@@ -129,6 +129,8 @@ export function souvenirsDe(destino: Destino): SouvenirDestino[] {
       origen: destino.pais,
       precioAprox: "5-15 €",
       descripcion: "Fácil de transportar y siempre queda bien como regalo.",
+      datoCurioso: `Muchos productos gastronómicos de ${destino.pais} llevan denominación de origen — mirar la etiqueta ayuda a saber si es realmente de la zona y no una copia genérica.`,
+      avisoEquipaje: "Si es líquido (aceite, licor, salsas), va en la maleta facturada: en cabina el límite suele ser 100 ml por envase.",
     },
     {
       id: `${destino.id}-sv-artesania`,
@@ -136,6 +138,8 @@ export function souvenirsDe(destino: Destino): SouvenirDestino[] {
       origen: destino.pais,
       precioAprox: "10-30 €",
       descripcion: "Producto hecho a mano representativo de la zona.",
+      datoCurioso: "La artesanía tradicional suele llevar el sello del taller — preguntar por él ayuda a distinguir la pieza local de una reproducción importada en serie.",
+      avisoEquipaje: "Si es de cerámica, cristal u otro material frágil, mejor en cabina y bien protegida: en la maleta facturada se rompe con facilidad.",
     },
     {
       id: `${destino.id}-sv-textil`,
@@ -143,6 +147,7 @@ export function souvenirsDe(destino: Destino): SouvenirDestino[] {
       origen: destino.pais,
       precioAprox: "8-25 €",
       descripcion: "Buena opción para regalos variados.",
+      datoCurioso: `Los colores y motivos de los textiles suelen tener un significado propio de la región — preguntar en el mismo puesto suele ser la mejor forma de conocerlo.`,
     },
   ];
 }

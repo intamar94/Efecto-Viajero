@@ -11,7 +11,7 @@ import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
 import { alojamientosDe, actividadesDe } from "@/lib/catalogo";
 import { calcularPresupuesto, sugerirAjustePresupuesto } from "@/lib/compatibilidad";
 import { resumenViaje } from "@/lib/travelBrain";
-import type { EstadoRequisito, ModoPlanificacion } from "@/lib/types";
+import type { ContextoViaje, EstadoRequisito, ModoPlanificacion, Viaje } from "@/lib/types";
 
 const MODOS: { valor: ModoPlanificacion; etiqueta: string; descripcion: string }[] = [
   { valor: "completo", etiqueta: "🗓️ Planificarlo completo", descripcion: "Días, horarios y actividades definidos." },
@@ -35,11 +35,28 @@ const NIVEL_ESTILO: Record<string, string> = {
   ok: "border-emerald-200 bg-emerald-50 text-emerald-700",
 };
 
+function subtituloFechas(viaje: Viaje): string {
+  if (viaje.fechaSalida && viaje.fechaRegreso) return `${viaje.fechaSalida} → ${viaje.fechaRegreso}`;
+  if (viaje.fechaSalida) return `Desde ${viaje.fechaSalida}`;
+  if (viaje.contexto.duracionDias) return `~${viaje.contexto.duracionDias} días · fechas por confirmar`;
+  return "Fechas por confirmar";
+}
+
+function descripcionQuienViaja(c: ContextoViaje): string | null {
+  const partes: string[] = [];
+  if (c.numAdultos) partes.push(`${c.numAdultos} adulto${c.numAdultos > 1 ? "s" : ""}`);
+  for (const edad of c.edadesMenores ?? []) partes.push(`1 menor de ${edad} años`);
+  if (c.mascota) partes.push("mascota");
+  return partes.length > 0 ? partes.join(", ") : null;
+}
+
 export default function ViajeDetallePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { obtenerViaje, actualizarViaje, eliminarViaje, viajeros } = useData();
   const [mostrarAjuste, setMostrarAjuste] = useState(false);
+  const [editandoViajeros, setEditandoViajeros] = useState(false);
+  const [requisitosAbiertos, setRequisitosAbiertos] = useState<Set<string>>(new Set());
   const viaje = obtenerViaje(params.id);
 
   const destino = viaje ? buscarDestinoPorId(viaje.destinoId) ?? buscarDestinoPorNombre(viaje.destino) : undefined;
@@ -77,6 +94,23 @@ export default function ViajeDetallePage() {
     recuerdos: viaje.recuerdos.length > 0 ? `${viaje.recuerdos.length} momento(s)` : "Sin momentos aún",
   };
 
+  function toggleViajeroEnViaje(id: string) {
+    if (!viaje) return;
+    const set = new Set(viaje.viajerosIds);
+    if (set.has(id)) set.delete(id);
+    else set.add(id);
+    actualizarViaje(viaje.id, { viajerosIds: Array.from(set) });
+  }
+
+  function toggleRequisitosAbiertos(id: string) {
+    setRequisitosAbiertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   function borrarViaje() {
     if (!viaje) return;
     if (!confirm(`¿Eliminar el viaje a ${viaje.destino}?`)) return;
@@ -87,10 +121,25 @@ export default function ViajeDetallePage() {
   return (
     <main className="flex-1 px-6 py-10">
       <div className="mx-auto max-w-2xl">
-        <Cabecera titulo={viaje.destino} subtitulo={`${viaje.fechaSalida} → ${viaje.fechaRegreso}`} volverA="/viajes" />
+        <Cabecera titulo={viaje.destino} subtitulo={subtituloFechas(viaje)} volverA="/viajes" />
+
+        {insights.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {insights.map((insight, i) => (
+              <span key={i} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${NIVEL_ESTILO[insight.nivel]}`}>
+                {insight.texto}
+                {insight.accion && (
+                  <Link href={insight.accion.href} className="underline">
+                    {insight.accion.texto}
+                  </Link>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="mb-6 flex gap-2">
-          <Link href={`/viajes/${viaje.id}/modo`} className="flex-1 rounded-xl bg-neutral-900 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-neutral-700">
+          <Link href={`/viajes/${viaje.id}/actividades`} className="flex-1 rounded-xl bg-neutral-900 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-neutral-700">
             📍 Modo viaje
           </Link>
           <Link href={`/viajes/${viaje.id}/resolver`} className="flex-1 rounded-xl border border-neutral-200 px-4 py-2.5 text-center text-sm font-medium text-neutral-700 hover:border-neutral-900">
@@ -98,33 +147,53 @@ export default function ViajeDetallePage() {
           </Link>
         </div>
 
-        {insights.length > 0 && (
-          <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
-            <h2 className="mb-3 font-medium">Resumen</h2>
-            <ul className="space-y-2">
-              {insights.map((insight, i) => (
-                <li key={i} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm ${NIVEL_ESTILO[insight.nivel]}`}>
-                  <span>{insight.texto}</span>
-                  {insight.accion && (
-                    <Link href={insight.accion.href} className="shrink-0 whitespace-nowrap underline">
-                      {insight.accion.texto}
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
         <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
-          <h2 className="mb-3 font-medium">Viajeros</h2>
-          <div className="flex flex-wrap gap-2">
-            {viajerosDelViaje.map((v) => (
-              <span key={v.id} className="rounded-full border border-neutral-200 px-3 py-1 text-sm">
-                {v.tipo === "persona" ? "🧑" : "🐾"} {v.nombre}
-              </span>
-            ))}
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-medium">Viajeros</h2>
+            <button onClick={() => setEditandoViajeros((v) => !v)} className="text-sm text-neutral-500 hover:text-neutral-900">
+              {editandoViajeros ? "Listo" : viajerosDelViaje.length > 0 ? "Editar" : "Añadir"}
+            </button>
           </div>
+
+          {viajerosDelViaje.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {viajerosDelViaje.map((v) => (
+                <span key={v.id} className="rounded-full border border-neutral-200 px-3 py-1 text-sm">
+                  {v.tipo === "persona" ? "🧑" : "🐾"} {v.nombre}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {viajerosDelViaje.length === 0 && !editandoViajeros && (
+            <p className="text-sm text-neutral-500">
+              {descripcionQuienViaja(viaje.contexto)
+                ? `${descripcionQuienViaja(viaje.contexto)} — todavía sin nombres. Añádelos cuando quieras.`
+                : "Todavía no has dicho quién viaja."}
+            </p>
+          )}
+
+          {editandoViajeros &&
+            (viajeros.length === 0 ? (
+              <p className="text-sm text-neutral-500">
+                Todavía no hay viajeros guardados.{" "}
+                <Link href="/viajeros/nuevo" className="underline">
+                  Añade uno
+                </Link>
+                .
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {viajeros.map((v) => (
+                  <label key={v.id} className="flex items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50 px-3 py-2 text-sm">
+                    <input type="checkbox" checked={viaje.viajerosIds.includes(v.id)} onChange={() => toggleViajeroEnViaje(v.id)} />
+                    <span>
+                      {v.tipo === "persona" ? "🧑" : "🐾"} {v.nombre}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            ))}
         </section>
 
         <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5">
@@ -200,41 +269,54 @@ export default function ViajeDetallePage() {
           <div className="mb-1 flex items-center justify-between">
             <h2 className="font-medium">Requisitos</h2>
           </div>
-          <p className="mb-4 text-xs text-neutral-400">
-            Estimación orientativa, no oficial. Verifica siempre en la fuente oficial del país de destino antes de viajar.
-          </p>
 
-          {viajerosDelViaje.map((v) => {
-            const resultadosViajero = requisitos
-              .filter((r) => r.viajeroId === v.id)
-              .sort((a, b) => ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado]);
-            const peorEstado: EstadoRequisito = resultadosViajero.reduce<EstadoRequisito>(
-              (peor, r) => (ORDEN_ESTADO[r.estado] < ORDEN_ESTADO[peor] ? r.estado : peor),
-              "verde"
-            );
+          {viajerosDelViaje.length === 0 ? (
+            <p className="text-sm text-neutral-500">Añade quién viaja para ver la documentación, el visado y la salud de cada uno.</p>
+          ) : (
+            <>
+              <p className="mb-4 text-xs text-neutral-400">
+                Estimación orientativa, no oficial. Verifica siempre en la fuente oficial del país de destino antes de viajar.
+              </p>
 
-            return (
-              <div key={v.id} className="mb-5 border-b border-neutral-100 pb-5 last:mb-0 last:border-none last:pb-0">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="font-medium">
-                    {v.tipo === "persona" ? "🧑" : "🐾"} {v.nombre}
-                  </p>
-                  <EstadoBadge estado={peorEstado} />
-                </div>
-                <ul className="space-y-2">
-                  {resultadosViajero.map((r, i) => (
-                    <li key={i} className="rounded-xl bg-neutral-50 px-4 py-3 text-sm">
-                      <div className="mb-1 flex items-center justify-between gap-3">
-                        <span className="font-medium">{r.titulo}</span>
-                        <EstadoBadge estado={r.estado} />
-                      </div>
-                      <p className="text-neutral-600">{r.motivo}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
+              {viajerosDelViaje.map((v) => {
+                const resultadosViajero = requisitos
+                  .filter((r) => r.viajeroId === v.id)
+                  .sort((a, b) => ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado]);
+                const peorEstado: EstadoRequisito = resultadosViajero.reduce<EstadoRequisito>(
+                  (peor, r) => (ORDEN_ESTADO[r.estado] < ORDEN_ESTADO[peor] ? r.estado : peor),
+                  "verde"
+                );
+                const abierto = requisitosAbiertos.has(v.id);
+
+                return (
+                  <div key={v.id} className="mb-3 border-b border-neutral-100 pb-3 last:mb-0 last:border-none last:pb-0">
+                    <button onClick={() => toggleRequisitosAbiertos(v.id)} className="flex w-full items-center justify-between text-left">
+                      <span className="font-medium">
+                        {v.tipo === "persona" ? "🧑" : "🐾"} {v.nombre}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <EstadoBadge estado={peorEstado} />
+                        <span className="text-neutral-400">{abierto ? "−" : "+"}</span>
+                      </span>
+                    </button>
+                    {abierto && (
+                      <ul className="mt-3 space-y-2">
+                        {resultadosViajero.map((r, i) => (
+                          <li key={i} className="rounded-xl bg-neutral-50 px-4 py-3 text-sm">
+                            <div className="mb-1 flex items-center justify-between gap-3">
+                              <span className="font-medium">{r.titulo}</span>
+                              <EstadoBadge estado={r.estado} />
+                            </div>
+                            <p className="text-neutral-600">{r.motivo}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </section>
 
         <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">

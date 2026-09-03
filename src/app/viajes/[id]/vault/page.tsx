@@ -141,7 +141,20 @@ export default function VaultPage() {
                   </button>
                 </div>
                 <p className="text-neutral-500">
-                  {[d.referencia, d.fecha, d.hora, d.direccion].filter(Boolean).join(" · ") || "Sin más datos"}
+                  {[d.referencia, d.fecha, d.hora].filter(Boolean).join(" · ") || (!d.direccion && "Sin más datos")}
+                  {d.direccion && (
+                    <>
+                      {[d.referencia, d.fecha, d.hora].some(Boolean) && " · "}
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.direccion)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-neutral-900"
+                      >
+                        📍 {d.direccion} — cómo llegar
+                      </a>
+                    </>
+                  )}
                 </p>
               </li>
             ))}

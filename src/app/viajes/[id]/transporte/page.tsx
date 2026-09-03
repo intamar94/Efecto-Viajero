@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { useData } from "@/lib/store";
@@ -40,6 +41,7 @@ export default function TransportePage() {
   const [destinoTramo, setDestinoTramo] = useState("");
   const [horaSalida, setHoraSalida] = useState("");
   const [coste, setCoste] = useState("");
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
   if (!viaje) {
     return (
@@ -67,6 +69,7 @@ export default function TransportePage() {
     setDestinoTramo("");
     setHoraSalida("");
     setCoste("");
+    setMostrarFormulario(false);
   }
 
   function eliminar(id: string) {
@@ -102,6 +105,13 @@ export default function TransportePage() {
               🚌 FlixBus
             </a>
           </div>
+          <p className="mt-3 text-sm text-neutral-500">
+            Cuando reserves, guarda el ticket en el{" "}
+            <Link href={`/viajes/${viaje.id}/vault`} className="underline">
+              Travel Vault
+            </Link>{" "}
+            para tenerlo a mano en el viaje.
+          </p>
         </section>
 
         {ordenados.length === 0 ? (
@@ -123,26 +133,32 @@ export default function TransportePage() {
           </ol>
         )}
 
-        <form onSubmit={agregar} className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-5">
-          <select className="input" value={modo} onChange={(e) => setModo(e.target.value as ModoTransporte)}>
-            {MODOS.map((m) => (
-              <option key={m.valor} value={m.valor}>
-                {m.etiqueta}
-              </option>
-            ))}
-          </select>
-          <div className="grid grid-cols-2 gap-3">
-            <input className="input" placeholder="Origen" value={origen} onChange={(e) => setOrigen(e.target.value)} />
-            <input className="input" placeholder="Destino" value={destinoTramo} onChange={(e) => setDestinoTramo(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <input type="datetime-local" className="input" value={horaSalida} onChange={(e) => setHoraSalida(e.target.value)} />
-            <input type="number" className="input" placeholder="Coste € (opcional)" value={coste} onChange={(e) => setCoste(e.target.value)} />
-          </div>
-          <button type="submit" className="w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
-            + Añadir tramo
+        {mostrarFormulario ? (
+          <form onSubmit={agregar} className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-5">
+            <select className="input" value={modo} onChange={(e) => setModo(e.target.value as ModoTransporte)}>
+              {MODOS.map((m) => (
+                <option key={m.valor} value={m.valor}>
+                  {m.etiqueta}
+                </option>
+              ))}
+            </select>
+            <div className="grid grid-cols-2 gap-3">
+              <input className="input" placeholder="Origen" value={origen} onChange={(e) => setOrigen(e.target.value)} />
+              <input className="input" placeholder="Destino" value={destinoTramo} onChange={(e) => setDestinoTramo(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input type="datetime-local" className="input" value={horaSalida} onChange={(e) => setHoraSalida(e.target.value)} />
+              <input type="number" className="input" placeholder="Coste € (opcional)" value={coste} onChange={(e) => setCoste(e.target.value)} />
+            </div>
+            <button type="submit" className="w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
+              + Añadir tramo
+            </button>
+          </form>
+        ) : (
+          <button onClick={() => setMostrarFormulario(true)} className="text-sm text-neutral-500 underline hover:text-neutral-900">
+            + Añadir tramo a mano
           </button>
-        </form>
+        )}
       </div>
     </main>
   );

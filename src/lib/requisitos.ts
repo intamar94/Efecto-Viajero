@@ -52,7 +52,7 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
         "No hay pasaporte ni DNI guardado en la ficha de este viajero. Añádelo para poder comprobar vigencia."
       )
     );
-  } else if (pasaporte?.fechaVencimiento) {
+  } else if (pasaporte?.fechaVencimiento && viaje.fechaRegreso) {
     const vencimiento = new Date(pasaporte.fechaVencimiento);
     const margenSeguridad = new Date(viaje.fechaRegreso);
     margenSeguridad.setMonth(margenSeguridad.getMonth() + 6);
@@ -77,7 +77,7 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
         )
       );
     }
-  } else {
+  } else if (!pasaporte?.fechaVencimiento) {
     resultados.push(
       nuevoResultado(
         viajero,
@@ -85,6 +85,16 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
         "amarillo",
         "Falta fecha de vencimiento del pasaporte",
         "Hay un pasaporte registrado pero sin fecha de vencimiento. Complétala para validar automáticamente."
+      )
+    );
+  } else {
+    resultados.push(
+      nuevoResultado(
+        viajero,
+        "documentacion",
+        "amarillo",
+        "Falta confirmar la fecha de regreso",
+        "En cuanto el viaje tenga fecha de regreso, comprobamos si el pasaporte tiene validez suficiente."
       )
     );
   }
@@ -158,17 +168,6 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
     );
   }
 
-  // Seguro (advertencia general, siempre presente)
-  resultados.push(
-    nuevoResultado(
-      viajero,
-      "otros",
-      "amarillo",
-      "Seguro de viaje",
-      "Recomendado: contratar un seguro de viaje con cobertura médica adecuada al destino y a la duración."
-    )
-  );
-
   return resultados;
 }
 
@@ -198,7 +197,7 @@ function evaluarMascota(viajero: import("./types").MascotaViajero, destinoMascot
   }
 
   const vacunaRabia = viajero.documentos.find(
-    (d) => d.tipo === "vacuna" && d.nombre.toLowerCase().includes("rabia")
+    (d) => d.tipo === "vacuna" && (d.nombre ?? "").toLowerCase().includes("rabia")
   );
   if (!vacunaRabia) {
     resultados.push(

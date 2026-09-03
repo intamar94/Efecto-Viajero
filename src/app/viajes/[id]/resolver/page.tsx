@@ -4,6 +4,19 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { useData } from "@/lib/store";
+import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
+
+// Número de emergencias único a nivel nacional. Es información pública y
+// estable, pero conviene confirmarla al llegar: algunos países reparten
+// policía/ambulancia/bomberos en números distintos.
+const EMERGENCIAS_POR_PAIS: Record<string, string> = {
+  SI: "112", AT: "112", DE: "112", PT: "112", IT: "112", ES: "112", GR: "112", FR: "112", NL: "112",
+  CR: "911",
+  MA: "19 (policía) / 15 (ambulancia)",
+  TH: "191 (policía) / 1669 (ambulancia) / 1155 (policía turística)",
+  CO: "123",
+  JP: "110 (policía) / 119 (ambulancia y bomberos)",
+};
 
 const PROBLEMAS = [
   {
@@ -96,10 +109,19 @@ export default function ResolverPage() {
     );
   }
 
+  const destino = buscarDestinoPorId(viaje.destinoId) ?? buscarDestinoPorNombre(viaje.destino);
+  const emergencias = destino ? EMERGENCIAS_POR_PAIS[destino.paisCodigo] : undefined;
+
   return (
     <main className="flex-1 px-6 py-10">
       <div className="mx-auto max-w-xl">
         <Cabecera titulo="🆘 Necesito ayuda" subtitulo="Pasos orientativos. En una urgencia real, prioriza siempre el número de emergencias local." volverA={`/viajes/${viaje.id}`} />
+
+        {emergencias && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <span className="font-medium">Emergencias en {destino?.pais}: {emergencias}</span>
+          </div>
+        )}
 
         <ul className="space-y-3">
           {PROBLEMAS.map((p) => (

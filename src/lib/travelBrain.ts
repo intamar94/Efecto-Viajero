@@ -32,7 +32,7 @@ export function resumenViaje(viaje: Viaje, requisitos: ResultadoRequisito[], des
   }
 
   if (!viaje.alojamientoId) {
-    insights.push({ nivel: "aviso", texto: "Todavía no has elegido alojamiento.", accion: { texto: "Elegir alojamiento", href: `/viajes/${viaje.id}/alojamiento` } });
+    insights.push({ nivel: "aviso", texto: "El presupuesto todavía no cuenta el alojamiento.", accion: { texto: "Ver alojamiento", href: `/viajes/${viaje.id}/alojamiento` } });
   }
   if (viaje.transporte.length === 0) {
     insights.push({ nivel: "aviso", texto: "Todavía no has añadido ningún tramo de transporte.", accion: { texto: "Añadir transporte", href: `/viajes/${viaje.id}/transporte` } });

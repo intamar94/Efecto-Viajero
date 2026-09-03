@@ -6,7 +6,7 @@ import { useData } from "@/lib/store";
 
 export default function ViajesPage() {
   const { hidratado, viajes, viajeros } = useData();
-  const ordenados = [...viajes].sort((a, b) => a.fechaSalida.localeCompare(b.fechaSalida));
+  const ordenados = [...viajes].sort((a, b) => (a.fechaSalida ?? "9999").localeCompare(b.fechaSalida ?? "9999"));
 
   return (
     <main className="flex-1 px-6 py-10">
@@ -38,7 +38,11 @@ export default function ViajesPage() {
                     <div className="flex items-center justify-between">
                       <p className="font-medium">{viaje.destino}</p>
                       <p className="text-sm text-neutral-500">
-                        {viaje.fechaSalida} → {viaje.fechaRegreso}
+                        {viaje.fechaSalida && viaje.fechaRegreso
+                          ? `${viaje.fechaSalida} → ${viaje.fechaRegreso}`
+                          : viaje.contexto.duracionDias
+                            ? `~${viaje.contexto.duracionDias} días · sin fechas`
+                            : "Sin fechas"}
                       </p>
                     </div>
                     <p className="mt-1 text-sm text-neutral-500">

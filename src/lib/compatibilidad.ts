@@ -16,7 +16,10 @@ export interface DesglosePresupuesto {
 }
 
 export function calcularPresupuesto(viaje: Viaje, destino?: Destino): DesglosePresupuesto {
-  const noches = Math.max(diasEntre(viaje.fechaSalida, viaje.fechaRegreso), 1);
+  const noches =
+    viaje.fechaSalida && viaje.fechaRegreso
+      ? Math.max(diasEntre(viaje.fechaSalida, viaje.fechaRegreso), 1)
+      : Math.max(viaje.contexto.duracionDias ?? 1, 1);
 
   const alojamientoElegido = destino ? alojamientosDe(destino).find((a) => a.id === viaje.alojamientoId) : undefined;
   const costeAlojamiento = alojamientoElegido ? alojamientoElegido.precioNoche * noches : 0;

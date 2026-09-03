@@ -51,22 +51,49 @@ function extraerNumero(match: RegExpMatchArray | null): number | undefined {
   return Number.isNaN(num) ? undefined : num;
 }
 
+const PALABRAS_NUMERO: Record<string, number> = {
+  un: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
+};
+
+function extraerDuracionDias(t: string): number | undefined {
+  const enDigitos = extraerNumero(t.match(/(\d+)\s*d[ií]as?/));
+  if (enDigitos) return enDigitos;
+
+  const semanas = t.match(/(\d+|un|una|dos|tres|cuatro)\s*semanas?/);
+  if (semanas) {
+    const n = Number.parseInt(semanas[1], 10) || PALABRAS_NUMERO[semanas[1]];
+    if (n) return n * 7;
+  }
+
+  if (/\bfin de semana\b/.test(t)) return 3;
+
+  const diasEnPalabra = t.match(/\b(un|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s*d[ií]as?\b/);
+  if (diasEnPalabra) return PALABRAS_NUMERO[diasEnPalabra[1]];
+
+  const meses = t.match(/(\d+|un|una|dos)\s*mes(?:es)?/);
+  if (meses) {
+    const n = Number.parseInt(meses[1], 10) || PALABRAS_NUMERO[meses[1]];
+    if (n) return n * 30;
+  }
+
+  return undefined;
+}
+
 export function interpretarTexto(texto: string): NecesidadesViaje {
   const t = texto.toLowerCase();
 
-  const duracionDias = extraerNumero(t.match(/(\d+)\s*d[ií]as?/));
+  const duracionDias = extraerDuracionDias(t);
   const presupuestoMax = extraerNumero(
     t.match(/(\d[\d.,]*)\s*(?:€|eur\b|euros)/) ?? t.match(/(?:máximo|maximo|hasta)\s*(\d[\d.,]*)/)
   );
 
-  const numAdultosPalabras: Record<string, number> = { un: 1, una: 1, dos: 2, tres: 3, cuatro: 4 };
   let numAdultos: number | undefined;
   const matchAdultosNum = t.match(/(\d+)\s*adult/);
   const matchAdultosPalabra = t.match(/(un|una|dos|tres|cuatro)\s*adult/);
   const matchSomos = t.match(/somos\s+(dos|tres|cuatro|\d+)/);
   if (matchAdultosNum) numAdultos = Number.parseInt(matchAdultosNum[1], 10);
-  else if (matchAdultosPalabra) numAdultos = numAdultosPalabras[matchAdultosPalabra[1]];
-  else if (matchSomos) numAdultos = numAdultosPalabras[matchSomos[1]] ?? Number.parseInt(matchSomos[1], 10);
+  else if (matchAdultosPalabra) numAdultos = PALABRAS_NUMERO[matchAdultosPalabra[1]];
+  else if (matchSomos) numAdultos = PALABRAS_NUMERO[matchSomos[1]] ?? Number.parseInt(matchSomos[1], 10);
   else if (/\bpareja\b|\brom[aá]ntico\b/.test(t)) numAdultos = 2;
 
   const edadesMenores: number[] = [];
@@ -120,12 +147,26 @@ export interface DestinoCompatible {
   criterios: CriterioEvaluado[];
 }
 
+function sinAcentos(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+function escaparRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // Caso A de la sección 6 del prompt maestro: el viajero ya menciona un
 // destino en el texto libre. Caso B (sin coincidencia): se explora por
 // compatibilidad en evaluarCompatibilidad().
+// Usa límites de palabra para no confundir un gentilicio ("comida
+// italiana") con el país ("Italia") — includes() los trataba igual.
 export function detectarDestinoExplicito(texto: string, destinos: Destino[] = DESTINOS): Destino | undefined {
-  const t = texto.toLowerCase();
-  return destinos.find((d) => t.includes(d.nombre.toLowerCase()) || t.includes(d.pais.toLowerCase()));
+  const t = sinAcentos(texto.toLowerCase());
+  return destinos.find((d) => {
+    const nombre = sinAcentos(d.nombre.toLowerCase());
+    const pais = sinAcentos(d.pais.toLowerCase());
+    return new RegExp(`\\b${escaparRegex(nombre)}\\b`).test(t) || new RegExp(`\\b${escaparRegex(pais)}\\b`).test(t);
+  });
 }
 
 export function evaluarCompatibilidad(necesidades: NecesidadesViaje, destinos: Destino[] = DESTINOS): DestinoCompatible[] {
