@@ -109,19 +109,6 @@ export function interpretarTexto(texto: string): NecesidadesViaje {
   };
 }
 
-export const INTERESES_SUGERIDOS = [
-  "naturaleza",
-  "pueblos",
-  "playa",
-  "aventura",
-  "romantico",
-  "gastronomia",
-  "montana",
-  "ciudad",
-  "familiar",
-  "cultura",
-];
-
 export interface CriterioEvaluado {
   etiqueta: string;
   cumplido: boolean;

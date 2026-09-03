@@ -27,14 +27,17 @@ function NuevoViajeInner() {
 
   const [destinoId] = useState(destinoIdInicial);
   const [destino, setDestino] = useState(destinoSugerido?.nombre ?? "");
-  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  // undefined = sin cambios manuales todavía: por defecto viajan todos los
+  // viajeros guardados, así no hay que marcar nada a mano en el caso común.
+  const [seleccionManual, setSeleccionManual] = useState<Set<string> | undefined>(undefined);
+  const seleccionados = seleccionManual ?? new Set(viajeros.map((v) => v.id));
   const [fechaSalida, setFechaSalida] = useState("");
   const [fechaRegreso, setFechaRegreso] = useState("");
   const [presupuesto, setPresupuesto] = useState(presupuestoInicial ?? "");
 
   function toggleViajero(id: string) {
-    setSeleccionados((prev) => {
-      const next = new Set(prev);
+    setSeleccionManual((prev) => {
+      const next = new Set(prev ?? viajeros.map((v) => v.id));
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -66,8 +69,6 @@ function NuevoViajeInner() {
       contexto: {
         presupuestoTotal: presupuesto ? Number.parseFloat(presupuesto) : undefined,
         duracionDias: duracionInicial ? Number.parseInt(duracionInicial, 10) : undefined,
-        intereses: [],
-        restricciones: [],
       },
     });
     router.push(`/viajes/${nuevo.id}`);

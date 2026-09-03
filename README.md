@@ -26,13 +26,15 @@ Implementado:
   (duración, presupuesto, mascota, intereses, ritmo…). Si el texto ya
   menciona un destino, lo detecta y confirma directamente; si no, calcula
   compatibilidad porcentual contra un dataset de destinos, con
-  explicación de cada criterio. El usuario puede **revisar y corregir**
-  lo que el sistema entendió (editar días, presupuesto, ritmo, mascota,
-  intereses) antes de continuar, y los resultados se recalculan en vivo.
+  explicación de cada criterio. El resultado aparece de inmediato tras
+  escribir — sin ningún campo que rellenar o corregir a mano; para
+  ajustar algo, se reescribe la descripción en lenguaje natural, que
+  sigue siendo la única interfaz.
 - **Mis viajes**: creación de viaje reutilizando los viajeros guardados
-  (sin repetir datos), y un **motor de requisitos** de demostración que
-  clasifica cada viajero en 🟢 No detectado / 🟡 Revisar / 🔴 Obligatorio
-  por documentación, visado, salud y requisitos de mascota.
+  (sin repetir datos, todos preseleccionados por defecto), y un **motor
+  de requisitos** de demostración que clasifica cada viajero en 🟢 No
+  detectado / 🟡 Revisar / 🔴 Obligatorio por documentación, visado,
+  salud y requisitos de mascota.
 
 Persistencia: `localStorage` en el navegador (capa `src/lib/store.tsx`),
 pensada para sustituirse por un backend real sin tocar las pantallas.

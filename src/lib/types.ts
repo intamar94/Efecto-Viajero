@@ -54,10 +54,6 @@ export type RitmoViaje = "tranquilo" | "medio" | "intenso";
 export interface ContextoViaje {
   presupuestoTotal?: number;
   duracionDias?: number;
-  ritmo?: RitmoViaje;
-  intereses: string[]; // naturaleza, playa, gastronomia, aventura, ...
-  restricciones: string[]; // "sin conducir mucho", "accesible", ...
-  notas?: string;
 }
 
 export interface Viaje {

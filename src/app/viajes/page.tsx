@@ -13,14 +13,12 @@ export default function ViajesPage() {
       <div className="mx-auto max-w-2xl">
         <Cabecera titulo="Mis viajes" subtitulo="Viajes creados, con sus requisitos y estado." />
 
-        <div className="mb-6 flex gap-3">
-          <Link href="/viajes/nuevo" className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
-            + Nuevo viaje
-          </Link>
-          <Link href="/planificar" className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:border-neutral-900">
-            ➕ Planificar con ayuda del sistema
-          </Link>
-        </div>
+        <Link
+          href="/planificar"
+          className="mb-6 inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700"
+        >
+          ➕ Planificar un viaje
+        </Link>
 
         {!hidratado ? (
           <p className="text-neutral-400">Cargando…</p>
