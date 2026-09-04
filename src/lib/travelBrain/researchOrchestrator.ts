@@ -6,6 +6,7 @@ import { buildExplorerPlan } from "./explorerIntelligence";
 import { executeResearch } from "./providerExecutor";
 import { scoreDestinations } from "./compatibility";
 import { buildTripDraft } from "./tripBuilder";
+import { buildOrchestratorUpdate } from "./supervisorProtocol";
 
 export type ResearchDomain = "destination" | "requirements" | "laws" | "emergency" | "transport" | "accommodation" | "weather" | "experiences" | "culture" | "gastronomy" | "nature" | "events" | "language" | "currency" | "map" | "budget" | "expenses" | "memory" | "offline" | "social";
 export type ResearchStatus = "queued" | "running" | "ready" | "partial" | "needs_review" | "unavailable" | "error";
@@ -62,5 +63,7 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   const draft = buildTripDraft(ctx, ranked);
   const explorer = context?.planningMode === "dejarse_llevar" ? buildExplorerPlan({ request: context.rawText || rawText, context, now: { iso: new Date().toISOString() } }) : undefined;
   const pendingOrUnavailable = plan.tasks.filter((task) => !providerExecution.availableDomains.includes(task.domain) && !providerExecution.unavailableDomains.includes(task.domain));
-  return { locations, unresolved: unique(unresolved), countryCode, plan, results, ranked, draft, availableDomains: providerExecution.availableDomains, unavailableDomains: providerExecution.unavailableDomains, mode: context?.planningMode ?? "completo", pendingCount: pendingOrUnavailable.length, phases: { understand: results.filter((r) => r.task.phase === "understand").map((r) => r.task.domain), prepare: results.filter((r) => r.task.phase === "prepare").map((r) => r.task.domain), plan: results.filter((r) => r.task.phase === "plan").map((r) => r.task.domain), live: results.filter((r) => r.task.phase === "live").map((r) => r.task.domain), memory: results.filter((r) => r.task.phase === "memory").map((r) => r.task.domain) }, explorer };
+  const normalizedUnresolved = unique(unresolved);
+  const supervisorUpdate = buildOrchestratorUpdate(results, plan.tasks, normalizedUnresolved);
+  return { locations, unresolved: normalizedUnresolved, countryCode, plan, results, ranked, draft, availableDomains: providerExecution.availableDomains, unavailableDomains: providerExecution.unavailableDomains, mode: context?.planningMode ?? "completo", pendingCount: pendingOrUnavailable.length, phases: { understand: results.filter((r) => r.task.phase === "understand").map((r) => r.task.domain), prepare: results.filter((r) => r.task.phase === "prepare").map((r) => r.task.domain), plan: results.filter((r) => r.task.phase === "plan").map((r) => r.task.domain), live: results.filter((r) => r.task.phase === "live").map((r) => r.task.domain), memory: results.filter((r) => r.task.phase === "memory").map((r) => r.task.domain) }, explorer, supervisorUpdate };
 }
