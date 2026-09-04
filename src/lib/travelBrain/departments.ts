@@ -7,6 +7,7 @@ export interface DepartmentMission {
   domain: ResearchDomain;
   objective: string;
   context: CanonicalTripContext;
+  task: ResearchTask;
   dependencies: ResearchDomain[];
   dependencyResults: ResearchResult[];
 }
@@ -86,6 +87,7 @@ export function createDepartment(domain: ResearchDomain): TravelDepartment {
         domain,
         objective: OBJECTIVES[domain] ?? `Investigar ${domain} de forma autónoma dentro del contexto completo del viaje.`,
         context,
+        task,
         dependencies: task.dependsOn.map((id) => id.replace("research:", "") as ResearchDomain),
         dependencyResults,
       };
@@ -95,15 +97,31 @@ export function createDepartment(domain: ResearchDomain): TravelDepartment {
     },
     async execute(mission, subtasks, locations) {
       try {
+        // La resolución geográfica ya realizada por el Orquestador es la evidencia
+        // primaria del departamento de destino; no se vuelve a pedir a un proveedor.
+        if (mission.domain === "destination") {
+          const findings = locations.map((location) => ({
+            name: location.name,
+            countryCode: location.countryCode,
+            region: location.region,
+            latitude: location.latitude,
+            longitude: location.longitude,
+          }));
+          return {
+            domain: mission.domain,
+            objective: mission.objective,
+            subtasks,
+            findings,
+            evidence: [{ source: "destinationResolver", checkedAt: new Date().toISOString(), freshness: "live", confidence: "high" }],
+            unresolved: [],
+            conflicts: [],
+            status: findings.length ? "ready" : "unavailable",
+          };
+        }
+
         // El departamento ejecuta únicamente su propia misión. Las dependencias ya
         // fueron resueltas por el Orquestador y se entregan como contexto de misión.
-        const task: ResearchTask = {
-          id: `research:${mission.domain}`,
-          domain: mission.domain,
-          priority: "normal",
-          phase: "plan",
-          dependsOn: [],
-        };
+        const task: ResearchTask = { ...mission.task, dependsOn: [] };
         const results = await executeTask(task, mission.context, locations);
         const status = statusFromResults(results);
         const findings = results.flatMap((result) => Array.isArray(result.data) ? result.data : result.data === undefined ? [] : [result.data]);
