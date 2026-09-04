@@ -150,6 +150,28 @@ body {
   padding: 1.25rem;
 }
 
+/* La guía de ruta se imprime: en papel sobran los menús y los botones,
+   y los colores de fondo se comen la tinta. */
+@media print {
+  header,
+  nav,
+  .no-imprimir {
+    display: none !important;
+  }
+
+  .card,
+  .tip {
+    border: 1px solid #999 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  body {
+    background: #fff !important;
+  }
+}
+
 /* Etiqueta de clasificación (interior/exterior, gratis, mascotas...). */
 .chip {
   display: inline-flex;

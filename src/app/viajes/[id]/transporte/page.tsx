@@ -8,8 +8,7 @@ import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { URL_BUS, URL_TREN, urlBusquedaVuelos } from "@/lib/afiliados";
-import { transporteLocalDe } from "@/lib/catalogo";
-import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
+import { paisesDelViaje } from "@/lib/viaje";
 import type { ModoTransporte, TramoTransporte } from "@/lib/types";
 
 const MODOS: { valor: ModoTransporte; etiqueta: string }[] = [
@@ -38,7 +37,6 @@ export default function TransportePage() {
   const params = useParams<{ id: string }>();
   const { obtenerViaje, actualizarViaje } = useData();
   const viaje = obtenerViaje(params.id);
-  const destino = viaje ? buscarDestinoPorId(viaje.destinoId) ?? buscarDestinoPorNombre(viaje.destino) : undefined;
 
   const [modo, setModo] = useState<ModoTransporte>("tren");
   const [origen, setOrigen] = useState("");
@@ -91,7 +89,9 @@ export default function TransportePage() {
   }
 
   const ordenados = [...viaje.transporte].sort((a, b) => (a.horaSalida ?? "").localeCompare(b.horaSalida ?? ""));
-  const local = destino ? transporteLocalDe(destino) : undefined;
+  // El transporte local es del PAÍS, no del destino curado: así "Pereira"
+  // recibe el de Colombia, y un circuito el de cada país que atraviesa.
+  const paises = paisesDelViaje(viaje);
 
   return (
     <main className="flex-1 px-5 py-8">
@@ -163,43 +163,62 @@ export default function TransportePage() {
         {/* Moverse por dentro del destino es la parte que ningún buscador
             de vuelos resuelve, y la que más dinero y tiempo hace perder
             cuando se descubre al llegar. */}
-        {local && (
-          <section className="mb-6 rounded-2xl border border-marino-200 bg-marino-50 p-5">
-            <h2 className="mb-1 font-medium text-marino-900">Moverte por {destino?.nombre}</h2>
-            <p className="mb-3 text-xs text-marino-700/70">Transporte local: qué hay y cómo se paga.</p>
-
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {local.medios.map((m) => (
-                <span key={m} className="rounded-full border border-marino-200 bg-white px-2.5 py-1 text-xs font-medium text-marino-700">
-                  {m}
-                </span>
-              ))}
-            </div>
-
-            <dl className="space-y-2 text-sm">
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-marino-700/60">Cómo se paga</dt>
-                <dd className="text-neutral-700">{local.comoSePaga}</dd>
-              </div>
-              {local.apps && (
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-marino-700/60">Apps útiles</dt>
-                  <dd className="text-neutral-700">{local.apps}</dd>
-                </div>
-              )}
-              {local.aviso && (
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-coral-700">Ojo con esto</dt>
-                  <dd className="text-neutral-700">{local.aviso}</dd>
-                </div>
-              )}
-            </dl>
-
-            <p className="mt-3 text-xs text-marino-700/60">
-              Información general del país, sin precios porque cambian cada temporada. Confirma tarifas en la estación o
-              en la oficina de turismo al llegar.
+        {paises.length === 0 ? (
+          <section className="card mb-6">
+            <h2 className="mb-1 font-medium">Moverte por allí</h2>
+            <p className="text-sm text-neutral-500">
+              Dinos en qué país está tu destino (en Ruta) y te contamos qué transporte hay, cómo se paga y con qué apps.
             </p>
           </section>
+        ) : (
+          paises.map((pais) =>
+            pais.transporteLocal ? (
+              <section key={pais.codigo} className="mb-6 rounded-2xl border border-marino-200 bg-marino-50 p-5">
+                <h2 className="mb-1 font-medium text-marino-900">Moverte por {pais.nombre}</h2>
+                <p className="mb-3 text-xs text-marino-700/70">Transporte local: qué hay y cómo se paga.</p>
+
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  {pais.transporteLocal.medios.map((m) => (
+                    <span key={m} className="rounded-full border border-marino-200 bg-white px-2.5 py-1 text-xs font-medium text-marino-700">
+                      {m}
+                    </span>
+                  ))}
+                </div>
+
+                <dl className="space-y-2 text-sm">
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-marino-700/60">Cómo se paga</dt>
+                    <dd className="text-neutral-700">{pais.transporteLocal.comoSePaga}</dd>
+                  </div>
+                  {pais.transporteLocal.apps && (
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-marino-700/60">Apps útiles</dt>
+                      <dd className="text-neutral-700">{pais.transporteLocal.apps}</dd>
+                    </div>
+                  )}
+                  {pais.transporteLocal.aviso && (
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-coral-700">Ojo con esto</dt>
+                      <dd className="text-neutral-700">{pais.transporteLocal.aviso}</dd>
+                    </div>
+                  )}
+                </dl>
+
+                <p className="mt-3 text-xs text-marino-700/60">
+                  Información general del país, sin precios porque cambian cada temporada. Confirma tarifas en la
+                  estación o en la oficina de turismo al llegar.
+                </p>
+              </section>
+            ) : (
+              <section key={pais.codigo} className="card mb-6">
+                <h2 className="mb-1 font-medium">Moverte por {pais.nombre}</h2>
+                <p className="text-sm text-neutral-500">
+                  No tenemos ficha verificada de transporte local de este país. Al llegar, pregunta si hay tarjeta
+                  recargable o abono de varios viajes: casi siempre sale más barato que el billete sencillo.
+                </p>
+              </section>
+            )
+          )
         )}
 
         <h2 className="mb-2 font-medium">Tus tramos</h2>

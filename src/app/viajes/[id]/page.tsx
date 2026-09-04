@@ -7,7 +7,7 @@ import { Cabecera } from "@/components/Cabecera";
 import { EstadoBadge } from "@/components/EstadoBadge";
 import { useData } from "@/lib/store";
 import { calcularRequisitos, ORDEN_ESTADO } from "@/lib/requisitos";
-import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
+import { destinoPrincipal, esCircuito, etapasDe, paisesDelViaje } from "@/lib/viaje";
 import { alojamientosDe, actividadesDe } from "@/lib/catalogo";
 import { calcularPresupuesto, sugerirAjustePresupuesto } from "@/lib/compatibilidad";
 import { resumenViaje } from "@/lib/travelBrain";
@@ -55,7 +55,7 @@ export default function ViajeDetallePage() {
   const [requisitosAbiertos, setRequisitosAbiertos] = useState<Set<string>>(new Set());
   const viaje = obtenerViaje(params.id);
 
-  const destino = viaje ? buscarDestinoPorId(viaje.destinoId) ?? buscarDestinoPorNombre(viaje.destino) : undefined;
+  const destino = viaje ? destinoPrincipal(viaje) : undefined;
 
   const viajerosDelViaje = useMemo(
     () => (viaje ? viajeros.filter((v) => viaje.viajerosIds.includes(v.id)) : []),
@@ -79,13 +79,19 @@ export default function ViajeDetallePage() {
   const alojamientoElegido = destino ? alojamientosDe(destino).find((a) => a.id === viaje.alojamientoId) : undefined;
   const numActividadesDisponibles = destino ? actividadesDe(destino).length : 0;
   const numActividadesEnMarcha = viaje.actividades.filter((a) => a.estado !== "descartada").length;
+  const etapas = etapasDe(viaje);
+  const circuito = esCircuito(viaje);
+  const paises = paisesDelViaje(viaje);
 
   const estadoTexto: Record<(typeof SECCIONES)[number]["href"], string> = {
     transporte: viaje.transporte.length > 0 ? `${viaje.transporte.length} tramo(s)` : "Sin definir",
     alojamiento: alojamientoElegido ? alojamientoElegido.nombre : "Sin elegir",
-    actividades: `${numActividadesEnMarcha} en marcha · ${numActividadesDisponibles} disponibles`,
+    actividades:
+      numActividadesDisponibles > 0
+        ? `${numActividadesEnMarcha} en marcha · ${numActividadesDisponibles} disponibles`
+        : `${numActividadesEnMarcha} en marcha`,
     vault: viaje.documentos.length > 0 ? `${viaje.documentos.length} documento(s)` : "Vacío",
-    souvenirs: destino ? "Consejos de compras" : "Sin datos del destino",
+    souvenirs: "Consejos de compras",
     compartido: viaje.participantes.length > 0 ? `${viaje.participantes.length} participante(s)` : "Solo tú",
     recuerdos: viaje.recuerdos.length > 0 ? `${viaje.recuerdos.length} momento(s)` : "Sin momentos aún",
   };
@@ -133,6 +139,24 @@ export default function ViajeDetallePage() {
             ))}
           </div>
         )}
+
+        <Link
+          href={`/viajes/${viaje.id}/ruta`}
+          className="mb-4 block rounded-2xl border border-marino-200 bg-marino-50 p-4 transition hover:border-marino-500"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-marino-900">
+                {circuito ? `🧭 Ruta de ${etapas.length} paradas` : "🧭 Tu destino"}
+              </p>
+              <p className="mt-0.5 text-xs text-marino-700/80">
+                {etapas.map((e) => e.nombre).join(" → ")}
+                {paises.length > 1 && ` · ${paises.length} países`}
+              </p>
+            </div>
+            <span className="shrink-0 text-marino-400">→</span>
+          </div>
+        </Link>
 
         <div className="mb-6 flex gap-2">
           <Link href={`/viajes/${viaje.id}/actividades`} className="btn-primary flex-1">

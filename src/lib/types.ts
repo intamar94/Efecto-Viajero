@@ -120,6 +120,16 @@ export interface ActividadDestino {
 export interface ActividadViaje {
   actividadId: string; // referencia a ActividadDestino.id
   estado: EstadoActividad;
+  // Actividad puesta por el viajero, para los sitios de los que no
+  // tenemos catálogo: sin esto, en cualquier destino fuera de la lista
+  // curada la pantalla no dejaba hacer absolutamente nada.
+  propia?: {
+    nombre: string;
+    duracionHoras?: number;
+    costeEstimado?: number;
+    entorno?: "exterior" | "interior" | "mixto";
+    admiteMascotas?: boolean;
+  };
 }
 
 // Categorías del Travel Vault. El documento se archiva solo en una de
@@ -175,10 +185,28 @@ export interface Recuerdo {
   fotoDataUrl?: string; // miniatura real de la foto elegida, redimensionada en el navegador
 }
 
+export type TipoViaje = "simple" | "circuito";
+
+// Una parada del viaje. Un viaje a un solo sitio es simplemente un viaje
+// con una etapa: así toda la app (transporte, emergencias, moneda) usa el
+// mismo camino, y no hay dos modelos que mantener en paralelo.
+export interface Etapa {
+  id: string;
+  // Como lo llamó la persona ("Salento", "Eje Cafetero"), no el nombre
+  // del país: es su viaje y su forma de nombrarlo.
+  nombre: string;
+  paisCodigo?: string;
+  destinoId?: string;
+  dias?: number;
+}
+
 export interface Viaje {
   id: string;
   destino: string;
   destinoId?: string; // referencia a Destino.id si viene del explorador
+  paisCodigo?: string; // país del destino principal, aunque no esté en el catálogo
+  tipo?: TipoViaje; // opcional: los viajes creados antes no lo tienen
+  etapas?: Etapa[]; // las paradas en orden; vacío o ausente en viajes de un solo sitio
   viajerosIds: string[];
   fechaSalida?: string; // ISO date; sin confirmar todavía si no está
   fechaRegreso?: string; // ISO date; sin confirmar todavía si no está

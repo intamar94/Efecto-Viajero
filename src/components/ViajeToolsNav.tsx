@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const HERRAMIENTAS = [
-  { href: "", icono: "🧭", titulo: "Resumen" },
+  { href: "", icono: "🏠", titulo: "Resumen" },
+  { href: "ruta", icono: "🧭", titulo: "Ruta" },
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
   { href: "actividades", icono: "🎒", titulo: "Actividades" },

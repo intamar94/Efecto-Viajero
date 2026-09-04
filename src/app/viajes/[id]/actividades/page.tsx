@@ -5,8 +5,9 @@ import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
+import { generarId } from "@/lib/id";
 import { actividadesDe, alojamientosDe } from "@/lib/catalogo";
-import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
+import { destinoPrincipal } from "@/lib/viaje";
 import type { ActividadDestino, EstadoActividad } from "@/lib/types";
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
@@ -36,7 +37,9 @@ const FILTROS: { valor: Filtro; etiqueta: string }[] = [
   { valor: "mascotas", etiqueta: "🐾 Con mascota" },
 ];
 
-function cumpleFiltro(a: ActividadDestino, filtro: Filtro): boolean {
+type Item = ActividadDestino & { esPropia: boolean };
+
+function cumpleFiltro(a: Item, filtro: Filtro): boolean {
   if (filtro === "todo") return true;
   // "mixto" cuenta para exterior y para interior: una ruta gastronómica
   // sirve tanto si llueve como si no, y esconderla en cualquiera de los
@@ -47,28 +50,21 @@ function cumpleFiltro(a: ActividadDestino, filtro: Filtro): boolean {
   return a.admiteMascotas;
 }
 
-function ClasificacionChips({ a }: { a: ActividadDestino }) {
-  return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      <span className="chip">⏱️ {a.duracionHoras}h</span>
-      <span className="chip">{a.costeEstimado > 0 ? `💵 ${a.costeEstimado}€` : "🆓 Gratis"}</span>
-      <span className="chip">
-        {a.entorno === "exterior" ? "☀️ Al aire libre" : a.entorno === "interior" ? "🏛️ En interior" : "🌤️ Interior y exterior"}
-      </span>
-      {a.admiteMascotas && <span className="chip">🐾 Admite mascotas</span>}
-    </div>
-  );
-}
-
 export default function ActividadesPage() {
   const params = useParams<{ id: string }>();
   const { obtenerViaje, actualizarViaje, viajeros } = useData();
   const viaje = obtenerViaje(params.id);
-  const destino = viaje ? buscarDestinoPorId(viaje.destinoId) ?? buscarDestinoPorNombre(viaje.destino) : undefined;
+  const destino = viaje ? destinoPrincipal(viaje) : undefined;
 
   const [horasLibres, setHorasLibres] = useState("");
   const [adaptacion, setAdaptacion] = useState<Adaptacion>(null);
   const [filtro, setFiltro] = useState<Filtro>("todo");
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [nombreNueva, setNombreNueva] = useState("");
+  const [horasNueva, setHorasNueva] = useState("");
+  const [costeNueva, setCosteNueva] = useState("");
+  const [entornoNueva, setEntornoNueva] = useState<"exterior" | "interior" | "mixto">("exterior");
+  const [mascotaNueva, setMascotaNueva] = useState(false);
 
   if (!viaje) {
     return (
@@ -80,44 +76,75 @@ export default function ActividadesPage() {
     );
   }
 
-  if (!destino) {
-    return (
-      <main className="flex-1 px-5 py-8">
-        <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Actividades" volverA={`/viajes/${viaje.id}`} />
-          <ViajeToolsNav viajeId={viaje.id} />
-          <p className="text-sm text-neutral-500">
-            No hay catálogo disponible para &quot;{viaje.destino}&quot; (no coincide con ningún destino de nuestro catálogo).
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  const catalogo = actividadesDe(destino);
+  // Catálogo del destino (si lo tenemos) MÁS las actividades que haya
+  // puesto el viajero. Antes, sin destino curado esta pantalla no dejaba
+  // hacer nada: ahora siempre se puede construir el plan a mano.
+  const delCatalogo: Item[] = destino ? actividadesDe(destino).map((a) => ({ ...a, esPropia: false })) : [];
+  const propias: Item[] = viaje.actividades
+    .filter((a) => a.propia)
+    .map((a) => ({
+      id: a.actividadId,
+      nombre: a.propia!.nombre,
+      tipo: "propia",
+      duracionHoras: a.propia!.duracionHoras ?? 0,
+      costeEstimado: a.propia!.costeEstimado ?? 0,
+      apta: [],
+      entorno: a.propia!.entorno ?? "mixto",
+      admiteMascotas: a.propia!.admiteMascotas ?? false,
+      descripcion: "Actividad añadida por ti.",
+      esPropia: true,
+    }));
+  const catalogo: Item[] = [...propias, ...delCatalogo];
 
   function setEstado(actividadId: string, estado: EstadoActividad | null) {
     if (!viaje) return;
+    const entrada = viaje.actividades.find((a) => a.actividadId === actividadId);
+    // Quitar una actividad propia la borra; quitar una del catálogo solo
+    // la devuelve a "disponible", porque el catálogo sigue existiendo.
     if (estado === null) {
       actualizarViaje(viaje.id, { actividades: viaje.actividades.filter((a) => a.actividadId !== actividadId) });
       return;
     }
-    const existe = viaje.actividades.some((a) => a.actividadId === actividadId);
-    const actividades = existe
+    const actividades = entrada
       ? viaje.actividades.map((a) => (a.actividadId === actividadId ? { ...a, estado } : a))
       : [...viaje.actividades, { actividadId, estado }];
     actualizarViaje(viaje.id, { actividades });
   }
 
-  // Modo espontáneo: qué toca ahora, qué encaja con el tiempo/ánimo del
-  // momento — vivía como página propia (Modo viaje) y se ha fundido aquí
-  // porque su única fuente de datos es este mismo catálogo de actividades.
+  function anadirPropia(e: React.FormEvent) {
+    e.preventDefault();
+    if (!viaje || !nombreNueva.trim()) return;
+    const horas = Number.parseFloat(horasNueva);
+    const coste = Number.parseFloat(costeNueva);
+    actualizarViaje(viaje.id, {
+      actividades: [
+        ...viaje.actividades,
+        {
+          actividadId: generarId(),
+          estado: "planificada",
+          propia: {
+            nombre: nombreNueva.trim(),
+            duracionHoras: Number.isNaN(horas) ? undefined : horas,
+            costeEstimado: Number.isNaN(coste) ? undefined : coste,
+            entorno: entornoNueva,
+            admiteMascotas: mascotaNueva,
+          },
+        },
+      ],
+    });
+    setNombreNueva("");
+    setHorasNueva("");
+    setCosteNueva("");
+    setMascotaNueva(false);
+    setMostrarForm(false);
+  }
+
   const hoy = new Date();
   const salida = viaje.fechaSalida ? new Date(viaje.fechaSalida) : undefined;
   const regreso = viaje.fechaRegreso ? new Date(viaje.fechaRegreso) : undefined;
   const enCurso = !!salida && !!regreso && hoy >= salida && hoy <= regreso;
 
-  const alojamiento = alojamientosDe(destino).find((a) => a.id === viaje.alojamientoId);
+  const alojamiento = destino ? alojamientosDe(destino).find((a) => a.id === viaje.alojamientoId) : undefined;
   const proximoTramo = [...viaje.transporte]
     .filter((t) => t.horaSalida)
     .sort((a, b) => (a.horaSalida ?? "").localeCompare(b.horaSalida ?? ""))
@@ -128,13 +155,13 @@ export default function ActividadesPage() {
   const sugerenciasHorasLibres =
     !Number.isNaN(horas) && horas > 0
       ? catalogo
-          .filter((a) => a.duracionHoras <= horas && !viaje.actividades.some((v) => v.actividadId === a.id && v.estado !== "disponible"))
+          .filter((a) => a.duracionHoras > 0 && a.duracionHoras <= horas && !viaje.actividades.some((v) => v.actividadId === a.id && v.estado !== "disponible"))
           .slice(0, 3)
       : [];
 
   const sugerenciasAdaptacion = (() => {
     if (adaptacion === "lluvia") return catalogo.filter((a) => a.entorno === "interior" || a.entorno === "mixto").slice(0, 3);
-    if (adaptacion === "cansancio") return catalogo.filter((a) => a.apta.includes("tranquilo") || a.duracionHoras <= 1.5).slice(0, 3);
+    if (adaptacion === "cansancio") return catalogo.filter((a) => a.apta.includes("tranquilo") || (a.duracionHoras > 0 && a.duracionHoras <= 1.5)).slice(0, 3);
     return [];
   })();
 
@@ -143,7 +170,11 @@ export default function ActividadesPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
-        <Cabecera titulo="Actividades" subtitulo={`Todo lo que puedes hacer en ${destino.nombre}.`} volverA={`/viajes/${viaje.id}`} />
+        <Cabecera
+          titulo="Actividades"
+          subtitulo={destino ? `Todo lo que puedes hacer en ${destino.nombre}.` : `Lo que quieras hacer en ${viaje.destino}.`}
+          volverA={`/viajes/${viaje.id}`}
+        />
         <ViajeToolsNav viajeId={viaje.id} />
 
         <section className="card mb-6">
@@ -177,14 +208,7 @@ export default function ActividadesPage() {
 
         <section className="card mb-6">
           <h2 className="mb-3 font-medium">Tengo un rato libre</h2>
-          <input
-            type="number"
-            step="0.5"
-            className="input"
-            placeholder="¿Cuántas horas tienes?"
-            value={horasLibres}
-            onChange={(e) => setHorasLibres(e.target.value)}
-          />
+          <input type="number" step="0.5" className="input" placeholder="¿Cuántas horas tienes?" value={horasLibres} onChange={(e) => setHorasLibres(e.target.value)} />
           {sugerenciasHorasLibres.length > 0 && (
             <ul className="mt-3 space-y-2">
               {sugerenciasHorasLibres.map((a) => (
@@ -196,31 +220,30 @@ export default function ActividadesPage() {
             </ul>
           )}
           {horas > 0 && sugerenciasHorasLibres.length === 0 && (
-            <p className="mt-3 text-sm text-neutral-400">No hay actividades del catálogo que quepan en ese tiempo.</p>
+            <p className="mt-3 text-sm text-neutral-400">Nada en tu lista cabe en ese tiempo.</p>
           )}
         </section>
 
         <section className="card mb-6">
           <h2 className="mb-3 font-medium">Algo ha cambiado</h2>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setAdaptacion(adaptacion === "lluvia" ? null : "lluvia")}
-              className={`rounded-full border px-3 py-1.5 text-sm transition ${adaptacion === "lluvia" ? "border-marino-500 bg-marino-50 text-marino-800" : "border-neutral-200 hover:border-neutral-400"}`}
-            >
-              🌧️ Está lloviendo
-            </button>
-            <button
-              onClick={() => setAdaptacion(adaptacion === "cansancio" ? null : "cansancio")}
-              className={`rounded-full border px-3 py-1.5 text-sm transition ${adaptacion === "cansancio" ? "border-marino-500 bg-marino-50 text-marino-800" : "border-neutral-200 hover:border-neutral-400"}`}
-            >
-              😴 Estamos cansados
-            </button>
-            <button
-              onClick={() => setAdaptacion(adaptacion === "transporte_perdido" ? null : "transporte_perdido")}
-              className={`rounded-full border px-3 py-1.5 text-sm transition ${adaptacion === "transporte_perdido" ? "border-marino-500 bg-marino-50 text-marino-800" : "border-neutral-200 hover:border-neutral-400"}`}
-            >
-              🚫 Perdimos el transporte
-            </button>
+            {(
+              [
+                ["lluvia", "🌧️ Está lloviendo"],
+                ["cansancio", "😴 Estamos cansados"],
+                ["transporte_perdido", "🚫 Perdimos el transporte"],
+              ] as const
+            ).map(([valor, etiqueta]) => (
+              <button
+                key={valor}
+                onClick={() => setAdaptacion(adaptacion === valor ? null : valor)}
+                className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                  adaptacion === valor ? "border-marino-500 bg-marino-50 text-marino-800" : "border-neutral-200 hover:border-neutral-400"
+                }`}
+              >
+                {etiqueta}
+              </button>
+            ))}
           </div>
 
           {adaptacion === "transporte_perdido" && (
@@ -236,11 +259,11 @@ export default function ActividadesPage() {
 
           {(adaptacion === "lluvia" || adaptacion === "cansancio") && (
             <ul className="mt-3 space-y-2">
-              {sugerenciasAdaptacion.length === 0 && <li className="text-sm text-neutral-400">No hay alternativas claras en el catálogo de este destino.</li>}
+              {sugerenciasAdaptacion.length === 0 && <li className="text-sm text-neutral-400">No hay alternativas claras en tu lista.</li>}
               {sugerenciasAdaptacion.map((a) => (
                 <li key={a.id} className="rounded-xl bg-neutral-50 px-3 py-2 text-sm">
                   <span className="font-medium">{a.nombre}</span>
-                  <span className="text-neutral-500"> — ~{a.duracionHoras}h</span>
+                  {a.duracionHoras > 0 && <span className="text-neutral-500"> — ~{a.duracionHoras}h</span>}
                 </li>
               ))}
             </ul>
@@ -248,31 +271,36 @@ export default function ActividadesPage() {
         </section>
 
         <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="font-medium">Todo lo disponible</h2>
+          <h2 className="font-medium">{destino ? "Todo lo disponible" : "Tu lista"}</h2>
           <span className="text-xs text-neutral-400">
             {filtradas.length} de {catalogo.length}
           </span>
         </div>
 
-        {/* Los filtros son las tres preguntas que de verdad deciden el plan
-            del día: si llueve, si va el perro y si hay que pagar. */}
-        <div className="mb-4 -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-          {FILTROS.map((f) => (
-            <button
-              key={f.valor}
-              onClick={() => setFiltro(f.valor)}
-              className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                filtro === f.valor ? "border-marino-700 bg-marino-700 text-white" : "border-neutral-200 text-neutral-600 hover:border-marino-500"
-              }`}
-            >
-              {f.etiqueta}
-            </button>
-          ))}
-        </div>
+        {catalogo.length > 0 && (
+          <div className="mb-4 -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+            {FILTROS.map((f) => (
+              <button
+                key={f.valor}
+                onClick={() => setFiltro(f.valor)}
+                className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                  filtro === f.valor ? "border-marino-700 bg-marino-700 text-white" : "border-neutral-200 text-neutral-600 hover:border-marino-500"
+                }`}
+              >
+                {f.etiqueta}
+              </button>
+            ))}
+          </div>
+        )}
 
-        {filtradas.length === 0 ? (
-          <p className="text-sm text-neutral-500">Ninguna actividad del catálogo cumple ese filtro en este destino.</p>
-        ) : (
+        {!destino && (
+          <p className="mb-3 rounded-xl bg-neutral-100 px-4 py-3 text-xs text-neutral-600">
+            No tenemos catálogo propio de {viaje.destino}, así que aquí mandas tú: añade lo que quieras hacer y contará
+            para el presupuesto y para las sugerencias de &quot;tengo un rato libre&quot;.
+          </p>
+        )}
+
+        {catalogo.length > 0 && (
           <ul className="space-y-3">
             {filtradas.map((act) => {
               const entrada = viaje.actividades.find((a) => a.actividadId === act.id);
@@ -284,12 +312,18 @@ export default function ActividadesPage() {
                       <p className="font-medium">{act.nombre}</p>
                       <p className="text-sm text-neutral-500">{act.descripcion}</p>
                     </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${ESTILO_ESTADO[estado]}`}>
-                      {ETIQUETA_ESTADO[estado]}
-                    </span>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${ESTILO_ESTADO[estado]}`}>{ETIQUETA_ESTADO[estado]}</span>
                   </div>
 
-                  <ClasificacionChips a={act} />
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {act.duracionHoras > 0 && <span className="chip">⏱️ {act.duracionHoras}h</span>}
+                    <span className="chip">{act.costeEstimado > 0 ? `💵 ${act.costeEstimado}€` : "🆓 Gratis"}</span>
+                    <span className="chip">
+                      {act.entorno === "exterior" ? "☀️ Al aire libre" : act.entorno === "interior" ? "🏛️ En interior" : "🌤️ Interior y exterior"}
+                    </span>
+                    {act.admiteMascotas && <span className="chip">🐾 Admite mascotas</span>}
+                    {act.esPropia && <span className="chip">✍️ Tuya</span>}
+                  </div>
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     {estado === "disponible" && (
@@ -297,21 +331,13 @@ export default function ActividadesPage() {
                         + Añadir al viaje
                       </button>
                     )}
-                    {estado === "planificada" && (
+                    {(estado === "planificada" || estado === "reservada") && (
                       <>
-                        <button onClick={() => setEstado(act.id, "reservada")} className="btn-secondary px-3 py-1.5 text-xs">
-                          Reservada
-                        </button>
-                        <button onClick={() => setEstado(act.id, "realizada")} className="btn-secondary px-3 py-1.5 text-xs">
-                          Ya la hicimos
-                        </button>
-                        <button onClick={() => setEstado(act.id, null)} className="px-2 py-1.5 text-xs text-neutral-400 hover:text-red-600">
-                          Quitar
-                        </button>
-                      </>
-                    )}
-                    {estado === "reservada" && (
-                      <>
+                        {estado === "planificada" && (
+                          <button onClick={() => setEstado(act.id, "reservada")} className="btn-secondary px-3 py-1.5 text-xs">
+                            Reservada
+                          </button>
+                        )}
                         <button onClick={() => setEstado(act.id, "realizada")} className="btn-secondary px-3 py-1.5 text-xs">
                           Ya la hicimos
                         </button>
@@ -332,10 +358,46 @@ export default function ActividadesPage() {
           </ul>
         )}
 
-        <p className="mt-6 text-xs text-neutral-400">
-          Catálogo orientativo por tipo de plan, generado a partir de las características del destino: duraciones y
-          costes son estimaciones para dimensionar el día y el presupuesto, no entradas reales a la venta.
-        </p>
+        {/* Poder añadir lo tuyo es lo que hace que esta pantalla sirva en
+            cualquier destino, tengamos catálogo o no. */}
+        {mostrarForm ? (
+          <form onSubmit={anadirPropia} className="card mt-4 space-y-3">
+            <p className="text-sm font-medium text-neutral-700">Añadir una actividad tuya</p>
+            <input className="input" placeholder="¿Qué quieres hacer? (ej. Finca cafetera en Salento)" value={nombreNueva} onChange={(e) => setNombreNueva(e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <input type="number" step="0.5" min="0" className="input" placeholder="Horas" value={horasNueva} onChange={(e) => setHorasNueva(e.target.value)} />
+              <input type="number" min="0" className="input" placeholder="Coste €" value={costeNueva} onChange={(e) => setCosteNueva(e.target.value)} />
+            </div>
+            <select className="input" value={entornoNueva} onChange={(e) => setEntornoNueva(e.target.value as typeof entornoNueva)}>
+              <option value="exterior">☀️ Al aire libre</option>
+              <option value="interior">🏛️ En interior</option>
+              <option value="mixto">🌤️ Interior y exterior</option>
+            </select>
+            <label className="flex items-center gap-2 text-sm text-neutral-600">
+              <input type="checkbox" checked={mascotaNueva} onChange={(e) => setMascotaNueva(e.target.checked)} />
+              Admite mascotas
+            </label>
+            <div className="flex gap-2">
+              <button type="submit" className="btn-primary flex-1">
+                Añadir
+              </button>
+              <button type="button" onClick={() => setMostrarForm(false)} className="btn-secondary">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button onClick={() => setMostrarForm(true)} className="mt-4 text-sm text-neutral-500 underline hover:text-neutral-900">
+            + Añadir una actividad tuya
+          </button>
+        )}
+
+        {destino && (
+          <p className="mt-6 text-xs text-neutral-400">
+            El catálogo es orientativo y se genera a partir de las características del destino: duraciones y costes son
+            estimaciones para dimensionar el día y el presupuesto, no entradas reales a la venta.
+          </p>
+        )}
       </div>
     </main>
   );

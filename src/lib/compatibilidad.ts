@@ -27,9 +27,12 @@ export function calcularPresupuesto(viaje: Viaje, destino?: Destino): DesglosePr
   const costeTransporte = viaje.transporte.reduce((suma, t) => suma + (t.costeEstimado ?? 0), 0);
 
   const catalogoActividades = destino ? actividadesDe(destino) : [];
+  // Las actividades propias también cuentan: en un destino sin catálogo
+  // son las únicas que hay, y sin sumarlas el presupuesto marcaba 0€
+  // para siempre y nunca podía excederse.
   const costeActividades = viaje.actividades
     .filter((a) => a.estado !== "descartada")
-    .reduce((suma, a) => suma + (catalogoActividades.find((c) => c.id === a.actividadId)?.costeEstimado ?? 0), 0);
+    .reduce((suma, a) => suma + (a.propia?.costeEstimado ?? catalogoActividades.find((c) => c.id === a.actividadId)?.costeEstimado ?? 0), 0);
 
   const total = costeAlojamiento + costeTransporte + costeActividades;
   const presupuestoTotal = viaje.contexto.presupuestoTotal;

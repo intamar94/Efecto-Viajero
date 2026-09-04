@@ -1,19 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { alojamientosDe } from "@/lib/catalogo";
-import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
+import { destinoDeEtapa, etapasDe } from "@/lib/viaje";
 import { buscadoresAlojamiento } from "@/lib/afiliados";
 
 export default function AlojamientoPage() {
   const params = useParams<{ id: string }>();
   const { obtenerViaje, actualizarViaje } = useData();
   const viaje = obtenerViaje(params.id);
-  const destino = viaje ? buscarDestinoPorId(viaje.destinoId) ?? buscarDestinoPorNombre(viaje.destino) : undefined;
+  // En un circuito hace falta dormir en cada parada, no solo en la primera.
+  const [etapaActiva, setEtapaActiva] = useState(0);
 
   if (!viaje) {
     return (
@@ -25,15 +27,34 @@ export default function AlojamientoPage() {
     );
   }
 
-  const buscadores = buscadoresAlojamiento(viaje.destino, viaje.fechaSalida, viaje.fechaRegreso);
+  const etapas = etapasDe(viaje);
+  const etapa = etapas[Math.min(etapaActiva, etapas.length - 1)];
+  const destino = destinoDeEtapa(etapa);
+  const buscadores = buscadoresAlojamiento(etapa.nombre, viaje.fechaSalida, viaje.fechaRegreso);
   const referencias = destino ? alojamientosDe(destino) : [];
   const usadaEnPresupuesto = referencias.find((o) => o.id === viaje.alojamientoId);
 
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
-        <Cabecera titulo="Alojamiento" subtitulo={`Dónde dormir en ${viaje.destino}.`} volverA={`/viajes/${viaje.id}`} />
+        <Cabecera titulo="Alojamiento" subtitulo={`Dónde dormir en ${etapa.nombre}.`} volverA={`/viajes/${viaje.id}`} />
         <ViajeToolsNav viajeId={viaje.id} />
+
+        {etapas.length > 1 && (
+          <div className="mb-4 -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+            {etapas.map((e, i) => (
+              <button
+                key={e.id}
+                onClick={() => setEtapaActiva(i)}
+                className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                  i === etapaActiva ? "border-marino-700 bg-marino-700 text-white" : "border-neutral-200 text-neutral-600 hover:border-marino-500"
+                }`}
+              >
+                {i + 1}. {e.nombre}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Cuatro webs distintas porque cubren viajes distintos: no tiene
             sentido empujar a una sola cuando el mismo viajero puede querer
@@ -119,6 +140,13 @@ export default function AlojamientoPage() {
               </p>
             )}
           </section>
+        )}
+
+        {referencias.length === 0 && (
+          <p className="text-xs text-neutral-400">
+            No tenemos referencia de precios por zona de {etapa.nombre}. Los buscadores de arriba sí funcionan: mira dos
+            o tres y usa el precio que veas para calcular tu presupuesto.
+          </p>
         )}
       </div>
     </main>

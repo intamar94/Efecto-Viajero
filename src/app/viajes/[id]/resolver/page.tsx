@@ -5,8 +5,8 @@ import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
-import { buscarDestinoPorId, buscarDestinoPorNombre } from "@/lib/destinos";
-import { CONTACTOS_POR_PAIS, urlBuscarConsulado } from "@/lib/emergencias";
+import { urlBuscarConsulado } from "@/lib/emergencias";
+import { paisesDelViaje } from "@/lib/viaje";
 
 const PROBLEMAS = [
   {
@@ -99,8 +99,9 @@ export default function ResolverPage() {
     );
   }
 
-  const destino = buscarDestinoPorId(viaje.destinoId) ?? buscarDestinoPorNombre(viaje.destino);
-  const contacto = destino ? CONTACTOS_POR_PAIS[destino.paisCodigo] : undefined;
+  // Por país y no por destino curado: en un circuito hacen falta los
+  // números de cada país que se atraviesa, no los del primero.
+  const paises = paisesDelViaje(viaje);
 
   // El consulado que sirve a cada viajero depende de SU nacionalidad, no
   // del destino: se usa la que ya está registrada en Viajeros para que la
@@ -109,7 +110,7 @@ export default function ResolverPage() {
     .filter((v) => viaje.viajerosIds.includes(v.id) && v.tipo === "persona")
     .map((v) => (v.tipo === "persona" ? v.nacionalidad : undefined))
     .find(Boolean);
-  const paisDestino = destino?.pais ?? viaje.destino;
+  const paisDestino = paises[0]?.nombre ?? viaje.destino;
 
   return (
     <main className="flex-1 px-5 py-8">
@@ -121,44 +122,59 @@ export default function ResolverPage() {
         />
         <ViajeToolsNav viajeId={viaje.id} />
 
-        <section className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-5">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-red-700">Emergencias en {paisDestino}</p>
-          {contacto ? (
-            <>
-              <p className="text-xl font-semibold text-red-900">{contacto.emergencias}</p>
-              {contacto.telefonoTurista && (
-                <p className="mt-1 text-sm text-red-800">
-                  <span className="font-medium">Atención al turista:</span> {contacto.telefonoTurista}
+        {paises.length === 0 ? (
+          <section className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-red-700">Emergencias</p>
+            <p className="text-sm text-red-800">
+              Aún no sabemos en qué país está tu destino, así que no podemos darte el número correcto. Dínoslo en{" "}
+              <strong>Ruta</strong> y aparecerá aquí. Mientras tanto: en la UE el número único es <strong>112</strong>;
+              en casi toda América, <strong>911</strong>. Confírmalo al llegar.
+            </p>
+          </section>
+        ) : (
+          paises.map((pais) => (
+            <section key={pais.codigo} className="mb-4 rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-red-700">Emergencias en {pais.nombre}</p>
+              {pais.emergencias ? (
+                <>
+                  <p className="text-xl font-semibold text-red-900">{pais.emergencias}</p>
+                  {pais.telefonoTurista && (
+                    <p className="mt-1 text-sm text-red-800">
+                      <span className="font-medium">Atención al turista:</span> {pais.telefonoTurista}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-red-800">
+                  No tenemos número verificado de este país y preferimos no inventarlo: confírmalo nada más llegar, en el
+                  aeropuerto o en tu alojamiento.
                 </p>
               )}
-            </>
-          ) : (
-            <p className="text-sm text-red-800">
-              No tenemos ficha verificada para este destino. En la UE el número único es <strong>112</strong>; fuera,
-              confírmalo al llegar en tu alojamiento o en el aeropuerto.
-            </p>
-          )}
-        </section>
+            </section>
+          ))
+        )}
 
         <section className="card mb-6">
           <h2 className="mb-3 font-medium">Autoridades y consulado</h2>
           <ul className="space-y-2 text-sm">
-            {contacto?.autoridad && (
-              <li>
-                <a
-                  href={contacto.autoridad.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-4 py-3 transition hover:border-marino-500 hover:bg-marino-50"
-                >
-                  <span>
-                    <span className="block font-medium text-neutral-900">🏛️ {contacto.autoridad.nombre}</span>
-                    <span className="block text-xs text-neutral-500">Web oficial: denuncias, comisarías y avisos.</span>
-                  </span>
-                  <span className="text-neutral-300">↗</span>
-                </a>
-              </li>
-            )}
+            {paises
+              .filter((p) => p.autoridad)
+              .map((pais) => (
+                <li key={pais.codigo}>
+                  <a
+                    href={pais.autoridad!.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-4 py-3 transition hover:border-marino-500 hover:bg-marino-50"
+                  >
+                    <span>
+                      <span className="block font-medium text-neutral-900">🏛️ {pais.autoridad!.nombre}</span>
+                      <span className="block text-xs text-neutral-500">Web oficial: denuncias, comisarías y avisos.</span>
+                    </span>
+                    <span className="text-neutral-300">↗</span>
+                  </a>
+                </li>
+              ))}
             <li>
               <a
                 href={urlBuscarConsulado(paisDestino, nacionalidad)}

@@ -1,5 +1,5 @@
 import { calcularEdad } from "./edad";
-import { buscarDestinoPorId, buscarDestinoPorNombre } from "./destinos";
+import { destinoPrincipal, paisPrincipal } from "./viaje";
 import type { CategoriaRequisito, ResultadoRequisito, Viaje, Viajero } from "./types";
 
 // Motor de requisitos de demostración: reglas heurísticas simplificadas.
@@ -249,9 +249,11 @@ function evaluarMascota(viajero: import("./types").MascotaViajero, destinoMascot
 }
 
 export function calcularRequisitos(viaje: Viaje, viajeros: Viajero[]): ResultadoRequisito[] {
-  const destino = buscarDestinoPorId(viaje.destinoId) ?? buscarDestinoPorNombre(viaje.destino);
-  const paisCodigo = destino?.paisCodigo;
+  // Por país, no por destino curado: los requisitos de entrada dependen
+  // del país, así que basta con saber en cuál está la ciudad.
+  const paisCodigo = paisPrincipal(viaje)?.codigo;
   const enSchengen = paisCodigo ? PAISES_ESPACIO_SCHENGEN.has(paisCodigo) : undefined;
+  const destino = destinoPrincipal(viaje);
 
   const viajerosDelViaje = viajeros.filter((v) => viaje.viajerosIds.includes(v.id));
 
