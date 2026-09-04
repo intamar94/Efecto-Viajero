@@ -1,22 +1,33 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useData } from "@/lib/store";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { logout } from "@/lib/supabase/auth-client";
 
-// `corto` no se deriva partiendo el título por espacios: eso convertía
-// "Mis viajes" en "Mis", que no dice nada.
 const ENLACES = [
   { href: "/planificar", icono: "✈️", titulo: "Planificar", corto: "Planear" },
   { href: "/viajes", icono: "🗺️", titulo: "Mis viajes", corto: "Viajes" },
   { href: "/viajeros", icono: "🧑‍🤝‍🧑", titulo: "Viajeros", corto: "Quién" },
 ] as const;
 
-// Menú fijo en todas las páginas: sin esto, cada pantalla solo tenía un
-// "← Volver" y ninguna forma de saltar directamente a otra sección.
 export function NavBar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { errorGuardado } = useData();
+  const { user, loading: authLoading } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  async function handleLogout() {
+    try {
+      await logout();
+      router.push("/auth/login");
+    } catch (err) {
+      console.error("Error logging out:", err);
+    }
+  }
 
   return (
     <>
@@ -37,19 +48,53 @@ export function NavBar() {
                     activo ? "bg-white/20 text-white" : "text-marino-100 hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  <span aria-hidden className="text-xs">
-                    {e.icono}
-                  </span>{" "}
+                  <span aria-hidden className="text-xs">{e.icono}</span>{" "}
                   <span className="hidden sm:inline">{e.titulo}</span>
                   <span className="sm:hidden">{e.corto}</span>
                 </Link>
               );
             })}
           </nav>
+
+          <div className="relative">
+            {authLoading ? null : user ? (
+              <>
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="rounded-full bg-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/30 transition"
+                >
+                  👤 {user.email?.split("@")[0]}
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 mt-2 w-40 rounded-lg bg-white shadow-lg">
+                    <Link
+                      href="/settings"
+                      className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                    >
+                      ⚙️ Configuración
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      🚪 Cerrar sesión
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Link href="/auth/login" className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/30 transition">
+                🔓 Acceder
+              </Link>
+            )}
+          </div>
         </div>
       </header>
+
       {errorGuardado && (
-        <div className="border-b border-red-200 bg-red-50 px-5 py-2 text-center text-xs text-red-800">{errorGuardado}</div>
+        <div className="bg-red-50 border-b border-red-200 px-5 py-2 text-sm text-red-700">
+          ⚠️ {errorGuardado}
+        </div>
       )}
     </>
   );
