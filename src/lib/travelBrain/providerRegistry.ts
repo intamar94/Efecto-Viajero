@@ -12,14 +12,10 @@ export interface ProviderCapability {
   notes: string;
 }
 
-/**
- * Capability registry. It describes the real implementation state rather than
- * claiming that a connector exists merely because a future provider is named.
- */
 export const PROVIDERS: ProviderCapability[] = [
   { domain: "destination", mode: "api", provider: "Open-Meteo Geocoding", authoritative: false, status: "implemented", notes: "Place resolution. It is a resolver, not authoritative destination truth." },
   { domain: "weather", mode: "api", provider: "Open-Meteo", status: "implemented", notes: "Current and forecast data once coordinates and dates are known." },
-  { domain: "map", mode: "api", provider: "OpenStreetMap Nominatim", status: "implemented", notes: "Reverse geocoding only today. Full map/routing/POI capability is still partial." },
+  { domain: "map", mode: "api", provider: "OpenStreetMap Nominatim", status: "partial", notes: "Reverse geocoding is operational; full map/routing/POI capability is still partial." },
   { domain: "transport", mode: "api", provider: "OSRM", status: "partial", notes: "Road routing only. Flight, rail, bus, transit and reliable origin handling still need connectors." },
   { domain: "accommodation", mode: "api", provider: "Accommodation provider adapter", status: "blocked", notes: "Needs live availability, prices, policies and accessibility data." },
   { domain: "requirements", mode: "api", provider: "Official government / consular sources", authoritative: true, status: "blocked", notes: "Needs country-specific official source strategy and traveler profile inputs." },
