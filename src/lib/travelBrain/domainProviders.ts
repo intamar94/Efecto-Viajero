@@ -54,6 +54,19 @@ const osmPoi: Adapter = async ({ destination, domain, query }) => {
   return { domain, status: "ready", data, evidence: [evidence("OpenStreetMap Overpass")] };
 };
 
+const weather: Adapter = async ({ destination, start, end }) => {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  url.searchParams.set("latitude", String(destination.latitude));
+  url.searchParams.set("longitude", String(destination.longitude));
+  url.searchParams.set("current", "temperature_2m,precipitation,weather_code,wind_speed_10m");
+  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code");
+  url.searchParams.set("timezone", "auto");
+  if (start) url.searchParams.set("start_date", start);
+  if (end) url.searchParams.set("end_date", end);
+  const data = await getJson(url.toString(), "Open-Meteo Forecast");
+  return { domain: "weather", status: "ready", data, evidence: [evidence("Open-Meteo Forecast", "high")] };
+};
+
 const map: Adapter = async ({ destination }) => {
   const data = await getJson(
     `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${destination.latitude}&lon=${destination.longitude}`,
@@ -99,6 +112,7 @@ const adapters: Partial<Record<ResearchDomain, Adapter>> = {
   culture: osmPoi,
   gastronomy: osmPoi,
   nature: osmPoi,
+  weather,
   map,
   transport: route,
   currency,
