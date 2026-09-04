@@ -60,6 +60,15 @@ export default function Home() {
           </Link>
         ))}
       </div>
+
+      <div className="mx-auto mt-8 max-w-xl">
+        <Link
+          href="/ejemplo"
+          className="text-xs text-neutral-400 hover:text-neutral-600 underline"
+        >
+          💡 Cargar ejemplo de viaje completo
+        </Link>
+      </div>
     </main>
   );
 }
