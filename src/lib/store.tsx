@@ -1,212 +1,27 @@
 "use client";
-
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { generarId } from "./id";
+import { supabase } from "./supabase/client";
 import type { Documento, MascotaViajero, PersonaViajero, Viaje, Viajero } from "./types";
-
-const CLAVE_VIAJEROS = "efecto-viajero:viajeros";
-const CLAVE_VIAJES = "efecto-viajero:viajes";
-
-function leerDeStorage<T>(clave: string, valorInicial: T): T {
-  if (typeof window === "undefined") return valorInicial;
-  try {
-    const bruto = window.localStorage.getItem(clave);
-    return bruto ? (JSON.parse(bruto) as T) : valorInicial;
-  } catch {
-    return valorInicial;
-  }
-}
-
-function escribirEnStorage<T>(clave: string, valor: T) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(clave, JSON.stringify(valor));
-}
-
-const MENSAJE_ERROR_GUARDADO =
-  "No se ha podido guardar el último cambio: el almacenamiento del navegador está lleno. Borra fotos antiguas en Recuerdos o libera espacio en el dispositivo.";
-
-interface DataContextValue {
-  hidratado: boolean;
-  errorGuardado: string | null;
-  viajeros: Viajero[];
-  viajes: Viaje[];
-  crearPersona: (datos: Omit<PersonaViajero, "id" | "tipo" | "documentos" | "createdAt"> & { documentos?: Documento[] }) => PersonaViajero;
-  crearMascota: (datos: Omit<MascotaViajero, "id" | "tipo" | "documentos" | "createdAt"> & { documentos?: Documento[] }) => MascotaViajero;
-  actualizarViajero: (id: string, cambios: Partial<Viajero>) => void;
-  eliminarViajero: (id: string) => void;
-  obtenerViajero: (id: string) => Viajero | undefined;
-  crearViaje: (
-    datos: Omit<
-      Viaje,
-      "id" | "createdAt" | "transporte" | "actividades" | "documentos" | "participantes" | "votaciones" | "recuerdos"
-    >
-  ) => Viaje;
-  actualizarViaje: (id: string, cambios: Partial<Viaje>) => void;
-  eliminarViaje: (id: string) => void;
-  obtenerViaje: (id: string) => Viaje | undefined;
-}
-
-const DataContext = createContext<DataContextValue | null>(null);
-
-export function DataProvider({ children }: { children: ReactNode }) {
-  const [hidratado, setHidratado] = useState(false);
-  const [viajeros, setViajeros] = useState<Viajero[]>([]);
-  const [viajes, setViajes] = useState<Viaje[]>([]);
-  const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Se lee localStorage tras montar (no en el render) para que el HTML
-    // del servidor y el primer render del cliente coincidan y no haya
-    // desajuste de hidratación.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setViajeros(leerDeStorage(CLAVE_VIAJEROS, []));
-    setViajes(leerDeStorage(CLAVE_VIAJES, []));
-    setHidratado(true);
-  }, []);
-
-  // localStorage.setItem puede lanzar (cuota llena — las fotos de Recuerdos
-  // son lo más probable que la agote). Sin este try/catch el cambio se
-  // pierde en silencio: el usuario ve que "no se guarda" sin ningún aviso.
-  useEffect(() => {
-    if (!hidratado) return;
-    try {
-      escribirEnStorage(CLAVE_VIAJEROS, viajeros);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setErrorGuardado(null);
-    } catch {
-      setErrorGuardado(MENSAJE_ERROR_GUARDADO);
-    }
-  }, [viajeros, hidratado]);
-
-  useEffect(() => {
-    if (!hidratado) return;
-    try {
-      escribirEnStorage(CLAVE_VIAJES, viajes);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setErrorGuardado(null);
-    } catch {
-      setErrorGuardado(MENSAJE_ERROR_GUARDADO);
-    }
-  }, [viajes, hidratado]);
-
-  const crearPersona = useCallback<DataContextValue["crearPersona"]>((datos) => {
-    const nueva: PersonaViajero = {
-      ...datos,
-      id: generarId(),
-      tipo: "persona",
-      documentos: datos.documentos ?? [],
-      createdAt: new Date().toISOString(),
-    };
-    setViajeros((prev) => [...prev, nueva]);
-    return nueva;
-  }, []);
-
-  const crearMascota = useCallback<DataContextValue["crearMascota"]>((datos) => {
-    const nueva: MascotaViajero = {
-      ...datos,
-      id: generarId(),
-      tipo: "mascota",
-      documentos: datos.documentos ?? [],
-      createdAt: new Date().toISOString(),
-    };
-    setViajeros((prev) => [...prev, nueva]);
-    return nueva;
-  }, []);
-
-  const actualizarViajero = useCallback<DataContextValue["actualizarViajero"]>((id, cambios) => {
-    setViajeros((prev) =>
-      prev.map((v) => (v.id === id ? ({ ...v, ...cambios } as Viajero) : v))
-    );
-  }, []);
-
-  const eliminarViajero = useCallback<DataContextValue["eliminarViajero"]>((id) => {
-    setViajeros((prev) => prev.filter((v) => v.id !== id));
-    setViajes((prev) => prev.map((viaje) => ({
-      ...viaje,
-      viajerosIds: viaje.viajerosIds.filter((vid) => vid !== id),
-    })));
-  }, []);
-
-  const obtenerViajero = useCallback<DataContextValue["obtenerViajero"]>(
-    (id) => viajeros.find((v) => v.id === id),
-    [viajeros]
-  );
-
-  const crearViaje = useCallback<DataContextValue["crearViaje"]>((datos) => {
-    const nuevo: Viaje = {
-      ...datos,
-      id: generarId(),
-      createdAt: new Date().toISOString(),
-      transporte: [],
-      actividades: [],
-      documentos: [],
-      participantes: [],
-      votaciones: [],
-      recuerdos: [],
-    };
-    setViajes((prev) => [...prev, nuevo]);
-    return nuevo;
-  }, []);
-
-  const actualizarViaje = useCallback<DataContextValue["actualizarViaje"]>((id, cambios) => {
-    setViajes((prev) => prev.map((v) => (v.id === id ? { ...v, ...cambios } : v)));
-  }, []);
-
-  const eliminarViaje = useCallback<DataContextValue["eliminarViaje"]>((id) => {
-    setViajes((prev) => prev.filter((v) => v.id !== id));
-  }, []);
-
-  const obtenerViaje = useCallback<DataContextValue["obtenerViaje"]>(
-    (id) => viajes.find((v) => v.id === id),
-    [viajes]
-  );
-
-  const value = useMemo<DataContextValue>(
-    () => ({
-      hidratado,
-      errorGuardado,
-      viajeros,
-      viajes,
-      crearPersona,
-      crearMascota,
-      actualizarViajero,
-      eliminarViajero,
-      obtenerViajero,
-      crearViaje,
-      actualizarViaje,
-      eliminarViaje,
-      obtenerViaje,
-    }),
-    [
-      hidratado,
-      errorGuardado,
-      viajeros,
-      viajes,
-      crearPersona,
-      crearMascota,
-      actualizarViajero,
-      eliminarViajero,
-      obtenerViajero,
-      crearViaje,
-      actualizarViaje,
-      eliminarViaje,
-      obtenerViaje,
-    ]
-  );
-
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
-}
-
-export function useData() {
-  const ctx = useContext(DataContext);
-  if (!ctx) throw new Error("useData debe usarse dentro de <DataProvider>");
-  return ctx;
-}
+const CLAVE_VIAJEROS="efecto-viajero:viajeros", CLAVE_VIAJES="efecto-viajero:viajes", CLAVE_SYNC="efecto-viajero:sync-meta";
+const MENSAJE_ERROR_GUARDADO="No se ha podido guardar el último cambio: el almacenamiento del navegador está lleno. Borra fotos antiguas en Recuerdos o libera espacio en el dispositivo.";
+function read<T>(k:string,d:T):T { if(typeof window==="undefined") return d; try { const v=localStorage.getItem(k); return v?JSON.parse(v) as T:d; } catch{return d;} }
+function write<T>(k:string,v:T){if(typeof window!=="undefined")localStorage.setItem(k,JSON.stringify(v));}
+function touch(ids:string[]){const m=read<Record<string,number>>(CLAVE_SYNC,{}),t=Date.now();ids.forEach(id=>m[id]=t);try{write(CLAVE_SYNC,m);}catch{}}
+function localTs(x:any,m:Record<string,number>){return m[x.id]??Date.parse(x.createdAt??"")||0;}
+function remoteTs(x:any){return Date.parse(x.actualizado_en??x.updatedAt??x.createdAt??"")||0;}
+function merge<T extends {id:string;createdAt?:string}>(a:T[],b:T[],m:Record<string,number>){const map=new Map(a.map(x=>[x.id,x]));b.forEach(x=>{const old=map.get(x.id);if(!old||remoteTs(x)>=localTs(old,m))map.set(x.id,x)});return [...map.values()];}
+function dbV(x:any):Viajero {const base={id:x.id,nombre:x.nombre,documentos:x.documentos??[],createdAt:x.creado_en};return x.rol==="mascota"?({...base,tipo:"mascota",especie:x.especie,raza:x.raza,fechaNacimiento:x.fecha_nacimiento,pesoKg:x.peso_kg,microchip:x.microchip} as MascotaViajero):({...base,tipo:"persona",apellido:x.apellido,fechaNacimiento:x.fecha_nacimiento,nacionalidad:x.nacionalidad,residencia:x.residencia} as PersonaViajero);}
+function dbT(x:any):Viaje{return {id:x.id,destino:x.destino,destinoId:x.destino_id??undefined,paisCodigo:x.pais_codigo??undefined,tipo:x.tipo,etapas:x.etapas??[],viajerosIds:x.viajeros_ids??[],fechaSalida:x.fecha_salida??undefined,fechaRegreso:x.fecha_regreso??undefined,modoPlanificacion:x.modo_planificacion??undefined,investigacion:x.investigacion??undefined,contexto:x.contexto??{},transporte:x.transporte??[],actividades:x.actividades??[],alojamientoId:x.alojamiento_id??undefined,documentos:x.documentos??[],participantes:x.participantes??[],votaciones:x.votaciones??[],recuerdos:x.recuerdos??[],createdAt:x.creado_en};}
+function toV(x:Viajero,u:string){return {id:x.id,user_id:u,nombre:x.nombre,rol:x.tipo==="mascota"?"mascota":"viajero",edad:null,nacionalidad:x.tipo==="persona"?x.nacionalidad??null:null,pasaporte:x.tipo==="persona"?x.documentos.find(d=>d.tipo==="pasaporte")?.nombre??null:null,discapacidades:null,documentos:x.documentos??[],creado_en:x.createdAt,actualizado_en:new Date().toISOString()};}
+function toT(x:Viaje,u:string){return {id:x.id,user_id:u,destino:x.destino,destino_id:x.destinoId??null,pais_codigo:x.paisCodigo??null,tipo:x.tipo==="circuito"?"circuito":"individual",etapas:x.etapas??[],viajeros_ids:x.viajerosIds,fecha_salida:x.fechaSalida??null,fecha_regreso:x.fechaRegreso??null,modo_planificacion:x.modoPlanificacion??null,investigacion:x.investigacion??null,contexto:x.contexto??{},transporte:x.transporte??[],actividades:x.actividades??[],alojamiento_id:x.alojamientoId??null,souvenirs:[],compartido:{},recuerdos:x.recuerdos??[],creado_en:x.createdAt,actualizado_en:new Date().toISOString()};}
+interface DataContextValue{hidratado:boolean;errorGuardado:string|null;viajeros:Viajero[];viajes:Viaje[];crearPersona:(d:Omit<PersonaViajero,"id"|"tipo"|"documentos"|"createdAt">&{documentos?:Documento[]})=>PersonaViajero;crearMascota:(d:Omit<MascotaViajero,"id"|"tipo"|"documentos"|"createdAt">&{documentos?:Documento[]})=>MascotaViajero;actualizarViajero:(id:string,c:Partial<Viajero>)=>void;eliminarViajero:(id:string)=>void;obtenerViajero:(id:string)=>Viajero|undefined;crearViaje:(d:Omit<Viaje,"id"|"createdAt"|"transporte"|"actividades"|"documentos"|"participantes"|"votaciones"|"recuerdos">)=>Viaje;actualizarViaje:(id:string,c:Partial<Viaje>)=>void;eliminarViaje:(id:string)=>void;obtenerViaje:(id:string)=>Viaje|undefined;}
+const DataContext=createContext<DataContextValue|null>(null);
+export function DataProvider({children}:{children:ReactNode}){const[hidratado,setH]=useState(false),[viajeros,setV]=useState<Viajero[]>([]),[viajes,setT]=useState<Viaje[]>([]),[errorGuardado,setE]=useState<string|null>(null),ready=useRef(false),timer=useRef<ReturnType<typeof setTimeout>|null>(null);
+useEffect(()=>{setV(read(CLAVE_VIAJEROS,[]));setT(read(CLAVE_VIAJES,[]));setH(true)},[]);
+useEffect(()=>{if(!hidratado||ready.current)return;ready.current=true;void(async()=>{const{data:{user}}=await supabase.auth.getUser();if(!user)return;const lv=read<Viajero[]>(CLAVE_VIAJEROS,[]),lt=read<Viaje[]>(CLAVE_VIAJES,[]);if(lv.length||lt.length)await fetch("/api/migrations/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({viajeros:lv,viajes:lt})}).catch(()=>undefined);const[rv,rt]=await Promise.all([supabase.from("viajeros").select("*").eq("user_id",user.id),supabase.from("viajes").select("*").eq("user_id",user.id)]),m=read<Record<string,number>>(CLAVE_SYNC,{});if(!rv.error)setV(c=>merge(c,(rv.data??[]).map(dbV),m));if(!rt.error)setT(c=>merge(c,(rt.data??[]).map(dbT),m));})();},[hidratado]);
+useEffect(()=>{if(!hidratado)return;try{write(CLAVE_VIAJEROS,viajeros);setE(null)}catch{setE(MENSAJE_ERROR_GUARDADO)}},[viajeros,hidratado]);useEffect(()=>{if(!hidratado)return;try{write(CLAVE_VIAJES,viajes);setE(null)}catch{setE(MENSAJE_ERROR_GUARDADO)}},[viajes,hidratado]);
+useEffect(()=>{if(!hidratado||!ready.current)return;if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>void(async()=>{const{data:{user}}=await supabase.auth.getUser();if(!user)return;const[a,b]=await Promise.all([supabase.from("viajeros").upsert(viajeros.map(x=>toV(x,user.id)),{onConflict:"id"}),supabase.from("viajes").upsert(viajes.map(x=>toT(x,user.id)),{onConflict:"id"})]);if(a.error||b.error)setE("No se pudo sincronizar con la nube. Tus datos locales siguen disponibles.")})(),200);return()=>{if(timer.current)clearTimeout(timer.current)}},[hidratado,viajeros,viajes]);
+const crearPersona=useCallback((d:any)=>{const n:PersonaViajero={...d,id:generarId(),tipo:"persona",documentos:d.documentos??[],createdAt:new Date().toISOString()};touch([n.id]);setV(p=>[...p,n]);return n},[]),crearMascota=useCallback((d:any)=>{const n:MascotaViajero={...d,id:generarId(),tipo:"mascota",documentos:d.documentos??[],createdAt:new Date().toISOString()};touch([n.id]);setV(p=>[...p,n]);return n},[]),actualizarViajero=useCallback((id:string,c:Partial<Viajero>)=>{touch([id]);setV(p=>p.map(v=>v.id===id?({...v,...c} as Viajero):v))},[]),eliminarViajero=useCallback((id:string)=>{touch([id]);setV(p=>p.filter(v=>v.id!==id));setT(p=>p.map(v=>({...v,viajerosIds:v.viajerosIds.filter(x=>x!==id)})))},[]),obtenerViajero=useCallback((id:string)=>viajeros.find(v=>v.id===id),[viajeros]),crearViaje=useCallback((d:any)=>{const n:Viaje={...d,id:generarId(),createdAt:new Date().toISOString(),transporte:[],actividades:[],documentos:[],participantes:[],votaciones:[],recuerdos:[]};touch([n.id]);setT(p=>[...p,n]);return n},[]),actualizarViaje=useCallback((id:string,c:Partial<Viaje>)=>{touch([id]);setT(p=>p.map(v=>v.id===id?{...v,...c}:v))},[]),eliminarViaje=useCallback((id:string)=>{touch([id]);setT(p=>p.filter(v=>v.id!==id))},[]),obtenerViaje=useCallback((id:string)=>viajes.find(v=>v.id===id),[viajes]);
+const value=useMemo(()=>({hidratado,errorGuardado,viajeros,viajes,crearPersona,crearMascota,actualizarViajero,eliminarViajero,obtenerViajero,crearViaje,actualizarViaje,eliminarViaje,obtenerViaje}),[hidratado,errorGuardado,viajeros,viajes,crearPersona,crearMascota,actualizarViajero,eliminarViajero,obtenerViajero,crearViaje,actualizarViaje,eliminarViaje,obtenerViaje]);return <DataContext.Provider value={value}>{children}</DataContext.Provider>}
+export function useData(){const c=useContext(DataContext);if(!c)throw new Error("useData debe usarse dentro de <DataProvider>");return c;}
