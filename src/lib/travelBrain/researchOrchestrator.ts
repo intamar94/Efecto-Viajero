@@ -24,27 +24,43 @@ export function buildResearchPlan(): ResearchPlan { return { tasks: DEFINITIONS.
 function unique(values: string[]) { return values.filter((v, i, a) => v && a.findIndex((x) => x.toLowerCase() === v.toLowerCase()) === i); }
 function countryHint(values: string[]) { return values.find((v) => /^(colombia|ecuador|per[uú]|bolivia|chile|espa[ñn]a|alemania|francia|italia|jap[oó]n|m[eé]xico|brasil|argentina)$/i.test(v)); }
 function bestMatch(results: ResolvedDestination[], code?: string) { return results.find((r) => !code || r.countryCode.toUpperCase() === code.toUpperCase()) ?? results[0]; }
+function fallbackContext(rawText: string): CanonicalTripContext { return { rawText, dates: {}, budget: { moneda: "EUR", tipo: "total" }, travelers: { adultos: 1, ninos: 0 }, accessibility: { requiereAccesibilidad: false }, planningMode: "completo", destinations: [], interests: [], food: [], transport: [], constraints: [] }; }
 
 export async function analyzeTrip(rawText: string, context?: CanonicalTripContext, trip: { destino?: string; etapas?: Array<{ nombre: string }> } = {}) {
   const candidates = unique(extractLocationCandidates(rawText).concat(context?.destinations ?? [], trip.destino ?? "", ...(trip.etapas ?? []).map((e) => e.nombre)));
   const hint = countryHint(candidates);
   let countryCode: string | undefined;
-  if (hint) { const matches = await resolveDestination(hint); countryCode = matches.find((r) => r.name.toLowerCase() === hint.toLowerCase())?.countryCode ?? matches[0]?.countryCode; }
-  const locations: ResolvedDestination[] = []; const unresolved: string[] = [];
-  for (const candidate of candidates) {
-    const matches = await resolveDestination(candidate, countryCode); const best = bestMatch(matches, countryCode);
-    if (!best) { unresolved.push(candidate); continue; }
-    const isCountry = best.name.toLowerCase() === candidate.toLowerCase() && !best.region;
-    if (!isCountry || candidates.length === 1) locations.push(best);
-    if (countryCode && best.countryCode.toUpperCase() !== countryCode.toUpperCase()) unresolved.push(candidate);
+
+  // La desambiguación por país es la única dependencia inicial. Después, todos los destinos se resuelven en paralelo.
+  if (hint) {
+    const matches = await resolveDestination(hint);
+    countryCode = matches.find((r) => r.name.toLowerCase() === hint.toLowerCase())?.countryCode ?? matches[0]?.countryCode;
   }
+
+  const resolved = await Promise.all(candidates.map(async (candidate) => {
+    const matches = await resolveDestination(candidate, countryCode);
+    const best = bestMatch(matches, countryCode);
+    if (!best) return { candidate, destination: undefined, unresolved: true };
+    const isCountry = best.name.toLowerCase() === candidate.toLowerCase() && !best.region;
+    const unresolved = Boolean(countryCode && best.countryCode.toUpperCase() !== countryCode.toUpperCase());
+    return { candidate, destination: !isCountry || candidates.length === 1 ? best : undefined, unresolved };
+  }));
+
+  const locations: ResolvedDestination[] = [];
+  const unresolved: string[] = [];
+  for (const item of resolved) {
+    if (item.destination) locations.push(item.destination);
+    if (item.unresolved || (!item.destination && item.candidate !== hint)) unresolved.push(item.candidate);
+  }
+
   const plan = buildResearchPlan();
   const destinationResult: ResearchResult = { task: plan.tasks[0], status: locations.length ? (unresolved.length ? "needs_review" : "ready") : "error", data: { locations, countryCode, unresolved } };
-  const providerExecution = await executeResearch(plan, context ?? { rawText, dates: {}, budget: { moneda: "EUR", tipo: "total" }, travelers: { adultos: 1, ninos: 0 }, accessibility: { requiereAccesibilidad: false }, planningMode: "completo", destinations: [], interests: [], food: [], transport: [], constraints: [] }, locations);
+  const ctx = context ?? fallbackContext(rawText);
+  const providerExecution = await executeResearch(plan, ctx, locations);
   const results = providerExecution.results.length ? providerExecution.results : [destinationResult];
-  const ranked = scoreDestinations(context ?? { rawText, dates: {}, budget: { moneda: "EUR", tipo: "total" }, travelers: { adultos: 1, ninos: 0 }, accessibility: { requiereAccesibilidad: false }, planningMode: "completo", destinations: [], interests: [], food: [], transport: [], constraints: [] }, locations);
-  const draft = buildTripDraft(context ?? { rawText, dates: {}, budget: { moneda: "EUR", tipo: "total" }, travelers: { adultos: 1, ninos: 0 }, accessibility: { requiereAccesibilidad: false }, planningMode: "completo", destinations: [], interests: [], food: [], transport: [], constraints: [] }, ranked);
+  const ranked = scoreDestinations(ctx, locations);
+  const draft = buildTripDraft(ctx, ranked);
   const explorer = context?.planningMode === "dejarse_llevar" ? buildExplorerPlan({ request: context.rawText || rawText, context, now: { iso: new Date().toISOString() } }) : undefined;
-  const queuedOrUnavailable = plan.tasks.filter((t) => !providerExecution.availableDomains.includes(t.domain));
-  return { locations, unresolved: unique(unresolved), countryCode, plan, results, ranked, draft, availableDomains: providerExecution.availableDomains, unavailableDomains: providerExecution.unavailableDomains, mode: context?.planningMode ?? "completo", pendingCount: queuedOrUnavailable.length, phases: { understand: results.filter((r) => r.task.phase === "understand").map((r) => r.task.domain), prepare: results.filter((r) => r.task.phase === "prepare").map((r) => r.task.domain), plan: results.filter((r) => r.task.phase === "plan").map((r) => r.task.domain), live: results.filter((r) => r.task.phase === "live").map((r) => r.task.domain), memory: results.filter((r) => r.task.phase === "memory").map((r) => r.task.domain) }, explorer };
+  const pendingOrUnavailable = plan.tasks.filter((task) => !providerExecution.availableDomains.includes(task.domain) && !providerExecution.unavailableDomains.includes(task.domain));
+  return { locations, unresolved: unique(unresolved), countryCode, plan, results, ranked, draft, availableDomains: providerExecution.availableDomains, unavailableDomains: providerExecution.unavailableDomains, mode: context?.planningMode ?? "completo", pendingCount: pendingOrUnavailable.length, phases: { understand: results.filter((r) => r.task.phase === "understand").map((r) => r.task.domain), prepare: results.filter((r) => r.task.phase === "prepare").map((r) => r.task.domain), plan: results.filter((r) => r.task.phase === "plan").map((r) => r.task.domain), live: results.filter((r) => r.task.phase === "live").map((r) => r.task.domain), memory: results.filter((r) => r.task.phase === "memory").map((r) => r.task.domain) }, explorer };
 }
