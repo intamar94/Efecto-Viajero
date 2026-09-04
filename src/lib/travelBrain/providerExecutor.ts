@@ -59,7 +59,11 @@ function addStatus(set: Set<string>, unavailable: Set<string>, domain: string, s
   if (status === "unavailable") unavailable.add(domain);
 }
 
-async function executeTask(task: ResearchTask, context: CanonicalTripContext, locations: ResolvedDestination[]): Promise<ResearchResult[]> {
+/**
+ * Lowest-level provider execution for one department mission.
+ * It does not orchestrate dependencies or other departments.
+ */
+export async function executeTask(task: ResearchTask, context: CanonicalTripContext, locations: ResolvedDestination[]): Promise<ResearchResult[]> {
   if (!locations.length && task.domain !== "currency") {
     return [{ task, status: "unavailable", data: { reason: "Falta un destino resuelto." } }];
   }
@@ -75,7 +79,6 @@ async function executeTask(task: ResearchTask, context: CanonicalTripContext, lo
     return [{ task, status: result.status, data: { destination: locations[0], result: result.data }, evidence: result.evidence, error: result.error }];
   }
 
-  // Cada destino es independiente: se ejecuta en paralelo y se conserva el resultado individual.
   const executions = await Promise.all(
     locations.map(async (target, index) => {
       const origin = task.domain === "transport" && index > 0
@@ -113,7 +116,6 @@ export async function executeResearch(plan: ResearchPlan, context: CanonicalTrip
     addStatus(availableDomains, unavailableDomains, "destination", status);
   }
 
-  // Weather is fan-out parallel, but Promise.allSettled prevents one failed destination from deleting the others.
   const weatherTask = plan.tasks.find((task) => task.domain === "weather");
   if (weatherTask && locations.length) {
     const settled = await Promise.allSettled(locations.map((location) => weatherFor(location, context.dates.start, context.dates.end)));
@@ -133,9 +135,6 @@ export async function executeResearch(plan: ResearchPlan, context: CanonicalTrip
   }
 
   const providerTasks = plan.tasks.filter((task) => !["destination", "weather"].includes(task.domain));
-
-  // Todos estos dominios dependen únicamente del destino en la capa de proveedores.
-  // Se lanzan juntos para que el Travel Brain pueda construir una visión transversal sin esperas artificiales.
   const taskResults = await Promise.all(providerTasks.map(async (task) => {
     try {
       return await executeTask(task, context, locations);
@@ -151,9 +150,5 @@ export async function executeResearch(plan: ResearchPlan, context: CanonicalTrip
     }
   }
 
-  return {
-    results,
-    availableDomains: [...availableDomains],
-    unavailableDomains: [...unavailableDomains],
-  };
+  return { results, availableDomains: [...availableDomains], unavailableDomains: [...unavailableDomains] };
 }
