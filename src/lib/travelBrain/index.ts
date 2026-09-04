@@ -6,5 +6,6 @@ export * from "./researchOrchestrator";
 export * from "./providerRegistry";
 export * from "./providerExecutor";
 export * from "./domainProviders";
+export * from "./departments";
 export * from "./compatibility";
 export * from "./tripBuilder";
