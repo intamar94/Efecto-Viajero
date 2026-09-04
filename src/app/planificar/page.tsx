@@ -6,7 +6,7 @@ import { Cabecera } from "@/components/Cabecera";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { interpretarTexto, type NecesidadesViaje } from "@/lib/explorador";
-import { detectarLugaresEnTexto, resolverLugar } from "@/lib/lugares";
+import { ATRIBUCION_OSM, detectarLugaresEnTexto, resolverLugar, resolverLugarRemoto, type LugarResuelto } from "@/lib/lugares";
 import { PAISES, buscarPaisPorCodigo } from "@/lib/paises";
 import { MODOS } from "@/lib/modos";
 import type { Etapa, ModoPlanificacion, TipoViaje } from "@/lib/types";
@@ -24,9 +24,11 @@ const EJEMPLOS_CIRCUITO = [
 ];
 
 interface EtapaBorrador extends Etapa {
-  // Sin país reconocido hay que preguntarlo: es lo que hace que funcionen
+  // Sin país reconocido hay que averiguarlo: es lo que hace que funcionen
   // emergencias, moneda, transporte local y reglas de frontera.
   necesitaPais: boolean;
+  buscando?: boolean;
+  fuente?: LugarResuelto["fuente"];
 }
 
 function aBorrador(nombre: string, dias?: number): EtapaBorrador {
@@ -36,6 +38,7 @@ function aBorrador(nombre: string, dias?: number): EtapaBorrador {
     nombre: lugar?.nombre ?? nombre,
     paisCodigo: lugar?.paisCodigo,
     destinoId: lugar?.destinoId,
+    fuente: lugar?.fuente,
     dias,
     necesitaPais: !lugar?.paisCodigo,
   };
@@ -102,10 +105,33 @@ export default function PlanificarPage() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // Bajo demanda y nunca en cada tecla: la política de uso de Nominatim
+  // pide no bombardearlo, y además así solo se busca lo que de verdad no
+  // conocemos.
+  async function buscarPaisRemoto(id: string, nombre: string) {
+    const limpio = nombre.trim();
+    if (!limpio) return;
+    setEtapas((prev) => prev.map((e) => (e.id === id ? { ...e, buscando: true } : e)));
+    const lugar = await resolverLugarRemoto(limpio);
+    setEtapas((prev) =>
+      prev.map((e) => {
+        if (e.id !== id) return e;
+        // Si mientras buscábamos cambió el nombre o ya se eligió país a
+        // mano, la respuesta llega tarde y se descarta.
+        if (e.nombre.trim() !== limpio || e.paisCodigo) return { ...e, buscando: false };
+        return lugar?.paisCodigo
+          ? { ...e, paisCodigo: lugar.paisCodigo, fuente: lugar.fuente, necesitaPais: false, buscando: false }
+          : { ...e, buscando: false };
+      })
+    );
+  }
+
   function anadirParada() {
     if (!nuevaParada.trim()) return;
-    setEtapas((prev) => [...prev, aBorrador(nuevaParada.trim())]);
+    const nueva = aBorrador(nuevaParada.trim());
+    setEtapas((prev) => [...prev, nueva]);
     setNuevaParada("");
+    if (!nueva.paisCodigo) void buscarPaisRemoto(nueva.id, nueva.nombre);
   }
 
   function quitarParada(id: string) {
@@ -284,6 +310,9 @@ export default function PlanificarPage() {
                         value={etapa.nombre}
                         placeholder="ej. Salento, Perú, Kioto…"
                         onChange={(e) => actualizarParada(etapa.id, { ...aBorrador(e.target.value, etapa.dias), id: etapa.id })}
+                        onBlur={() => {
+                          if (!etapa.paisCodigo) void buscarPaisRemoto(etapa.id, etapa.nombre);
+                        }}
                       />
                       {esCircuito && (
                         <>
@@ -308,7 +337,12 @@ export default function PlanificarPage() {
 
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                       {pais ? (
-                        <span className="text-emerald-700">✓ {pais.nombre}</span>
+                        <span className="text-emerald-700">
+                          ✓ {pais.nombre}
+                          {etapa.fuente === "openstreetmap" && <span className="text-neutral-400"> · según OpenStreetMap</span>}
+                        </span>
+                      ) : etapa.buscando ? (
+                        <span className="text-neutral-500">Buscando el país…</span>
                       ) : (
                         <label className="flex items-center gap-2 text-neutral-500">
                           ¿En qué país está?
@@ -369,6 +403,7 @@ export default function PlanificarPage() {
                 Dinos el país de cada parada y podremos darte emergencias, moneda, transporte local y reglas de frontera.
               </p>
             )}
+            <p className="mt-2 text-[0.7rem] text-neutral-400">{ATRIBUCION_OSM}</p>
           </div>
 
           <label className="block">
