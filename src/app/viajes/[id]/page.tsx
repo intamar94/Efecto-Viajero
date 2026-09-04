@@ -9,10 +9,12 @@ import { useData } from "@/lib/store";
 import { calcularRequisitos, ORDEN_ESTADO } from "@/lib/requisitos";
 import { destinoPrincipal, esCircuito, etapasDe, paisesDelViaje } from "@/lib/viaje";
 import { alojamientosDe, actividadesDe } from "@/lib/catalogo";
-import { calcularPresupuesto, sugerirAjustePresupuesto } from "@/lib/compatibilidad";
+import { sugerirAjustePresupuesto, calcularPresupuesto as calcularPresupuestoDetalles } from "@/lib/compatibilidad";
+import { calcularPresupuesto, calcularImporteVault } from "@/lib/calcularPresupuesto";
 import { resumenViaje } from "@/lib/travelBrain";
 import { MODOS } from "@/lib/modos";
 import { NOMBRE_DOMINIO } from "@/lib/investigacion";
+import { invitar as compartirViaje } from "@/lib/viajes/compartidos";
 import type { ContextoViaje, EstadoRequisito, Viaje } from "@/lib/types";
 
 const SECCIONES = [
@@ -55,6 +57,9 @@ export default function ViajeDetallePage() {
   const [editandoModo, setEditandoModo] = useState(false);
   const [verAuditoria, setVerAuditoria] = useState(false);
   const [requisitosAbiertos, setRequisitosAbiertos] = useState<Set<string>>(new Set());
+  const [mostrarCompartir, setMostrarCompartir] = useState(false);
+  const [emailACompartir, setEmailACompartir] = useState("");
+  const [compartiendo, setCompartiendo] = useState(false);
   const viaje = obtenerViaje(params.id);
 
   const destino = viaje ? destinoPrincipal(viaje) : undefined;
@@ -65,7 +70,12 @@ export default function ViajeDetallePage() {
   );
 
   const requisitos = useMemo(() => (viaje ? calcularRequisitos(viaje, viajeros) : []), [viaje, viajeros]);
-  const presupuesto = useMemo(() => (viaje ? calcularPresupuesto(viaje, destino) : null), [viaje, destino]);
+  const presupuesto = useMemo(() => {
+    if (!viaje) return null;
+    const desglose = calcularPresupuestoDetalles(viaje, destino);
+    const totalConVault = calcularPresupuesto(viaje);
+    return { ...desglose, total: totalConVault, excedido: viaje.contexto.presupuestoTotal !== undefined && totalConVault > viaje.contexto.presupuestoTotal };
+  }, [viaje, destino]);
   const insights = useMemo(() => (viaje ? resumenViaje(viaje, requisitos, destino) : []), [viaje, requisitos, destino]);
 
   if (!viaje) {
@@ -123,10 +133,62 @@ export default function ViajeDetallePage() {
     router.push("/viajes");
   }
 
+  async function handleCompartir() {
+    if (!viaje || !emailACompartir) return;
+    setCompartiendo(true);
+    try {
+      await compartirViaje(viaje.id, emailACompartir);
+      setEmailACompartir("");
+      setMostrarCompartir(false);
+    } catch (err) {
+      console.error("Error compartiendo viaje:", err);
+      alert("No se pudo compartir el viaje. Verifica el email e intenta de nuevo.");
+    } finally {
+      setCompartiendo(false);
+    }
+  }
+
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-2xl">
         <Cabecera titulo={viaje.destino} subtitulo={subtituloFechas(viaje)} volverA="/viajes" />
+
+        <div className="mb-6 flex gap-2">
+          <button
+            onClick={() => setMostrarCompartir(true)}
+            className="flex-1 rounded-lg border border-marino-200 bg-marino-50 px-3 py-2 text-sm font-medium text-marino-700 hover:bg-marino-100 transition"
+          >
+            👥 Compartir
+          </button>
+        </div>
+
+        {mostrarCompartir && (
+          <div className="mb-6 rounded-xl border border-marino-200 bg-marino-50 p-4">
+            <p className="mb-3 text-sm font-medium">Compartir viaje con alguien</p>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                placeholder="email@ejemplo.com"
+                value={emailACompartir}
+                onChange={(e) => setEmailACompartir(e.target.value)}
+                className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+              />
+              <button
+                onClick={handleCompartir}
+                disabled={compartiendo || !emailACompartir}
+                className="rounded-lg bg-marino-600 px-3 py-2 text-sm font-medium text-white hover:bg-marino-700 disabled:bg-neutral-300"
+              >
+                {compartiendo ? "..." : "Invitar"}
+              </button>
+              <button
+                onClick={() => setMostrarCompartir(false)}
+                className="rounded-lg border border-neutral-200 px-3 py-2 text-sm hover:bg-neutral-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
         {insights.length > 0 && (
           <div className="mb-6 flex flex-wrap gap-2">
