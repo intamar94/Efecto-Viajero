@@ -8,36 +8,41 @@ export interface ProviderCapability {
   provider?: string;
   requiresKey?: string;
   authoritative?: boolean;
+  status: "implemented" | "partial" | "planned" | "blocked";
   notes: string;
 }
 
 /**
- * Capability registry: the orchestrator depends on capabilities, not brands.
- * Real connectors can be attached later without changing the product contract.
+ * Capability registry. It describes the real implementation state rather than
+ * claiming that a connector exists merely because a future provider is named.
  */
 export const PROVIDERS: ProviderCapability[] = [
-  { domain: "destination", mode: "native", provider: "Open-Meteo Geocoding", authoritative: false, notes: "Global place resolution; use as resolver, not as destination truth." },
-  { domain: "weather", mode: "api", provider: "Open-Meteo", notes: "Current/forecast weather once coordinates and dates are known." },
-  { domain: "map", mode: "api", provider: "Maps provider adapter", requiresKey: "MAPS_PROVIDER_API_KEY", notes: "Routing, POI and travel-time data." },
-  { domain: "transport", mode: "api", provider: "Flight/rail/transit adapters", notes: "Multi-modal route search; no single provider should define the whole trip." },
-  { domain: "accommodation", mode: "api", provider: "Accommodation adapters", notes: "Availability, prices, policies and accessibility." },
-  { domain: "requirements", mode: "api", provider: "Official government / consular sources", authoritative: true, notes: "Country- and traveler-specific entry rules." },
-  { domain: "laws", mode: "api", provider: "Official local sources", authoritative: true, notes: "Local regulations such as food/drink, driving, park and beach rules." },
-  { domain: "emergency", mode: "api", provider: "Official emergency / consular sources", authoritative: true, notes: "Emergency numbers, hospitals, consulates and local safety contacts." },
-  { domain: "currency", mode: "api", provider: "FX provider adapter", notes: "Rates with timestamp and source." },
-  { domain: "events", mode: "api", provider: "Events provider adapters", notes: "Events filtered by date, place and traveler fit." },
-  { domain: "gastronomy", mode: "api", provider: "Places/review adapters", notes: "Restaurants, dishes, opening hours, price and dietary/accessibility fit." },
-  { domain: "culture", mode: "api", provider: "POI/cultural adapters", notes: "Museums, heritage, customs and interpretation." },
-  { domain: "nature", mode: "api", provider: "Parks / protected-area adapters", notes: "Trails, beaches, parks, closures and conditions." },
-  { domain: "experiences", mode: "api", provider: "Experience adapters", notes: "Activities and availability." },
-  { domain: "language", mode: "native", provider: "LLM", notes: "Translation, phrase support and contextual language help." },
-  { domain: "budget", mode: "native", provider: "Travel Brain", notes: "Model and constraint solver consuming observed prices." },
-  { domain: "expenses", mode: "native", provider: "Travel Brain", notes: "Expense ledger and budget deltas." },
-  { domain: "memory", mode: "user_connected", provider: "Device/cloud media adapters", notes: "Index metadata where possible; originals stay with the user." },
-  { domain: "offline", mode: "native", provider: "Local device storage", notes: "Cache the minimum required critical trip bundle." },
-  { domain: "social", mode: "api", provider: "Trip sharing adapter", notes: "Participants, permissions, votes and shared changes." },
+  { domain: "destination", mode: "api", provider: "Open-Meteo Geocoding", authoritative: false, status: "implemented", notes: "Place resolution. It is a resolver, not authoritative destination truth." },
+  { domain: "weather", mode: "api", provider: "Open-Meteo", status: "implemented", notes: "Current and forecast data once coordinates and dates are known." },
+  { domain: "map", mode: "api", provider: "OpenStreetMap Nominatim", status: "implemented", notes: "Reverse geocoding only today. Full map/routing/POI capability is still partial." },
+  { domain: "transport", mode: "api", provider: "OSRM", status: "partial", notes: "Road routing only. Flight, rail, bus, transit and reliable origin handling still need connectors." },
+  { domain: "accommodation", mode: "api", provider: "Accommodation provider adapter", status: "blocked", notes: "Needs live availability, prices, policies and accessibility data." },
+  { domain: "requirements", mode: "api", provider: "Official government / consular sources", authoritative: true, status: "blocked", notes: "Needs country-specific official source strategy and traveler profile inputs." },
+  { domain: "laws", mode: "api", provider: "Official local sources", authoritative: true, status: "blocked", notes: "No universal global API; needs jurisdiction-aware official-source retrieval." },
+  { domain: "emergency", mode: "api", provider: "Official emergency / consular sources", authoritative: true, status: "blocked", notes: "Needs country/city emergency and consular source adapters." },
+  { domain: "currency", mode: "api", provider: "Frankfurter", status: "partial", notes: "FX retrieval exists; destination-currency mapping and budget integration are incomplete." },
+  { domain: "events", mode: "api", provider: "Events provider adapter", status: "blocked", notes: "Needs date/location event source with reliable freshness." },
+  { domain: "gastronomy", mode: "api", provider: "OpenStreetMap Overpass", status: "partial", notes: "POI discovery works; reviews, menus, dietary fit, reliable hours and booking need richer sources." },
+  { domain: "culture", mode: "api", provider: "OpenStreetMap Overpass", status: "partial", notes: "POI discovery works; authoritative descriptions, opening data and ticketing need richer sources." },
+  { domain: "nature", mode: "api", provider: "OpenStreetMap Overpass", status: "partial", notes: "POI discovery works; closures, trail conditions and protected-area rules need authoritative sources." },
+  { domain: "experiences", mode: "api", provider: "OpenStreetMap Overpass", status: "partial", notes: "Attraction discovery works; availability, booking, duration and price need richer sources." },
+  { domain: "language", mode: "native", provider: "LLM", status: "partial", notes: "The domain is modeled but execution needs a real LLM capability boundary and language requirements in context." },
+  { domain: "budget", mode: "native", provider: "Travel Brain", status: "partial", notes: "Domain exists in the plan but currently lacks a native execution model consuming dependency results." },
+  { domain: "expenses", mode: "native", provider: "Travel Brain", status: "partial", notes: "Domain exists in the plan but currently lacks a native execution model and expense ledger integration." },
+  { domain: "memory", mode: "user_connected", provider: "Device/cloud media adapters", status: "blocked", notes: "Needs user storage/media connection and explicit permission model." },
+  { domain: "offline", mode: "native", provider: "Local device storage", status: "partial", notes: "Concept exists; critical-bundle generation and persistence still need implementation." },
+  { domain: "social", mode: "api", provider: "Trip sharing adapter", status: "blocked", notes: "Needs authentication, persistent trip membership, permissions and realtime/shared state." },
 ];
 
 export function capabilityFor(domain: ResearchDomain) {
   return PROVIDERS.find((provider) => provider.domain === domain);
+}
+
+export function capabilitiesNeedingAccess() {
+  return PROVIDERS.filter((provider) => provider.status === "blocked" || provider.status === "planned");
 }
