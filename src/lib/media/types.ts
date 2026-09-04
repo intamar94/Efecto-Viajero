@@ -21,6 +21,7 @@ export interface EVMediaAsset {
   type: MediaType;
   name?: string;
   createdAt?: string;
+  day?: number;
   latitude?: number;
   longitude?: number;
   thumbnailUrl?: string;
