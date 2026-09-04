@@ -1,11 +1,14 @@
 import type { CanonicalTripContext } from "./tripContext";
-import type { ResearchDomain, ResearchTask } from "./researchOrchestrator";
+import type { ResearchDomain, ResearchResult, ResearchTask } from "./researchOrchestrator";
+import { executeResearch } from "./providerExecutor";
+import type { ResolvedDestination } from "./destinationResolver";
 
 export interface DepartmentMission {
   domain: ResearchDomain;
   objective: string;
   context: CanonicalTripContext;
   dependencies: ResearchDomain[];
+  dependencyResults: ResearchResult[];
 }
 
 export interface DepartmentSubtask {
@@ -23,15 +26,18 @@ export interface DepartmentReport {
   unresolved: string[];
   conflicts: string[];
   status: "ready" | "partial" | "needs_review" | "unavailable" | "error";
+  error?: string;
 }
 
 export interface TravelDepartment {
   domain: ResearchDomain;
-  mission(context: CanonicalTripContext, task: ResearchTask): DepartmentMission;
+  mission(context: CanonicalTripContext, task: ResearchTask, dependencyResults?: ResearchResult[]): DepartmentMission;
   organize(mission: DepartmentMission): DepartmentSubtask[];
+  execute(mission: DepartmentMission, subtasks: DepartmentSubtask[], locations: ResolvedDestination[]): Promise<DepartmentReport>;
 }
 
 const OBJECTIVES: Partial<Record<ResearchDomain, string>> = {
+  destination: "Resolver y validar el destino y la geografía relevante para el viaje.",
   transport: "Determinar cómo desplazarse de forma compatible con el viajero, sus destinos, fechas, presupuesto y restricciones.",
   accommodation: "Determinar qué características de alojamiento necesita el viajero y qué opciones son compatibles.",
   weather: "Determinar cómo las condiciones meteorológicas afectan al viaje y a sus decisiones.",
@@ -46,9 +52,15 @@ const OBJECTIVES: Partial<Record<ResearchDomain, string>> = {
   language: "Determinar necesidades lingüísticas prácticas para el viaje.",
   currency: "Determinar la información monetaria necesaria para interpretar correctamente el presupuesto.",
   map: "Construir la representación geográfica necesaria para relacionar lugares y desplazamientos.",
+  budget: "Modelar la viabilidad económica del viaje a partir de datos observados y restricciones del viajero.",
+  expenses: "Modelar gastos y desviaciones del presupuesto a partir de datos disponibles.",
+  offline: "Determinar el conjunto mínimo de información que debe quedar disponible sin conexión.",
+  social: "Determinar necesidades de participantes, permisos y colaboración del viaje.",
+  memory: "Determinar qué memoria del viaje puede conservarse o recuperarse con las capacidades disponibles.",
 };
 
 const DEFAULT_SUBTASKS: Partial<Record<ResearchDomain, string[]>> = {
+  destination: ["validar lugares", "validar país y región", "detectar ambigüedades"],
   transport: ["origen y destinos", "medios disponibles", "tiempos y distancias", "compatibilidad con restricciones", "impacto en presupuesto"],
   accommodation: ["zonas adecuadas", "necesidades del grupo", "ubicación respecto al recorrido", "precio si está disponible", "restricciones"],
   gastronomy: ["especialidades locales", "lugares relevantes", "ubicación", "horarios si están disponibles", "compatibilidad con preferencias"],
@@ -57,22 +69,64 @@ const DEFAULT_SUBTASKS: Partial<Record<ResearchDomain, string[]>> = {
   experiences: ["experiencias", "ubicación", "duración si está disponible", "compatibilidad", "evidencia"],
 };
 
+function statusFromResults(results: ResearchResult[]): DepartmentReport["status"] {
+  if (!results.length) return "unavailable";
+  if (results.some((result) => result.status === "error")) return results.every((result) => result.status === "error") ? "error" : "partial";
+  if (results.some((result) => result.status === "needs_review")) return "needs_review";
+  if (results.some((result) => result.status === "partial")) return "partial";
+  if (results.every((result) => result.status === "unavailable")) return "unavailable";
+  return "ready";
+}
+
 export function createDepartment(domain: ResearchDomain): TravelDepartment {
   return {
     domain,
-    mission(context, task) {
-      return { domain, objective: OBJECTIVES[domain] ?? `Investigar ${domain} de forma autónoma dentro del contexto completo del viaje.`, context, dependencies: task.dependsOn.map((id) => id.replace("research:", "") as ResearchDomain) };
+    mission(context, task, dependencyResults = []) {
+      return {
+        domain,
+        objective: OBJECTIVES[domain] ?? `Investigar ${domain} de forma autónoma dentro del contexto completo del viaje.`,
+        context,
+        dependencies: task.dependsOn.map((id) => id.replace("research:", "") as ResearchDomain),
+        dependencyResults,
+      };
     },
     organize(mission) {
       return (DEFAULT_SUBTASKS[mission.domain] ?? ["determinar necesidades", "investigar fuentes", "validar resultados", "detectar incertidumbres"]).map((question, index) => ({ id: `${mission.domain}:${index + 1}`, question, priority: index === 0 ? "high" : "normal" }));
     },
+    async execute(mission, subtasks, locations) {
+      try {
+        const execution = await executeResearch({ tasks: [{ id: `research:${mission.domain}`, domain: mission.domain, priority: "normal", phase: "plan", dependsOn: [] }] }, mission.context, locations);
+        const results = execution.results;
+        const status = statusFromResults(results);
+        const findings = results.flatMap((result) => Array.isArray(result.data) ? result.data : result.data === undefined ? [] : [result.data]);
+        const evidence = results.flatMap((result) => result.evidence ?? []);
+        const unresolved = results.flatMap((result) => result.error ? [result.error] : []);
+        return {
+          domain: mission.domain,
+          objective: mission.objective,
+          subtasks,
+          findings,
+          evidence,
+          unresolved,
+          conflicts: [],
+          status,
+          error: results.find((result) => result.error)?.error,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Department execution error";
+        return { domain: mission.domain, objective: mission.objective, subtasks, findings: [], evidence: [], unresolved: [message], conflicts: [], status: "error", error: message };
+      }
+    },
   };
 }
 
-export function organizeDepartments(tasks: ResearchTask[], context: CanonicalTripContext) {
+export function organizeDepartments(tasks: ResearchTask[], context: CanonicalTripContext, dependencyResults: Map<string, ResearchResult> = new Map()) {
   return tasks.map((task) => {
     const department = createDepartment(task.domain);
-    const mission = department.mission(context, task);
+    const mission = department.mission(context, task, task.dependsOn.flatMap((id) => {
+      const result = dependencyResults.get(id);
+      return result ? [result] : [];
+    }));
     return { department, mission, subtasks: department.organize(mission) };
   });
 }
