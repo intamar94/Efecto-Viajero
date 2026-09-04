@@ -8,6 +8,7 @@ import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { actividadesDe, alojamientosDe } from "@/lib/catalogo";
 import { destinoPrincipal } from "@/lib/viaje";
+import { ETIQUETA_CATEGORIA_SITIO, type CategoriaSitio, type SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, EstadoActividad } from "@/lib/types";
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
@@ -95,6 +96,16 @@ export default function ActividadesPage() {
       esPropia: true,
     }));
   const catalogo: Item[] = [...propias, ...delCatalogo];
+
+  // Los sitios reales se agrupan por parada y, dentro, por categoría.
+  const ORDEN_CATEGORIAS: CategoriaSitio[] = ["gastronomia", "cultura", "naturaleza", "experiencias"];
+  const sitiosPorLugar = Object.entries(viaje.investigacion?.sitios ?? {}).map(([lugar, sitios]) => ({
+    lugar,
+    porCategoria: ORDEN_CATEGORIAS.flatMap((categoria) => {
+      const deCategoria = (sitios as SitioReal[]).filter((s) => s.categoria === categoria);
+      return deCategoria.length ? [{ categoria, sitios: deCategoria }] : [];
+    }),
+  })).filter((x) => x.porCategoria.length > 0);
 
   function setEstado(actividadId: string, estado: EstadoActividad | null) {
     if (!viaje) return;
@@ -269,6 +280,55 @@ export default function ActividadesPage() {
             </ul>
           )}
         </section>
+
+        {/* Sitios que existen de verdad, con su nombre real, sacados de
+            OpenStreetMap al crear el viaje. Es lo único de esta pantalla
+            que no es una estimación: por eso va antes del catálogo. */}
+        {sitiosPorLugar.length > 0 && (
+          <section className="mb-6">
+            <div className="mb-1 flex items-baseline justify-between">
+              <h2 className="font-medium">Sitios reales cerca</h2>
+              <span className="text-xs text-neutral-400">OpenStreetMap</span>
+            </div>
+            <p className="mb-3 text-xs text-neutral-500">
+              Existen y están donde dice el mapa. Horarios, precios y si abren hoy, eso no lo sabemos: confírmalo antes de ir.
+            </p>
+
+            {sitiosPorLugar.map(({ lugar, porCategoria }) => (
+              <div key={lugar} className="mb-4">
+                {sitiosPorLugar.length > 1 && <p className="mb-2 text-sm font-medium text-marino-800">{lugar}</p>}
+                <div className="space-y-3">
+                  {porCategoria.map(({ categoria, sitios }) => (
+                    <div key={categoria} className="card">
+                      <p className="mb-2 text-sm font-medium">
+                        {ETIQUETA_CATEGORIA_SITIO[categoria].icono} {ETIQUETA_CATEGORIA_SITIO[categoria].etiqueta}
+                      </p>
+                      <ul className="flex flex-wrap gap-1.5">
+                        {sitios.map((s) => (
+                          <li key={`${s.nombre}-${s.lat}-${s.lon}`}>
+                            {s.lat && s.lon ? (
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="chip hover:border-marino-500 hover:text-marino-800"
+                              >
+                                {s.nombre}
+                                {s.detalle && <span className="text-neutral-400"> · {s.detalle}</span>}
+                              </a>
+                            ) : (
+                              <span className="chip">{s.nombre}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
 
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="font-medium">{destino ? "Todo lo disponible" : "Tu lista"}</h2>

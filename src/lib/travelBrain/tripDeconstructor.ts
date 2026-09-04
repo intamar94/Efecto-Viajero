@@ -9,7 +9,12 @@ function clean(value: string) { return value.replace(/[.!?;:]+$/g, "").replace(/
 export function extractLocationCandidates(text: string): string[] {
   const candidates: string[] = [];
   const push = (value: string) => {
-    const cleaned = clean(value).replace(/\bdurante\b.*$/i, "").replace(/\b(?:y|e)\s+(?:comer|conocer|hacer|ver|disfrutar)\b.*$/i, "");
+    const cleaned = clean(value)
+      .replace(/\bdurante\b.*$/i, "")
+      // La duración se pegaba al nombre del lugar ("Colombia 7 días"), y así
+      // ningún geocodificador lo encuentra: se corta antes de trocear.
+      .replace(/\b(?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s*(?:d[ií]as?|semanas?|mes(?:es)?)\b.*$/i, "")
+      .replace(/\b(?:y|e)\s+(?:comer|conocer|hacer|ver|disfrutar)\b.*$/i, "");
     for (const piece of cleaned.split(/\s*(?:,|;|\by\b|\be\b)\s*/i)) {
       const p = clean(piece).replace(/^visitar\s+/i, "").replace(/^conocer\s+/i, "").replace(/^pasar\s+por\s+/i, "");
       if (!p || STOP.has(p.toLowerCase()) || p.length < 2 || /^\d+$/.test(p)) continue;

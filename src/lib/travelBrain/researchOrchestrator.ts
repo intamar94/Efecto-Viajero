@@ -84,14 +84,27 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   const hint = countryHint(candidates);
   let countryCode: string | undefined;
 
+  // Un lugar que no se resuelve no puede tumbar el viaje entero: antes, si
+  // el geocodificador fallaba con UN candidato (o estaba caído, o devolvía
+  // 429), la petición completa moría con 502 y no se podía crear ningún
+  // viaje. Ahora cada fallo se degrada a "no resuelto", que es un caso que
+  // la respuesta ya sabía representar.
+  async function resolverTolerante(valor: string, code?: string) {
+    try {
+      return await resolveDestination(valor, code);
+    } catch {
+      return [];
+    }
+  }
+
   // Solo la identificación inicial del país precede a la resolución paralela de lugares.
   if (hint) {
-    const matches = await resolveDestination(hint);
+    const matches = await resolverTolerante(hint);
     countryCode = matches.find((r) => r.name.toLowerCase() === hint.toLowerCase())?.countryCode ?? matches[0]?.countryCode;
   }
 
   const resolved = await Promise.all(candidates.map(async (candidate) => {
-    const matches = await resolveDestination(candidate, countryCode);
+    const matches = await resolverTolerante(candidate, countryCode);
     const best = bestMatch(matches, countryCode);
     if (!best) return { candidate, destination: undefined, unresolved: true };
     const isCountry = best.name.toLowerCase() === candidate.toLowerCase() && !best.region;

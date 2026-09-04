@@ -1,3 +1,5 @@
+import type { Investigacion } from "./investigacion";
+
 // Modelo de datos central de Efecto Viajero.
 // Separación deliberada: datos permanentes del viajero vs. contexto específico del viaje.
 
@@ -206,6 +208,10 @@ export interface Viaje {
   participantes: string[];
   votaciones: Votacion[];
   recuerdos: Recuerdo[];
+  // Lo que el Travel Brain averiguó al crear el viaje (sitios reales,
+  // clima, moneda) ya recortado. Sin guardarlo, esa investigación se
+  // perdía al salir de /planificar y había que volver a pedirla.
+  investigacion?: Investigacion;
 }
 
 export type EstadoRequisito = "verde" | "amarillo" | "rojo";

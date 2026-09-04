@@ -26,6 +26,15 @@ export default function RutaPage() {
   const cruces = crucesDe(viaje);
   const circuito = esCircuito(viaje);
 
+  const clima = new Map((viaje.investigacion?.clima ?? []).map((c) => [c.lugar, c]));
+  const moneda = viaje.investigacion?.moneda;
+  // Solo las monedas de los países que se pisan: la respuesta trae más de
+  // treinta y enseñarlas todas sería ruido.
+  const monedasDelViaje = moneda
+    ? [...new Set(etapas.map((e) => paisDeEtapa(e)?.moneda?.match(/\(([A-Z]{3})\)/)?.[1]).filter(Boolean) as string[])]
+        .flatMap((codigo) => (moneda.tasas[codigo] !== undefined ? [{ codigo, tasa: moneda.tasas[codigo] }] : []))
+    : [];
+
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
@@ -66,6 +75,28 @@ export default function RutaPage() {
                     </div>
                     {etapa.dias !== undefined && <span className="chip shrink-0">{etapa.dias} días</span>}
                   </div>
+
+                  {clima.get(etapa.nombre) && (
+                    <div className="mt-3 border-t border-neutral-100 pt-3">
+                      <div className="flex items-baseline justify-between">
+                        <p className="text-xs font-medium uppercase tracking-wide text-marino-700/60">Clima</p>
+                        <span className="text-[0.7rem] text-neutral-400">Open-Meteo</span>
+                      </div>
+                      {clima.get(etapa.nombre)!.actualC !== undefined && (
+                        <p className="mt-1 text-sm text-neutral-700">Ahora mismo: {Math.round(clima.get(etapa.nombre)!.actualC!)} °C</p>
+                      )}
+                      {clima.get(etapa.nombre)!.dias.length > 0 && (
+                        <ul className="mt-2 flex flex-wrap gap-1.5">
+                          {clima.get(etapa.nombre)!.dias.map((d) => (
+                            <li key={d.fecha} className="chip">
+                              {d.fecha.slice(5)} · {d.minC !== undefined ? Math.round(d.minC) : "?"}–{d.maxC !== undefined ? Math.round(d.maxC) : "?"}°
+                              {d.probabilidadLluvia !== undefined && d.probabilidadLluvia >= 30 && ` · 🌧️ ${d.probabilidadLluvia}%`}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
 
                   {pais ? (
                     <dl className="mt-3 space-y-1.5 border-t border-neutral-100 pt-3 text-sm">
@@ -140,6 +171,27 @@ export default function RutaPage() {
             );
           })}
         </ol>
+
+        {moneda && monedasDelViaje.length > 0 && (
+          <section className="card mt-6">
+            <div className="mb-1 flex items-baseline justify-between">
+              <h2 className="font-medium">Cambio de moneda</h2>
+              <span className="text-xs text-neutral-400">Frankfurter · {moneda.fecha}</span>
+            </div>
+            <p className="mb-3 text-xs text-neutral-500">Cuánto vale 1 {moneda.base} en las monedas de tu ruta.</p>
+            <ul className="flex flex-wrap gap-1.5">
+              {monedasDelViaje.map(({ codigo, tasa }) => (
+                <li key={codigo} className="chip">
+                  1 {moneda.base} = {tasa >= 100 ? Math.round(tasa) : tasa.toFixed(2)} {codigo}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs text-neutral-400">
+              Es el cambio de referencia del día, no el que te dará una casa de cambio ni tu banco: cuenta con una
+              comisión sobre esta cifra.
+            </p>
+          </section>
+        )}
 
         <p className="mt-6 text-xs text-neutral-400">
           Las reglas de frontera son orientativas y dependen de tu nacionalidad, no del viaje: los acuerdos regionales

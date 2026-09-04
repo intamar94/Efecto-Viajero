@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useData } from "@/lib/store";
 import { interpretarTexto, type NecesidadesViaje } from "@/lib/explorador";
+import { normalizarInvestigacion } from "@/lib/investigacion";
 import type { AccesibilidadViaje, Etapa, ModoPlanificacion, PresupuestoViaje, TipoPresupuesto, TipoViaje } from "@/lib/types";
 
 type LugarResuelto = {
@@ -128,6 +129,9 @@ export default function PlanificarPage() {
       fechaSalida: fechaSalida || undefined,
       fechaRegreso: fechaRegreso || undefined,
       modoPlanificacion: modo,
+      // Lo que ya se investigó viaja con el viaje: si no, se pierde al salir
+      // de esta pantalla y las consultas se habrían hecho para nada.
+      investigacion: normalizarInvestigacion(analisis as Parameters<typeof normalizarInvestigacion>[0]),
       contexto: {
         presupuestoTotal: presupuestoTipo === "total" && presupuesto ? Number(presupuesto) : undefined,
         duracionDias: necesidades.duracionDias,
