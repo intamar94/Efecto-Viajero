@@ -7,6 +7,7 @@ import { runDepartments } from "./departmentRunner";
 import { scoreDestinations } from "./compatibility";
 import { buildTripDraft } from "./tripBuilder";
 import { buildOrchestratorUpdate } from "./supervisorProtocol";
+import { auditCapabilities } from "./capabilityAudit";
 
 export type ResearchDomain = "destination" | "requirements" | "laws" | "emergency" | "transport" | "accommodation" | "weather" | "experiences" | "culture" | "gastronomy" | "nature" | "events" | "language" | "currency" | "map" | "budget" | "expenses" | "memory" | "offline" | "social";
 export type ResearchStatus = "queued" | "running" | "ready" | "partial" | "needs_review" | "unavailable" | "error";
@@ -120,11 +121,14 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
     : undefined;
   const normalizedUnresolved = unique(unresolved.concat(departmentExecution.reports.flatMap((report) => report.unresolved)));
   const pendingCount = plan.tasks.filter((task) => !results.some((result) => result.task.id === task.id)).length;
+  const capabilityAudit = auditCapabilities(plan.tasks, results, departmentExecution.reports);
   const supervisorUpdate = buildOrchestratorUpdate(
     results,
     plan.tasks,
     normalizedUnresolved,
     departmentExecution.reports,
+    1,
+    capabilityAudit,
   );
 
   return {
@@ -148,6 +152,7 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
     },
     explorer,
     departmentReports: departmentExecution.reports,
+    capabilityAudit,
     supervisorUpdate,
   };
 }
