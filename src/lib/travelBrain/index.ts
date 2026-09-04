@@ -7,5 +7,6 @@ export * from "./providerRegistry";
 export * from "./providerExecutor";
 export * from "./domainProviders";
 export * from "./departments";
+export * from "./supervisorProtocol";
 export * from "./compatibility";
 export * from "./tripBuilder";
