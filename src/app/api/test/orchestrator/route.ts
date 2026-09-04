@@ -13,6 +13,14 @@ export async function GET() {
     pendingCount: result.pendingCount,
     availableDomains: result.availableDomains,
     unavailableDomains: result.unavailableDomains,
+    capabilityAudit: {
+      operational: result.capabilityAudit.operational,
+      partial: result.capabilityAudit.partial,
+      blocked: result.capabilityAudit.blocked,
+      failed: result.capabilityAudit.failed,
+      notExercised: result.capabilityAudit.notExercised,
+      accessRequests: result.capabilityAudit.accessRequests,
+    },
     departmentReports: result.departmentReports.map((report) => ({
       domain: report.domain,
       status: report.status,
@@ -29,6 +37,7 @@ export async function GET() {
       errorDomains: result.supervisorUpdate.errorDomains,
       unresolved: result.supervisorUpdate.unresolved,
       conflicts: result.supervisorUpdate.conflicts,
+      capabilityAudit: result.supervisorUpdate.capabilityAudit,
       recommendations: result.supervisorUpdate.recommendations,
     },
   });
