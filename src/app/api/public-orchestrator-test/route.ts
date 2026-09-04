@@ -9,7 +9,7 @@ export async function GET() {
       ok: true,
       test: query,
       resultCount: result.results?.length ?? 0,
-      pendingCount: result.pending?.length ?? 0,
+      pendingCount: result.pendingCount ?? 0,
       capabilityAudit: result.capabilityAudit,
       supervisorUpdate: result.supervisorUpdate,
     });
