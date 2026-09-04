@@ -1,6 +1,5 @@
 // Modelo de datos central de Efecto Viajero.
-// Separación deliberada: datos permanentes del viajero (esta capa) vs.
-// contexto específico de cada viaje (Viaje.contexto).
+// Separación deliberada: datos permanentes del viajero vs. contexto específico de cada viaje.
 
 export type TipoDocumento = "pasaporte" | "dni" | "visado" | "permiso_conduccion" | "certificado" | "vacuna" | "microchip" | "otro";
 export interface Documento { id: string; tipo: TipoDocumento; nombre?: string; lugarExpedicion?: string; fechaVencimiento?: string; }
@@ -40,10 +39,42 @@ export interface Recuerdo {
 export type TipoViaje = "simple" | "circuito";
 export interface Etapa { id: string; nombre: string; paisCodigo?: string; destinoId?: string; dias?: number; }
 export interface Viaje {
-  id: string; destino: string; destinoId?: string; paisCodigo?: string; tipo?: TipoViaje; etapas?: Etapa[]; viajerosIds: string[]; fechaSalida?: string; fechaRegreso?: string; contexto: ContextoViaje; createdAt: string;
-  modoPlanificacion?: ModoPlanificacion; transporte: TramoTransporte[]; alojamientoId?: string; actividades: ActividadViaje[]; documentos: DocumentoViaje[];
-  recuerdos: Recuerdo[]; votaciones: Votacion[]; souvenirs: string[]; gastos: string[];
+  id: string;
+  destino: string;
+  destinoId?: string;
+  paisCodigo?: string;
+  tipo?: TipoViaje;
+  etapas?: Etapa[];
+  viajerosIds: string[];
+  fechaSalida?: string;
+  fechaRegreso?: string;
+  contexto: ContextoViaje;
+  createdAt: string;
+  modoPlanificacion?: ModoPlanificacion;
+  transporte: TramoTransporte[];
+  alojamientoId?: string;
+  actividades: ActividadViaje[];
+  documentos: DocumentoViaje[];
+  participantes: string[];
+  votaciones: Votacion[];
+  recuerdos: Recuerdo[];
 }
 
-export type TipoDestino = "ciudad" | "pueblo" | "zona" | "pais";
-export interface Destino { id: string; nombre: string; paisCodigo: string; tipo: TipoDestino; descripcion?: string; latitud?: number; longitud?: number; }
+export type EstadoRequisito = "verde" | "amarillo" | "rojo";
+export type CategoriaRequisito = "documentacion" | "visado" | "salud" | "mascota" | "conduccion" | "otros";
+export interface ResultadoRequisito { viajeroId: string; viajeroNombre: string; categoria: CategoriaRequisito; estado: EstadoRequisito; titulo: string; motivo: string; fuente?: string; fechaComprobacion: string; }
+export interface TransporteLocal { medios: string[]; comoSePaga: string; apps?: string; aviso?: string; }
+
+export interface Destino {
+  id: string;
+  nombre: string;
+  pais: string;
+  paisCodigo: string;
+  descripcion: string;
+  tags: string[];
+  ritmo: RitmoViaje[];
+  presupuestoDiaEstimado: { bajo: number; medio: number; alto: number };
+  mascotaFriendly: boolean;
+  distanciaConduccionCorta: boolean;
+  climaCalido: boolean;
+}
