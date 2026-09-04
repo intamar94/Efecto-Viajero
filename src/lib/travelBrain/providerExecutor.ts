@@ -1,25 +1,159 @@
 import type { CanonicalTripContext } from "./tripContext";
-import type { ResearchPlan, ResearchResult } from "./researchOrchestrator";
+import type { ResearchPlan, ResearchResult, ResearchTask } from "./researchOrchestrator";
 import type { ResolvedDestination } from "./destinationResolver";
 import { executeDomainProvider } from "./domainProviders";
 
-export interface WeatherSnapshot { latitude: number; longitude: number; timezone: string; current: { temperatureC?: number; precipitation?: number; weatherCode?: number; windKmh?: number }; daily?: { date: string; minC?: number; maxC?: number; precipitationProbability?: number; weatherCode?: number }[]; }
-export interface ProviderExecution { results: ResearchResult[]; availableDomains: string[]; unavailableDomains: string[]; }
-async function weatherFor(destination: ResolvedDestination, start?: string, end?: string): Promise<WeatherSnapshot> { const url = new URL("https://api.open-meteo.com/v1/forecast"); url.searchParams.set("latitude", String(destination.latitude)); url.searchParams.set("longitude", String(destination.longitude)); url.searchParams.set("current", "temperature_2m,precipitation,weather_code,wind_speed_10m"); url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code"); url.searchParams.set("timezone", "auto"); if (start) url.searchParams.set("start_date", start); if (end) url.searchParams.set("end_date", end); const response = await fetch(url, { next: { revalidate: 1800 } }); if (!response.ok) throw new Error(`No se pudo obtener el tiempo de ${destination.name}`); const data = await response.json() as { timezone?: string; current?: { temperature_2m?: number; precipitation?: number; weather_code?: number; wind_speed_10m?: number }; daily?: { time?: string[]; temperature_2m_min?: number[]; temperature_2m_max?: number[]; precipitation_probability_max?: number[]; weather_code?: number[] } }; const daily = (data.daily?.time ?? []).map((date, i) => ({ date, minC: data.daily?.temperature_2m_min?.[i], maxC: data.daily?.temperature_2m_max?.[i], precipitationProbability: data.daily?.precipitation_probability_max?.[i], weatherCode: data.daily?.weather_code?.[i] })); return { latitude: destination.latitude, longitude: destination.longitude, timezone: data.timezone ?? "auto", current: { temperatureC: data.current?.temperature_2m, precipitation: data.current?.precipitation, weatherCode: data.current?.weather_code, windKmh: data.current?.wind_speed_10m }, daily }; }
+export interface WeatherSnapshot {
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  current: { temperatureC?: number; precipitation?: number; weatherCode?: number; windKmh?: number };
+  daily?: { date: string; minC?: number; maxC?: number; precipitationProbability?: number; weatherCode?: number }[];
+}
+
+export interface ProviderExecution {
+  results: ResearchResult[];
+  availableDomains: string[];
+  unavailableDomains: string[];
+}
+
+async function weatherFor(destination: ResolvedDestination, start?: string, end?: string): Promise<WeatherSnapshot> {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  url.searchParams.set("latitude", String(destination.latitude));
+  url.searchParams.set("longitude", String(destination.longitude));
+  url.searchParams.set("current", "temperature_2m,precipitation,weather_code,wind_speed_10m");
+  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code");
+  url.searchParams.set("timezone", "auto");
+  if (start) url.searchParams.set("start_date", start);
+  if (end) url.searchParams.set("end_date", end);
+  const response = await fetch(url, { next: { revalidate: 1800 } });
+  if (!response.ok) throw new Error(`No se pudo obtener el tiempo de ${destination.name}`);
+  const data = await response.json() as {
+    timezone?: string;
+    current?: { temperature_2m?: number; precipitation?: number; weather_code?: number; wind_speed_10m?: number };
+    daily?: { time?: string[]; temperature_2m_min?: number[]; temperature_2m_max?: number[]; precipitation_probability_max?: number[]; weather_code?: number[] };
+  };
+  const daily = (data.daily?.time ?? []).map((date, i) => ({
+    date,
+    minC: data.daily?.temperature_2m_min?.[i],
+    maxC: data.daily?.temperature_2m_max?.[i],
+    precipitationProbability: data.daily?.precipitation_probability_max?.[i],
+    weatherCode: data.daily?.weather_code?.[i],
+  }));
+  return {
+    latitude: destination.latitude,
+    longitude: destination.longitude,
+    timezone: data.timezone ?? "auto",
+    current: {
+      temperatureC: data.current?.temperature_2m,
+      precipitation: data.current?.precipitation,
+      weatherCode: data.current?.weather_code,
+      windKmh: data.current?.wind_speed_10m,
+    },
+    daily,
+  };
+}
+
+function addStatus(set: Set<string>, unavailable: Set<string>, domain: string, status: ResearchResult["status"]) {
+  if (status === "ready" || status === "partial") set.add(domain);
+  if (status === "unavailable") unavailable.add(domain);
+}
+
+async function executeTask(task: ResearchTask, context: CanonicalTripContext, locations: ResolvedDestination[]): Promise<ResearchResult[]> {
+  if (!locations.length && task.domain !== "currency") {
+    return [{ task, status: "unavailable", data: { reason: "Falta un destino resuelto." } }];
+  }
+
+  if (task.domain === "currency") {
+    if (!locations.length) return [{ task, status: "unavailable", data: { reason: "Falta un destino para consultar la conversión." } }];
+    const result = await executeDomainProvider(task.domain, {
+      destination: locations[0],
+      start: context.dates.start,
+      end: context.dates.end,
+      currency: context.budget.moneda,
+    });
+    return [{ task, status: result.status, data: { destination: locations[0], result: result.data }, evidence: result.evidence, error: result.error }];
+  }
+
+  // Cada destino es independiente: se ejecuta en paralelo y se conserva el resultado individual.
+  const executions = await Promise.all(
+    locations.map(async (target, index) => {
+      const origin = task.domain === "transport" && index > 0
+        ? { latitude: locations[index - 1].latitude, longitude: locations[index - 1].longitude }
+        : undefined;
+      const result = await executeDomainProvider(task.domain, {
+        destination: target,
+        origin,
+        start: context.dates.start,
+        end: context.dates.end,
+        currency: context.budget.moneda,
+      });
+      return { target, result };
+    }),
+  );
+
+  return executions.map(({ target, result }) => ({
+    task,
+    status: result.status,
+    data: { destination: target, result: result.data },
+    evidence: result.evidence,
+    error: result.error,
+  }));
+}
+
 export async function executeResearch(plan: ResearchPlan, context: CanonicalTripContext, locations: ResolvedDestination[]): Promise<ProviderExecution> {
-  const results: ResearchResult[] = []; const availableDomains = new Set<string>(); const unavailableDomains = new Set<string>();
-  const destinationTask = plan.tasks.find((t) => t.domain === "destination"); if (destinationTask) { results.push({ task: destinationTask, status: locations.length ? "ready" : "error", data: { locations } }); if (locations.length) availableDomains.add("destination"); }
-  const weatherTask = plan.tasks.find((t) => t.domain === "weather"); if (weatherTask && locations.length) { try { const weather = await Promise.all(locations.map((location) => weatherFor(location, context.dates.start, context.dates.end))); availableDomains.add("weather"); results.push({ task: weatherTask, status: "ready", data: locations.map((location, i) => ({ destination: location, weather: weather[i] })), evidence: [{ source: "Open-Meteo Forecast", checkedAt: new Date().toISOString(), freshness: "live", confidence: "high" }] }); } catch (error) { results.push({ task: weatherTask, status: "error", error: error instanceof Error ? error.message : "Weather provider error" }); } }
-  for (const task of plan.tasks.filter((t) => !["destination", "weather"].includes(t.domain))) {
-    if (!locations.length && task.domain !== "currency") { unavailableDomains.add(task.domain); results.push({ task, status: "unavailable", data: { reason: "Falta un destino resuelto." } }); continue; }
-    const targets = task.domain === "currency" ? [locations[0]] : locations;
-    for (let i = 0; i < targets.length; i++) {
-      const target = targets[i];
-      const origin = task.domain === "transport" && i > 0 ? { latitude: targets[i - 1].latitude, longitude: targets[i - 1].longitude } : undefined;
-      const result = await executeDomainProvider(task.domain, { destination: target, origin, start: context.dates.start, end: context.dates.end, currency: context.budget.moneda, query: undefined });
-      results.push({ task, status: result.status, data: { destination: target, result: result.data }, evidence: result.evidence, error: result.error });
-      if (result.status === "ready") availableDomains.add(task.domain); else if (result.status === "unavailable") unavailableDomains.add(task.domain);
+  const results: ResearchResult[] = [];
+  const availableDomains = new Set<string>();
+  const unavailableDomains = new Set<string>();
+
+  const destinationTask = plan.tasks.find((task) => task.domain === "destination");
+  if (destinationTask) {
+    const status: ResearchResult["status"] = locations.length ? "ready" : "error";
+    results.push({ task: destinationTask, status, data: { locations } });
+    addStatus(availableDomains, unavailableDomains, "destination", status);
+  }
+
+  // Weather is fan-out parallel, but Promise.allSettled prevents one failed destination from deleting the others.
+  const weatherTask = plan.tasks.find((task) => task.domain === "weather");
+  if (weatherTask && locations.length) {
+    const settled = await Promise.allSettled(locations.map((location) => weatherFor(location, context.dates.start, context.dates.end)));
+    const weatherData = settled.map((item, index) => item.status === "fulfilled"
+      ? { destination: locations[index], weather: item.value, status: "ready" as const }
+      : { destination: locations[index], status: "error" as const, error: item.reason instanceof Error ? item.reason.message : "Weather provider error" });
+    const readyCount = weatherData.filter((item) => item.status === "ready").length;
+    const status: ResearchResult["status"] = readyCount === locations.length ? "ready" : readyCount > 0 ? "partial" : "error";
+    results.push({
+      task: weatherTask,
+      status,
+      data: weatherData,
+      evidence: readyCount ? [{ source: "Open-Meteo Forecast", checkedAt: new Date().toISOString(), freshness: "live", confidence: "high" }] : undefined,
+      error: status === "error" ? "No se pudo obtener el tiempo de ningún destino." : undefined,
+    });
+    addStatus(availableDomains, unavailableDomains, "weather", status);
+  }
+
+  const providerTasks = plan.tasks.filter((task) => !["destination", "weather"].includes(task.domain));
+
+  // Todos estos dominios dependen únicamente del destino en la capa de proveedores.
+  // Se lanzan juntos para que el Travel Brain pueda construir una visión transversal sin esperas artificiales.
+  const taskResults = await Promise.all(providerTasks.map(async (task) => {
+    try {
+      return await executeTask(task, context, locations);
+    } catch (error) {
+      return [{ task, status: "error" as const, error: error instanceof Error ? error.message : "Provider execution error" }];
+    }
+  }));
+
+  for (const taskResult of taskResults) {
+    for (const result of taskResult) {
+      results.push(result);
+      addStatus(availableDomains, unavailableDomains, result.task.domain, result.status);
     }
   }
-  return { results, availableDomains: [...availableDomains], unavailableDomains: [...unavailableDomains] };
+
+  return {
+    results,
+    availableDomains: [...availableDomains],
+    unavailableDomains: [...unavailableDomains],
+  };
 }
