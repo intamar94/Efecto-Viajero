@@ -37,17 +37,7 @@ export interface CapabilityAudit {
   items: CapabilityAuditItem[];
 }
 
-/**
- * Turns department execution plus the capability registry into an operational
- * inventory for the Orchestrator. It distinguishes "implemented" from
- * "actually exercised" and "needs access", so missing integrations become
- * explicit work instead of silent gaps.
- */
-export function auditCapabilities(
-  tasks: ResearchTask[],
-  results: ResearchResult[],
-  reports: DepartmentReport[],
-): CapabilityAudit {
+export function auditCapabilities(tasks: ResearchTask[], results: ResearchResult[], reports: DepartmentReport[]): CapabilityAudit {
   const domains = [...new Set(tasks.map((task) => task.domain))];
   const items = domains.map((domain): CapabilityAuditItem => {
     const provider = PROVIDERS.find((item) => item.domain === domain);
@@ -62,11 +52,13 @@ export function auditCapabilities(
 
     let status: CapabilityAuditStatus;
     if (executionStatus === "error") status = "failed";
-    else if (!domainResults.length) status = "not_exercised";
+    else if (provider?.status === "partial") status = "partial";
     else if (executionStatus === "unavailable") status = "blocked";
-    else if (executionStatus === "partial" || executionStatus === "needs_review" || provider?.status === "partial") status = "partial";
+    else if (!domainResults.length) status = "not_exercised";
+    else if (executionStatus === "partial" || executionStatus === "needs_review") status = "partial";
     else if (provider?.status === "implemented" && executionStatus === "ready") status = "operational";
-    else status = provider?.status === "blocked" ? "blocked" : "not_exercised";
+    else if (provider?.status === "blocked" || provider?.status === "planned") status = "blocked";
+    else status = "not_exercised";
 
     return {
       domain,
