@@ -33,11 +33,7 @@ export interface TripIntent {
   interests: string[];
   pace?: "tranquilo" | "medio" | "intenso";
   avoidDriving?: boolean;
-  travelers: {
-    adults?: number;
-    childrenAges: number[];
-    pet?: boolean;
-  };
+  travelers: { adults?: number; childrenAges: number[]; pet?: boolean };
 }
 
 export interface TripItem {
@@ -69,11 +65,7 @@ export interface BuilderDecision {
   reason?: string;
 }
 
-export interface BuilderResult {
-  trip: TripState;
-  decisions: BuilderDecision[];
-  warnings: string[];
-}
+export interface BuilderResult { trip: TripState; decisions: BuilderDecision[]; warnings: string[] }
 
 export interface IntelligenceDelegate<TInput = unknown, TOutput = unknown> {
   readonly id: string;
@@ -93,10 +85,16 @@ export interface TravelBrainDelegates {
   weather: IntelligenceDelegate;
   map: IntelligenceDelegate;
   offline: IntelligenceDelegate;
+  memory: IntelligenceDelegate;
+  memorySearch: IntelligenceDelegate;
+  memoryVideo: IntelligenceDelegate;
+  events: IntelligenceDelegate;
+  language: IntelligenceDelegate;
+  currency: IntelligenceDelegate;
+  laws: IntelligenceDelegate;
+  emergency: IntelligenceDelegate;
+  social: IntelligenceDelegate;
+  expenses: IntelligenceDelegate;
 }
 
-export interface TripSeed {
-  destination?: ResolvedDestination;
-  etapas: Etapa[];
-  modoPlanificacion?: ModoPlanificacion;
-}
+export interface TripSeed { destination?: ResolvedDestination; etapas: Etapa[]; modoPlanificacion?: ModoPlanificacion }
