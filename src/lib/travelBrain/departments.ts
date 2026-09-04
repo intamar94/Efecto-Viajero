@@ -1,6 +1,6 @@
 import type { CanonicalTripContext } from "./tripContext";
 import type { ResearchDomain, ResearchResult, ResearchTask } from "./researchOrchestrator";
-import { executeResearch } from "./providerExecutor";
+import { executeTask } from "./providerExecutor";
 import type { ResolvedDestination } from "./destinationResolver";
 
 export interface DepartmentMission {
@@ -95,8 +95,16 @@ export function createDepartment(domain: ResearchDomain): TravelDepartment {
     },
     async execute(mission, subtasks, locations) {
       try {
-        const execution = await executeResearch({ tasks: [{ id: `research:${mission.domain}`, domain: mission.domain, priority: "normal", phase: "plan", dependsOn: [] }] }, mission.context, locations);
-        const results = execution.results;
+        // El departamento ejecuta únicamente su propia misión. Las dependencias ya
+        // fueron resueltas por el Orquestador y se entregan como contexto de misión.
+        const task: ResearchTask = {
+          id: `research:${mission.domain}`,
+          domain: mission.domain,
+          priority: "normal",
+          phase: "plan",
+          dependsOn: [],
+        };
+        const results = await executeTask(task, mission.context, locations);
         const status = statusFromResults(results);
         const findings = results.flatMap((result) => Array.isArray(result.data) ? result.data : result.data === undefined ? [] : [result.data]);
         const evidence = results.flatMap((result) => result.evidence ?? []);
