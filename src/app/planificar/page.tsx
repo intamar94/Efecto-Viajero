@@ -3,49 +3,30 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useData } from "@/lib/store";
-import { generarId } from "@/lib/id";
 import { interpretarTexto, type NecesidadesViaje } from "@/lib/explorador";
-import { detectarLugaresEnTexto, resolverLugar } from "@/lib/lugares";
 import type { Etapa, TipoViaje } from "@/lib/types";
 
+type LugarResuelto = { id: string; name: string; country: string; countryCode: string; region?: string; latitude: number; longitude: number; type: string; displayName: string };
+type Analisis = { deconstructed: { locationCandidates: string[]; fragments: Array<{ kind: string; value: string }> }; locations: LugarResuelto[]; unresolved: string[]; countryCode?: string };
+
 const EJEMPLOS = [
+  "Quiero ir a Colombia y visitar Pereira, Santander y Leticia durante 10 días, comer bien y conocer naturaleza.",
   "Quiero viajar 7 días con mi hija y nuestro perro. Naturaleza, pueblos bonitos y comer bien, sin conducir mucho.",
-  "Dos semanas por Colombia: Salento, Medellín y Cartagena, comida local y cultura.",
-  "Unos días en Japón, con trenes, mercados, templos y un ritmo tranquilo.",
+  "Dos semanas por Japón: Tokio, Kioto y Osaka, con trenes, mercados y templos.",
 ];
 
-const DOMINIOS = [
-  ["Destino", "🌍", "Encontrar y validar los lugares del viaje"],
-  ["Viajeros", "👥", "Adaptar el viaje a las personas y necesidades"],
-  ["Transporte", "🚆", "Conectar origen, destinos y desplazamientos"],
-  ["Alojamiento", "🏠", "Buscar opciones compatibles con el contexto"],
-  ["Experiencias", "✨", "Naturaleza, cultura, comida y actividades"],
-  ["Requisitos", "📋", "Reglas, fronteras, documentos y restricciones"],
-  ["Clima", "☁️", "Considerar condiciones durante el viaje"],
-  ["Presupuesto", "€", "Mantener el viaje dentro de las condiciones indicadas"],
-  ["Mapa", "🗺️", "Convertir la información en una ruta utilizable"],
-  ["Recuerdos", "📸", "Preparar la memoria del viaje desde el principio"],
-] as const;
-
-interface BorradorEtapa extends Etapa { necesitaPais: boolean; }
-
-function crearEtapa(nombre: string): BorradorEtapa {
-  const lugar = resolverLugar(nombre);
-  return { id: generarId(), nombre: lugar?.nombre ?? nombre, paisCodigo: lugar?.paisCodigo, destinoId: lugar?.destinoId, necesitaPais: !lugar?.paisCodigo };
-}
-
-function resumen(necesidades: NecesidadesViaje | null) {
-  if (!necesidades) return [];
-  const result: string[] = [];
-  if (necesidades.numAdultos) result.push(`${necesidades.numAdultos} adultos`);
-  necesidades.edadesMenores.forEach((edad) => result.push(`menor de ${edad} años`));
-  if (necesidades.mascota) result.push("🐾 mascota");
-  if (necesidades.presupuestoMax) result.push(`hasta ${necesidades.presupuestoMax} €`);
-  if (necesidades.duracionDias) result.push(`${necesidades.duracionDias} días`);
-  if (necesidades.ciudadOrigen) result.push(`desde ${necesidades.ciudadOrigen}`);
-  if (necesidades.ritmo) result.push(`ritmo ${necesidades.ritmo}`);
-  if (necesidades.sinConducirMucho) result.push("sin conducir mucho");
-  return [...result, ...necesidades.intereses];
+function resumen(n: NecesidadesViaje | null) {
+  if (!n) return [];
+  const out: string[] = [];
+  if (n.duracionDias) out.push(`${n.duracionDias} días`);
+  if (n.numAdultos) out.push(`${n.numAdultos} adultos`);
+  n.edadesMenores.forEach((e) => out.push(`menor de ${e} años`));
+  if (n.mascota) out.push("mascota");
+  if (n.presupuestoMax) out.push(`hasta ${n.presupuestoMax} €`);
+  if (n.ciudadOrigen) out.push(`desde ${n.ciudadOrigen}`);
+  if (n.ritmo) out.push(`ritmo ${n.ritmo}`);
+  if (n.sinConducirMucho) out.push("sin conducir mucho");
+  return [...out, ...n.intereses];
 }
 
 export default function PlanificarPage() {
@@ -54,34 +35,40 @@ export default function PlanificarPage() {
   const [texto, setTexto] = useState("");
   const [tipo, setTipo] = useState<TipoViaje>("simple");
   const [analizando, setAnalizando] = useState(false);
-  const [analizado, setAnalizado] = useState(false);
+  const [analisis, setAnalisis] = useState<Analisis | null>(null);
   const [necesidades, setNecesidades] = useState<NecesidadesViaje | null>(null);
-  const [etapas, setEtapas] = useState<BorradorEtapa[]>([]);
+  const [etapas, setEtapas] = useState<LugarResuelto[]>([]);
   const [nuevaParada, setNuevaParada] = useState("");
-  const esCircuito = tipo === "circuito";
-  const etiquetas = useMemo(() => resumen(necesidades), [necesidades]);
+  const [error, setError] = useState<string | null>(null);
 
-  function analizar(e: React.FormEvent) {
+  const etiquetas = useMemo(() => resumen(necesidades), [necesidades]);
+  const esCircuito = tipo === "circuito";
+
+  async function analizar(e: React.FormEvent) {
     e.preventDefault();
-    if (!texto.trim()) return;
-    setAnalizando(true);
-    window.setTimeout(() => {
+    if (!texto.trim() || analizando) return;
+    setAnalizando(true); setError(null);
+    try {
+      const response = await fetch("/api/trips/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: texto }) });
+      const data = await response.json() as Analisis & { error?: string };
+      if (!response.ok) throw new Error(data.error ?? "No se pudo analizar el viaje.");
       const n = interpretarTexto(texto);
-      const detectados = detectarLugaresEnTexto(texto);
+      const places = data.locations;
       setNecesidades(n);
-      setEtapas((esCircuito ? detectados : detectados.slice(0, 1)).map((l) => ({ id: generarId(), nombre: l.nombre, paisCodigo: l.paisCodigo, destinoId: l.destinoId, necesitaPais: !l.paisCodigo })));
-      setAnalizando(false);
-      setAnalizado(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 350);
+      setAnalisis(data);
+      setEtapas(places);
+      setTipo(places.length > 1 ? "circuito" : "simple");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo analizar el viaje.");
+    } finally { setAnalizando(false); }
   }
 
-  function crear() {
+  function crearViaje() {
     if (!necesidades || etapas.length === 0) return;
-    const limpias: Etapa[] = etapas.map(({ id, nombre, paisCodigo, destinoId }) => ({ id, nombre: nombre.trim(), paisCodigo, destinoId }));
+    const limpias: Etapa[] = etapas.map((l) => ({ id: `geo-${l.id}`, nombre: l.name, paisCodigo: l.countryCode, destinoId: l.id }));
     const principal = limpias[0];
     const nuevo = crearViaje({
-      destino: esCircuito && limpias.length > 1 ? `${limpias[0].nombre} → ${limpias[limpias.length - 1].nombre}` : principal.nombre,
+      destino: esCircuito ? limpias.map((e) => e.nombre).join(" → ") : principal.nombre,
       destinoId: principal.destinoId,
       paisCodigo: principal.paisCodigo,
       tipo,
@@ -99,41 +86,35 @@ export default function PlanificarPage() {
     router.push(`/viajes/${nuevo.id}`);
   }
 
-  function agregarParada() {
-    const nombre = nuevaParada.trim();
-    if (!nombre) return;
-    setEtapas((prev) => [...prev, crearEtapa(nombre)]);
+  function agregarManual() {
+    const name = nuevaParada.trim();
+    if (!name) return;
+    // La resolución definitiva se hace en el servidor al volver a analizar.
+    setTexto((current) => `${current}${current ? ", " : ""}${name}`);
     setNuevaParada("");
   }
 
-  if (analizado) return (
+  if (analisis) return (
     <main className="flex-1 px-5 py-7">
       <div className="mx-auto max-w-2xl">
-        <div className="mb-6 flex items-center justify-between">
-          <button onClick={() => setAnalizado(false)} className="text-sm text-neutral-500 hover:text-neutral-900">← Cambiar descripción</button>
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Travel Brain activo</span>
-        </div>
-        <section className="mb-5 rounded-3xl bg-marino-900 p-6 text-white shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Hemos deconstruido tu viaje</p>
-          <h1 className="mt-2 text-2xl font-semibold">Ahora hacemos que todo encaje.</h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">Lo que escribiste se convierte en contexto compartido. Las distintas inteligencias trabajan sobre el mismo viaje y ninguna parte de tu petición se descarta.</p>
-          {etiquetas.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{etiquetas.map((item) => <span key={item} className="rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/90">{item}</span>)}</div>}
-        </section>
+        <button onClick={() => setAnalisis(null)} className="mb-5 text-sm text-neutral-500 hover:text-neutral-900">← Cambiar viaje</button>
         <section className="card mb-5">
-          <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-coral-600">Sistema de investigación</p><h2 className="mt-1 text-lg font-semibold text-neutral-900">Todo lo que vamos a comprobar</h2></div><span className="text-xs text-neutral-400">10 áreas iniciales</span></div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {DOMINIOS.map(([nombre, icono, descripcion]) => <div key={nombre} className="flex gap-3 rounded-2xl border border-neutral-100 bg-neutral-50/70 p-3"><span className="text-lg">{icono}</span><div><p className="text-sm font-medium text-neutral-900">{nombre}</p><p className="mt-0.5 text-xs leading-5 text-neutral-500">{descripcion}</p></div><span className="ml-auto mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-label="Preparado" /></div>)}
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-600">Tu viaje</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight">Esto es lo que hemos entendido.</h1>
+          <p className="mt-2 text-sm leading-6 text-neutral-500">Puedes corregirlo. El sistema mantiene el texto original y usa los lugares resueltos como contexto común para lo que viene después.</p>
+          {etiquetas.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{etiquetas.map((x) => <span key={x} className="rounded-full bg-marino-50 px-3 py-1.5 text-xs font-medium text-marino-800">{x}</span>)}</div>}
         </section>
+
         <section className="card mb-5">
-          <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold text-neutral-900">{esCircuito ? "Tu recorrido" : "Tu destino"}</h2><p className="text-xs text-neutral-500">Puedes corregir lo que hemos entendido antes de crear el viaje.</p></div><button type="button" onClick={() => setTipo(esCircuito ? "simple" : "circuito")} className="text-xs font-medium text-coral-600">{esCircuito ? "Un destino" : "Varios destinos"}</button></div>
+          <div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold">Lugares del viaje</h2><p className="text-xs text-neutral-500">Resueltos individualmente, respetando el país indicado.</p></div><span className="text-xs text-neutral-400">{etapas.length} lugares</span></div>
           <div className="space-y-2">
-            {etapas.map((etapa, index) => <div key={etapa.id} className="flex items-center gap-2 rounded-2xl border border-neutral-200 p-3">{esCircuito && <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-marino-50 text-xs font-semibold text-marino-700">{index + 1}</span>}<input className="input flex-1" value={etapa.nombre} onChange={(e) => setEtapas((prev) => prev.map((x) => x.id === etapa.id ? { ...crearEtapa(e.target.value), id: x.id } : x))} />{esCircuito && <button type="button" onClick={() => setEtapas((prev) => prev.filter((x) => x.id !== etapa.id))} className="px-2 text-neutral-400 hover:text-red-600" aria-label="Eliminar parada">×</button>}</div>)}
-            {etapas.length === 0 && <p className="rounded-2xl bg-amber-50 p-3 text-xs text-amber-800">No reconocimos un destino. Añádelo manualmente para continuar.</p>}
+            {etapas.map((l, i) => <div key={l.id} className="flex items-center gap-3 rounded-2xl border border-neutral-200 p-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-marino-50 text-xs font-semibold text-marino-700">{i + 1}</span><div className="min-w-0 flex-1"><p className="font-medium text-neutral-900">{l.name}</p><p className="text-xs text-neutral-500">{[l.region, l.country].filter(Boolean).join(", ")}</p></div><button type="button" onClick={() => setEtapas((p) => p.filter((x) => x.id !== l.id))} className="text-neutral-400 hover:text-red-600" aria-label={`Quitar ${l.name}`}>×</button></div>)}
+            {analisis.unresolved.length > 0 && <div className="rounded-2xl bg-amber-50 p-3 text-xs text-amber-800">Necesitan confirmación: {analisis.unresolved.join(", ")}</div>}
           </div>
-          {esCircuito && <div className="mt-3 flex gap-2"><input className="input flex-1" value={nuevaParada} onChange={(e) => setNuevaParada(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), agregarParada())} placeholder="Añadir ciudad, pueblo o país" /><button type="button" onClick={agregarParada} className="btn-secondary">Añadir</button></div>}
+          {esCircuito && <div className="mt-3 flex gap-2"><input className="input flex-1" value={nuevaParada} onChange={(e) => setNuevaParada(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), agregarManual())} placeholder="Añadir otra ciudad o región" /><button type="button" onClick={agregarManual} className="btn-secondary">Añadir</button></div>}
         </section>
-        <button disabled={etapas.length === 0} onClick={crear} className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50">Crear mi viaje y empezar a investigar →</button>
+
+        <button disabled={!etapas.length} onClick={crearViaje} className="btn-primary w-full disabled:opacity-50">Continuar con mi viaje →</button>
       </div>
     </main>
   );
@@ -141,18 +122,19 @@ export default function PlanificarPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-2xl">
-        <div className="mb-8"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-600">Efecto Viajero</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-950">Cuéntanos qué viaje tienes en mente.</h1><p className="mt-2 max-w-xl text-sm leading-6 text-neutral-500">No necesitas saber todavía cómo organizarlo. Escribe lo que quieres, con quién vas, lo que te gusta y lo que quieres evitar. Nosotros deconstruimos el viaje.</p></div>
+        <div className="mb-8"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-600">Efecto Viajero</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-950">Cuéntanos qué viaje tienes en mente.</h1><p className="mt-2 max-w-xl text-sm leading-6 text-neutral-500">Escríbelo como quieras. No necesitas saber todavía cómo organizarlo.</p></div>
         <div className="mb-4 grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => setTipo("simple")} className={`rounded-2xl border p-4 text-left ${tipo === "simple" ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white"}`}><span className="text-xl">📍</span><span className="mt-2 block text-sm font-semibold">Un destino</span><span className="mt-1 block text-xs text-neutral-500">Una base para explorar.</span></button>
-          <button type="button" onClick={() => setTipo("circuito")} className={`rounded-2xl border p-4 text-left ${tipo === "circuito" ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white"}`}><span className="text-xl">🧭</span><span className="mt-2 block text-sm font-semibold">Varios destinos</span><span className="mt-1 block text-xs text-neutral-500">Una ruta con varias paradas.</span></button>
+          <button type="button" onClick={() => setTipo("simple")} className={`rounded-2xl border p-4 text-left ${tipo === "simple" ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white"}`}><span className="text-xl">📍</span><span className="mt-2 block text-sm font-semibold">Un destino</span></button>
+          <button type="button" onClick={() => setTipo("circuito")} className={`rounded-2xl border p-4 text-left ${tipo === "circuito" ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white"}`}><span className="text-xl">🧭</span><span className="mt-2 block text-sm font-semibold">Varios destinos</span></button>
         </div>
         <form onSubmit={analizar} className="card">
           <label className="mb-2 block text-sm font-medium text-neutral-800">¿Qué quieres hacer?</label>
-          <textarea autoFocus value={texto} onChange={(e) => setTexto(e.target.value)} className="input min-h-44 resize-y text-base leading-6" placeholder="Ej. Quiero viajar 7 días con mi hija y nuestro perro. Nos gusta la naturaleza, los pueblos bonitos y comer bien. Tenemos unos 1.500 € y preferimos no conducir demasiado." />
-          <div className="mt-3 flex flex-wrap gap-2">{EJEMPLOS.map((ejemplo) => <button key={ejemplo} type="button" onClick={() => setTexto(ejemplo)} className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-left text-xs text-neutral-500 hover:border-coral-300 hover:text-neutral-900">{ejemplo.length > 58 ? `${ejemplo.slice(0, 58)}…` : ejemplo}</button>)}</div>
-          <button disabled={!texto.trim() || analizando} className="btn-primary mt-4 w-full disabled:opacity-50">{analizando ? "Deconstruyendo tu viaje…" : "Analizar mi viaje →"}</button>
+          <textarea autoFocus value={texto} onChange={(e) => setTexto(e.target.value)} className="input min-h-44 resize-y text-base leading-6" placeholder="Ej. Quiero ir a Colombia y visitar Pereira, Santander y Leticia durante 10 días. Quiero comer bien y conocer naturaleza." />
+          <div className="mt-3 flex flex-wrap gap-2">{EJEMPLOS.map((ej) => <button key={ej} type="button" onClick={() => setTexto(ej)} className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-left text-xs text-neutral-500 hover:border-coral-300">{ej.length > 62 ? `${ej.slice(0, 62)}…` : ej}</button>)}</div>
+          {error && <p className="mt-3 rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
+          <button disabled={!texto.trim() || analizando} className="btn-primary mt-4 w-full disabled:opacity-50">{analizando ? "Entendiendo el viaje…" : "Continuar →"}</button>
         </form>
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">{[["🧠", "Entender", "Interpretamos intención, contexto y restricciones."], ["🔀", "Delegar", "Cada necesidad pasa a la inteligencia adecuada."], ["🧩", "Encajar", "Todo vuelve al mismo contexto de viaje."]].map(([icono, titulo, descripcion]) => <div key={titulo} className="rounded-2xl border border-neutral-100 bg-white p-4"><span className="text-lg">{icono}</span><p className="mt-2 text-sm font-semibold text-neutral-900">{titulo}</p><p className="mt-1 text-xs leading-5 text-neutral-500">{descripcion}</p></div>)}</div>
+        <p className="mt-4 text-center text-xs text-neutral-400">La complejidad queda detrás de esta pantalla. Tú solo describes el viaje.</p>
       </div>
     </main>
   );
