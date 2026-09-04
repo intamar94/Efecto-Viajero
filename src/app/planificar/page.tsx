@@ -1,428 +1,158 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Cabecera } from "@/components/Cabecera";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { interpretarTexto, type NecesidadesViaje } from "@/lib/explorador";
 import { detectarLugaresEnTexto, resolverLugar } from "@/lib/lugares";
-import { PAISES, buscarPaisPorCodigo } from "@/lib/paises";
-import { MODOS } from "@/lib/modos";
-import type { Etapa, ModoPlanificacion, TipoViaje } from "@/lib/types";
+import type { Etapa, TipoViaje } from "@/lib/types";
 
-const EJEMPLOS_SIMPLE = [
-  "Comer bien y pasear por pueblos con calma, sin madrugar.",
-  "Playa por la mañana y algo de aventura por la tarde, con nuestra hija de 6 años.",
-  "Museos, mercados y sitios donde podamos llevar al perro.",
+const EJEMPLOS = [
+  "Quiero viajar 7 días con mi hija y nuestro perro. Naturaleza, pueblos bonitos y comer bien, sin conducir mucho.",
+  "Dos semanas por Colombia: Salento, Medellín y Cartagena, comida local y cultura.",
+  "Unos días en Japón, con trenes, mercados, templos y un ritmo tranquilo.",
 ];
 
-const EJEMPLOS_CIRCUITO = [
-  "Desde Colombia bajar por Ecuador, Perú y Bolivia hasta Chile, por tierra y sin prisa.",
-  "Salento, Medellín y Cartagena en dos semanas, comiendo bien.",
-  "Cusco, La Paz y Uyuni: montaña, altiplano y salar.",
-];
+const DOMINIOS = [
+  ["Destino", "🌍", "Encontrar y validar los lugares del viaje"],
+  ["Viajeros", "👥", "Adaptar el viaje a las personas y necesidades"],
+  ["Transporte", "🚆", "Conectar origen, destinos y desplazamientos"],
+  ["Alojamiento", "🏠", "Buscar opciones compatibles con el contexto"],
+  ["Experiencias", "✨", "Naturaleza, cultura, comida y actividades"],
+  ["Requisitos", "📋", "Reglas, fronteras, documentos y restricciones"],
+  ["Clima", "☁️", "Considerar condiciones durante el viaje"],
+  ["Presupuesto", "€", "Mantener el viaje dentro de las condiciones indicadas"],
+  ["Mapa", "🗺️", "Convertir la información en una ruta utilizable"],
+  ["Recuerdos", "📸", "Preparar la memoria del viaje desde el principio"],
+] as const;
 
-interface EtapaBorrador extends Etapa {
-  // Sin país reconocido hay que preguntarlo: es lo que hace que funcionen
-  // emergencias, moneda, transporte local y reglas de frontera.
-  necesitaPais: boolean;
-}
+interface BorradorEtapa extends Etapa { necesitaPais: boolean; }
 
-function aBorrador(nombre: string, dias?: number): EtapaBorrador {
+function crearEtapa(nombre: string): BorradorEtapa {
   const lugar = resolverLugar(nombre);
-  return {
-    id: generarId(),
-    nombre: lugar?.nombre ?? nombre,
-    paisCodigo: lugar?.paisCodigo,
-    destinoId: lugar?.destinoId,
-    dias,
-    necesitaPais: !lugar?.paisCodigo,
-  };
+  return { id: generarId(), nombre: lugar?.nombre ?? nombre, paisCodigo: lugar?.paisCodigo, destinoId: lugar?.destinoId, necesitaPais: !lugar?.paisCodigo };
 }
 
-function resumenLegible(n: NecesidadesViaje): string[] {
-  const partes: string[] = [];
-  if (n.numAdultos) partes.push(`${n.numAdultos} adultos`);
-  for (const edad of n.edadesMenores) partes.push(`menor de ${edad} años`);
-  if (n.mascota) partes.push("🐾 con mascota");
-  if (n.presupuestoMax) partes.push(`hasta ${n.presupuestoMax}€`);
-  if (n.ritmo) partes.push(`ritmo ${n.ritmo}`);
-  if (n.sinConducirMucho) partes.push("sin conducir mucho");
-  partes.push(...n.intereses);
-  return partes;
+function resumen(necesidades: NecesidadesViaje | null) {
+  if (!necesidades) return [];
+  const result: string[] = [];
+  if (necesidades.numAdultos) result.push(`${necesidades.numAdultos} adultos`);
+  necesidades.edadesMenores.forEach((edad) => result.push(`menor de ${edad} años`));
+  if (necesidades.mascota) result.push("🐾 mascota");
+  if (necesidades.presupuestoMax) result.push(`hasta ${necesidades.presupuestoMax} €`);
+  if (necesidades.duracionDias) result.push(`${necesidades.duracionDias} días`);
+  if (necesidades.ciudadOrigen) result.push(`desde ${necesidades.ciudadOrigen}`);
+  if (necesidades.ritmo) result.push(`ritmo ${necesidades.ritmo}`);
+  if (necesidades.sinConducirMucho) result.push("sin conducir mucho");
+  return [...result, ...necesidades.intereses];
 }
 
 export default function PlanificarPage() {
   const router = useRouter();
   const { crearViaje } = useData();
-
-  const [tipo, setTipo] = useState<TipoViaje>("simple");
-  const [paso, setPaso] = useState<"describir" | "completar">("describir");
   const [texto, setTexto] = useState("");
+  const [tipo, setTipo] = useState<TipoViaje>("simple");
+  const [analizando, setAnalizando] = useState(false);
+  const [analizado, setAnalizado] = useState(false);
   const [necesidades, setNecesidades] = useState<NecesidadesViaje | null>(null);
-  const [creando, setCreando] = useState(false);
-
-  const [etapas, setEtapas] = useState<EtapaBorrador[]>([]);
+  const [etapas, setEtapas] = useState<BorradorEtapa[]>([]);
   const [nuevaParada, setNuevaParada] = useState("");
-  const [origenInput, setOrigenInput] = useState("");
-  const [fechaSalida, setFechaSalida] = useState("");
-  const [fechaRegreso, setFechaRegreso] = useState("");
-  const [duracionInput, setDuracionInput] = useState("");
-  const [modo, setModo] = useState<ModoPlanificacion | null>(null);
-
   const esCircuito = tipo === "circuito";
+  const etiquetas = useMemo(() => resumen(necesidades), [necesidades]);
 
-  // El texto libre dice qué se quiere hacer; de él se sacan además los
-  // lugares mencionados, en el orden en que aparecen — que suele ser el
-  // orden real del recorrido que la persona ya tiene en la cabeza.
-  function describir(e: React.FormEvent) {
+  function analizar(e: React.FormEvent) {
     e.preventDefault();
     if (!texto.trim()) return;
-    const n = interpretarTexto(texto);
-    setNecesidades(n);
-    setOrigenInput(n.ciudadOrigen ?? "");
-    setDuracionInput(n.duracionDias ? String(n.duracionDias) : "");
-
-    const detectados = detectarLugaresEnTexto(texto);
-    const paradas = esCircuito ? detectados : detectados.slice(0, 1);
-    setEtapas(
-      paradas.length > 0
-        ? paradas.map((l) => ({
-            id: generarId(),
-            nombre: l.nombre,
-            paisCodigo: l.paisCodigo,
-            destinoId: l.destinoId,
-            necesitaPais: !l.paisCodigo,
-          }))
-        : []
-    );
-
-    setPaso("completar");
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+    setAnalizando(true);
+    window.setTimeout(() => {
+      const n = interpretarTexto(texto);
+      const detectados = detectarLugaresEnTexto(texto);
+      setNecesidades(n);
+      setEtapas((esCircuito ? detectados : detectados.slice(0, 1)).map((l) => ({ id: generarId(), nombre: l.nombre, paisCodigo: l.paisCodigo, destinoId: l.destinoId, necesitaPais: !l.paisCodigo })));
+      setAnalizando(false);
+      setAnalizado(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 350);
   }
 
-  function anadirParada() {
-    if (!nuevaParada.trim()) return;
-    setEtapas((prev) => [...prev, aBorrador(nuevaParada.trim())]);
-    setNuevaParada("");
-  }
-
-  function quitarParada(id: string) {
-    setEtapas((prev) => prev.filter((e) => e.id !== id));
-  }
-
-  function moverParada(indice: number, direccion: -1 | 1) {
-    setEtapas((prev) => {
-      const destino = indice + direccion;
-      if (destino < 0 || destino >= prev.length) return prev;
-      const copia = [...prev];
-      [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
-      return copia;
-    });
-  }
-
-  function actualizarParada(id: string, cambios: Partial<EtapaBorrador>) {
-    setEtapas((prev) => prev.map((e) => (e.id === id ? { ...e, ...cambios } : e)));
-  }
-
-  function crear(e: React.FormEvent) {
-    e.preventDefault();
+  function crear() {
     if (!necesidades || etapas.length === 0) return;
-    setCreando(true);
-
-    const limpias: Etapa[] = etapas.map((e) => ({
-      id: e.id,
-      nombre: e.nombre.trim(),
-      paisCodigo: e.paisCodigo,
-      destinoId: e.destinoId,
-      dias: e.dias,
-    }));
-    const dias = Number.parseInt(duracionInput, 10);
+    const limpias: Etapa[] = etapas.map(({ id, nombre, paisCodigo, destinoId }) => ({ id, nombre: nombre.trim(), paisCodigo, destinoId }));
     const principal = limpias[0];
-
     const nuevo = crearViaje({
-      // El nombre del viaje: la parada única, o los extremos del recorrido.
       destino: esCircuito && limpias.length > 1 ? `${limpias[0].nombre} → ${limpias[limpias.length - 1].nombre}` : principal.nombre,
       destinoId: principal.destinoId,
       paisCodigo: principal.paisCodigo,
       tipo,
       etapas: limpias,
       viajerosIds: [],
-      fechaSalida: fechaSalida || undefined,
-      fechaRegreso: fechaRegreso || undefined,
-      modoPlanificacion: modo ?? undefined,
       contexto: {
         presupuestoTotal: necesidades.presupuestoMax,
-        duracionDias: Number.isNaN(dias) ? undefined : dias,
+        duracionDias: necesidades.duracionDias,
         numAdultos: necesidades.numAdultos,
-        edadesMenores: necesidades.edadesMenores.length > 0 ? necesidades.edadesMenores : undefined,
+        edadesMenores: necesidades.edadesMenores.length ? necesidades.edadesMenores : undefined,
         mascota: necesidades.mascota || undefined,
-        ciudadOrigen: origenInput.trim() || undefined,
+        ciudadOrigen: necesidades.ciudadOrigen || undefined,
       },
     });
     router.push(`/viajes/${nuevo.id}`);
   }
 
-  if (paso === "describir") {
-    const ejemplos = esCircuito ? EJEMPLOS_CIRCUITO : EJEMPLOS_SIMPLE;
-    return (
-      <main className="flex-1 px-5 py-8">
-        <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Planificar un viaje" subtitulo="Empecemos por lo que te apetece hacer." />
-
-          {/* Un viaje a un sitio y un recorrido por varios no se planifican
-              igual: en el recorrido hacen falta el orden de las paradas,
-              las fronteras y los cambios de moneda. */}
-          <div className="mb-4 grid grid-cols-2 gap-2">
-            {(
-              [
-                { valor: "simple", icono: "📍", titulo: "Un solo destino", desc: "Voy a un sitio y me muevo por ahí." },
-                { valor: "circuito", icono: "🧭", titulo: "Varios destinos", desc: "Una ruta con varias paradas." },
-              ] as const
-            ).map((op) => (
-              <button
-                key={op.valor}
-                type="button"
-                onClick={() => setTipo(op.valor)}
-                className={`rounded-2xl border p-3 text-left transition ${
-                  tipo === op.valor ? "border-coral-400 bg-coral-50 ring-1 ring-coral-200" : "border-neutral-200 bg-white hover:border-neutral-400"
-                }`}
-              >
-                <span className="block text-xl">{op.icono}</span>
-                <span className="mt-1 block text-sm font-medium text-neutral-900">{op.titulo}</span>
-                <span className="block text-xs text-neutral-500">{op.desc}</span>
-              </button>
-            ))}
-          </div>
-
-          <form onSubmit={describir} className="card mb-3">
-            <label className="mb-2 block text-sm font-medium text-neutral-700">
-              {esCircuito ? "¿Qué ruta tienes en mente y qué quieres hacer?" : "¿Qué esperas hacer en este viaje?"}
-            </label>
-            <textarea
-              className="input min-h-32 resize-y"
-              placeholder={
-                esCircuito
-                  ? "Nombra las paradas en el orden que las tengas pensadas y cuenta qué quieres hacer. Puedes decir países, ciudades o pueblos; luego lo ordenas y ajustas."
-                  : "Escríbelo como se lo contarías a un amigo: qué te apetece, con quién vas, qué no quieres. Puedes nombrar un país, una ciudad o un pueblo."
-              }
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-            />
-            <button type="submit" className="btn-primary mt-3 w-full">
-              Continuar →
-            </button>
-          </form>
-
-          <div className="flex flex-wrap gap-2">
-            {ejemplos.map((ej) => (
-              <button
-                key={ej}
-                onClick={() => setTexto(ej)}
-                className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-500 transition hover:border-coral-300 hover:text-neutral-900"
-              >
-                {ej.length > 42 ? `${ej.slice(0, 42)}…` : ej}
-              </button>
-            ))}
-          </div>
-        </div>
-      </main>
-    );
+  function agregarParada() {
+    const nombre = nuevaParada.trim();
+    if (!nombre) return;
+    setEtapas((prev) => [...prev, crearEtapa(nombre)]);
+    setNuevaParada("");
   }
 
-  const entendido = necesidades ? resumenLegible(necesidades) : [];
-  const faltaPais = etapas.some((e) => e.necesitaPais && !e.paisCodigo);
-  const puedeCrear = etapas.length > 0 && etapas.every((e) => e.nombre.trim());
+  if (analizado) return (
+    <main className="flex-1 px-5 py-7">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <button onClick={() => setAnalizado(false)} className="text-sm text-neutral-500 hover:text-neutral-900">← Cambiar descripción</button>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Travel Brain activo</span>
+        </div>
+        <section className="mb-5 rounded-3xl bg-marino-900 p-6 text-white shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Hemos deconstruido tu viaje</p>
+          <h1 className="mt-2 text-2xl font-semibold">Ahora hacemos que todo encaje.</h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">Lo que escribiste se convierte en contexto compartido. Las distintas inteligencias trabajan sobre el mismo viaje y ninguna parte de tu petición se descarta.</p>
+          {etiquetas.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{etiquetas.map((item) => <span key={item} className="rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/90">{item}</span>)}</div>}
+        </section>
+        <section className="card mb-5">
+          <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-coral-600">Sistema de investigación</p><h2 className="mt-1 text-lg font-semibold text-neutral-900">Todo lo que vamos a comprobar</h2></div><span className="text-xs text-neutral-400">10 áreas iniciales</span></div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {DOMINIOS.map(([nombre, icono, descripcion]) => <div key={nombre} className="flex gap-3 rounded-2xl border border-neutral-100 bg-neutral-50/70 p-3"><span className="text-lg">{icono}</span><div><p className="text-sm font-medium text-neutral-900">{nombre}</p><p className="mt-0.5 text-xs leading-5 text-neutral-500">{descripcion}</p></div><span className="ml-auto mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-label="Preparado" /></div>)}
+          </div>
+        </section>
+        <section className="card mb-5">
+          <div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold text-neutral-900">{esCircuito ? "Tu recorrido" : "Tu destino"}</h2><p className="text-xs text-neutral-500">Puedes corregir lo que hemos entendido antes de crear el viaje.</p></div><button type="button" onClick={() => setTipo(esCircuito ? "simple" : "circuito")} className="text-xs font-medium text-coral-600">{esCircuito ? "Un destino" : "Varios destinos"}</button></div>
+          <div className="space-y-2">
+            {etapas.map((etapa, index) => <div key={etapa.id} className="flex items-center gap-2 rounded-2xl border border-neutral-200 p-3">{esCircuito && <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-marino-50 text-xs font-semibold text-marino-700">{index + 1}</span>}<input className="input flex-1" value={etapa.nombre} onChange={(e) => setEtapas((prev) => prev.map((x) => x.id === etapa.id ? { ...crearEtapa(e.target.value), id: x.id } : x))} />{esCircuito && <button type="button" onClick={() => setEtapas((prev) => prev.filter((x) => x.id !== etapa.id))} className="px-2 text-neutral-400 hover:text-red-600" aria-label="Eliminar parada">×</button>}</div>)}
+            {etapas.length === 0 && <p className="rounded-2xl bg-amber-50 p-3 text-xs text-amber-800">No reconocimos un destino. Añádelo manualmente para continuar.</p>}
+          </div>
+          {esCircuito && <div className="mt-3 flex gap-2"><input className="input flex-1" value={nuevaParada} onChange={(e) => setNuevaParada(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), agregarParada())} placeholder="Añadir ciudad, pueblo o país" /><button type="button" onClick={agregarParada} className="btn-secondary">Añadir</button></div>}
+        </section>
+        <button disabled={etapas.length === 0} onClick={crear} className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50">Crear mi viaje y empezar a investigar →</button>
+      </div>
+    </main>
+  );
 
   return (
     <main className="flex-1 px-5 py-8">
-      <div className="mx-auto max-w-xl">
-        <Cabecera titulo="Solo faltan estos datos" subtitulo="Lo demás ya lo hemos leído de lo que escribiste." />
-
-        {entendido.length > 0 && (
-          <div className="mb-5 flex flex-wrap items-center gap-1.5 rounded-2xl bg-marino-50 px-4 py-3 text-sm">
-            <span className="text-marino-700">Hemos entendido:</span>
-            {entendido.map((parte, i) => (
-              <span key={i} className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-marino-800">
-                {parte}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <form onSubmit={crear} className="card space-y-5">
-          <div>
-            <span className="mb-1 block text-sm font-medium text-neutral-700">
-              {esCircuito ? "Tu ruta, en orden" : "¿A dónde vas?"} <span className="text-coral-600">*</span>
-            </span>
-            {esCircuito && (
-              <p className="mb-2 text-xs text-neutral-400">
-                Puedes reordenar las paradas: el orden decide las fronteras y los cambios de moneda de la guía.
-              </p>
-            )}
-
-            {etapas.length === 0 && (
-              <p className="mb-2 rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
-                No hemos reconocido ningún lugar en lo que escribiste. Añádelo abajo — vale un país, una ciudad o un pueblo.
-              </p>
-            )}
-
-            <ul className="space-y-2">
-              {etapas.map((etapa, i) => {
-                const pais = buscarPaisPorCodigo(etapa.paisCodigo);
-                return (
-                  <li key={etapa.id} className="rounded-xl border border-neutral-200 p-3">
-                    <div className="flex items-center gap-2">
-                      {esCircuito && (
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-marino-100 text-xs font-semibold text-marino-800">
-                          {i + 1}
-                        </span>
-                      )}
-                      <input
-                        className="input flex-1"
-                        value={etapa.nombre}
-                        placeholder="ej. Salento, Perú, Kioto…"
-                        onChange={(e) => actualizarParada(etapa.id, { ...aBorrador(e.target.value, etapa.dias), id: etapa.id })}
-                      />
-                      {esCircuito && (
-                        <>
-                          <button type="button" onClick={() => moverParada(i, -1)} disabled={i === 0} className="px-1 text-neutral-400 disabled:opacity-30" aria-label="Subir">
-                            ↑
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moverParada(i, 1)}
-                            disabled={i === etapas.length - 1}
-                            className="px-1 text-neutral-400 disabled:opacity-30"
-                            aria-label="Bajar"
-                          >
-                            ↓
-                          </button>
-                          <button type="button" onClick={() => quitarParada(etapa.id)} className="px-1 text-neutral-400 hover:text-red-600" aria-label="Quitar">
-                            ×
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                      {pais ? (
-                        <span className="text-emerald-700">✓ {pais.nombre}</span>
-                      ) : (
-                        <label className="flex items-center gap-2 text-neutral-500">
-                          ¿En qué país está?
-                          <select
-                            className="rounded-lg border border-coral-300 bg-white px-2 py-1 text-xs"
-                            value=""
-                            onChange={(e) => actualizarParada(etapa.id, { paisCodigo: e.target.value, necesitaPais: false })}
-                          >
-                            <option value="">Elegir…</option>
-                            {[...PAISES].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((p) => (
-                              <option key={p.codigo} value={p.codigo}>
-                                {p.nombre}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      )}
-                      {esCircuito && (
-                        <label className="ml-auto flex items-center gap-1 text-neutral-500">
-                          días
-                          <input
-                            type="number"
-                            min="1"
-                            className="w-16 rounded-lg border border-neutral-200 px-2 py-1"
-                            value={etapa.dias ?? ""}
-                            onChange={(e) => actualizarParada(etapa.id, { dias: e.target.value ? Number.parseInt(e.target.value, 10) : undefined })}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-
-            {(esCircuito || etapas.length === 0) && (
-              <div className="mt-2 flex gap-2">
-                <input
-                  className="input flex-1"
-                  placeholder={esCircuito ? "Añadir otra parada" : "ej. Pereira"}
-                  value={nuevaParada}
-                  onChange={(e) => setNuevaParada(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      anadirParada();
-                    }
-                  }}
-                />
-                <button type="button" onClick={anadirParada} className="btn-secondary shrink-0 px-3 py-1.5 text-xs">
-                  + Añadir
-                </button>
-              </div>
-            )}
-
-            {faltaPais && (
-              <p className="mt-2 text-xs text-coral-700">
-                Dinos el país de cada parada y podremos darte emergencias, moneda, transporte local y reglas de frontera.
-              </p>
-            )}
-          </div>
-
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">¿Desde dónde sales?</span>
-            <input className="input" placeholder="ej. Bogotá" value={origenInput} onChange={(e) => setOrigenInput(e.target.value)} />
-            <span className="mt-1 block text-xs text-neutral-400">Lo necesitamos para buscar vuelos y trenes de verdad.</span>
-          </label>
-
-          <div>
-            <span className="mb-1 block text-sm font-medium text-neutral-700">¿Cuándo?</span>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="mb-1 block text-xs text-neutral-500">Salida</span>
-                <input type="date" className="input" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs text-neutral-500">Regreso</span>
-                <input type="date" className="input" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} />
-              </label>
-            </div>
-            <label className="mt-2 block">
-              <span className="mb-1 block text-xs text-neutral-500">Si aún no tienes fechas, ¿cuántos días en total?</span>
-              <input type="number" min="1" className="input" placeholder="ej. 10" value={duracionInput} onChange={(e) => setDuracionInput(e.target.value)} />
-            </label>
-          </div>
-
-          <div>
-            <span className="mb-2 block text-sm font-medium text-neutral-700">¿Cómo quieres que se desarrolle?</span>
-            <div className="grid gap-2">
-              {MODOS.map((m) => (
-                <button
-                  key={m.valor}
-                  type="button"
-                  onClick={() => setModo(modo === m.valor ? null : m.valor)}
-                  className={`rounded-xl border p-3 text-left transition ${
-                    modo === m.valor ? "border-marino-500 bg-marino-50" : "border-neutral-200 hover:border-neutral-400"
-                  }`}
-                >
-                  <span className="block text-sm font-medium">{m.etiqueta}</span>
-                  <span className="block text-xs text-neutral-500">{m.descripcion}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-2 border-t border-neutral-100 pt-4">
-            <button type="submit" disabled={creando || !puedeCrear} className="btn-primary flex-1">
-              {creando ? "Creando…" : esCircuito ? "Crear la ruta →" : "Crear el viaje →"}
-            </button>
-            <button type="button" onClick={() => setPaso("describir")} className="btn-secondary">
-              Volver
-            </button>
-          </div>
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-8"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-600">Efecto Viajero</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-950">Cuéntanos qué viaje tienes en mente.</h1><p className="mt-2 max-w-xl text-sm leading-6 text-neutral-500">No necesitas saber todavía cómo organizarlo. Escribe lo que quieres, con quién vas, lo que te gusta y lo que quieres evitar. Nosotros deconstruimos el viaje.</p></div>
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setTipo("simple")} className={`rounded-2xl border p-4 text-left ${tipo === "simple" ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white"}`}><span className="text-xl">📍</span><span className="mt-2 block text-sm font-semibold">Un destino</span><span className="mt-1 block text-xs text-neutral-500">Una base para explorar.</span></button>
+          <button type="button" onClick={() => setTipo("circuito")} className={`rounded-2xl border p-4 text-left ${tipo === "circuito" ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white"}`}><span className="text-xl">🧭</span><span className="mt-2 block text-sm font-semibold">Varios destinos</span><span className="mt-1 block text-xs text-neutral-500">Una ruta con varias paradas.</span></button>
+        </div>
+        <form onSubmit={analizar} className="card">
+          <label className="mb-2 block text-sm font-medium text-neutral-800">¿Qué quieres hacer?</label>
+          <textarea autoFocus value={texto} onChange={(e) => setTexto(e.target.value)} className="input min-h-44 resize-y text-base leading-6" placeholder="Ej. Quiero viajar 7 días con mi hija y nuestro perro. Nos gusta la naturaleza, los pueblos bonitos y comer bien. Tenemos unos 1.500 € y preferimos no conducir demasiado." />
+          <div className="mt-3 flex flex-wrap gap-2">{EJEMPLOS.map((ejemplo) => <button key={ejemplo} type="button" onClick={() => setTexto(ejemplo)} className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-left text-xs text-neutral-500 hover:border-coral-300 hover:text-neutral-900">{ejemplo.length > 58 ? `${ejemplo.slice(0, 58)}…` : ejemplo}</button>)}</div>
+          <button disabled={!texto.trim() || analizando} className="btn-primary mt-4 w-full disabled:opacity-50">{analizando ? "Deconstruyendo tu viaje…" : "Analizar mi viaje →"}</button>
         </form>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">{[["🧠", "Entender", "Interpretamos intención, contexto y restricciones."], ["🔀", "Delegar", "Cada necesidad pasa a la inteligencia adecuada."], ["🧩", "Encajar", "Todo vuelve al mismo contexto de viaje."]].map(([icono, titulo, descripcion]) => <div key={titulo} className="rounded-2xl border border-neutral-100 bg-white p-4"><span className="text-lg">{icono}</span><p className="mt-2 text-sm font-semibold text-neutral-900">{titulo}</p><p className="mt-1 text-xs leading-5 text-neutral-500">{descripcion}</p></div>)}</div>
       </div>
     </main>
   );
