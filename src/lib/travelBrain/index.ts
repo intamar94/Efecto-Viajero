@@ -5,6 +5,7 @@ export * from "./explorerIntelligence";
 export * from "./researchOrchestrator";
 export * from "./providerRegistry";
 export * from "./capabilityRequirements";
+export * from "./capabilityAudit";
 export * from "./providerExecutor";
 export * from "./domainProviders";
 export * from "./departments";
