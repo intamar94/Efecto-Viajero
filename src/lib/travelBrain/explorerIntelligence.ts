@@ -46,10 +46,14 @@ export function buildExplorerPlan(input: ExplorerRequest): ExplorerPlan {
     companionTips.push("Comprobar condiciones de acceso y restricciones locales sobre comida y bebidas.");
     companionTips.push("Adaptar recomendaciones de protección solar, hidratación y equipamiento a las condiciones del día.");
   }
-  if (input.context.travelers.mascotas) companionTips.push("Filtrar lugares que admitan mascotas y comprobar restricciones específicas.");
+  if ((input.context.travelers.mascotas ?? 0) > 0) companionTips.push("Filtrar lugares que admitan mascotas y comprobar restricciones específicas.");
   if (familyFriendly) companionTips.push("Priorizar distancias, horarios y pausas apropiadas para el grupo.");
   if (accessibilityRequired) companionTips.push("Verificar accesos, aseos, pendientes, superficies y transporte accesible cuando exista información fiable.");
   if (budgetAware) companionTips.push("Evitar opciones que rompan el presupuesto objetivo y mostrar alternativas de distinto coste.");
+
+  const contextualChecks: ExplorerSignal[] = ["weather", "time", "traveler", "distance", "rules"];
+  if (budgetAware) contextualChecks.push("budget");
+  if (accessibilityRequired) contextualChecks.push("accessibility");
 
   return {
     intent: input.request.trim(),
@@ -61,7 +65,7 @@ export function buildExplorerPlan(input: ExplorerRequest): ExplorerPlan {
       accessibilityRequired,
       budgetAware,
     },
-    contextualChecks: ["weather", "time", "traveler", "distance", "rules", ...(budgetAware ? ["budget"] : []), ...(accessibilityRequired ? ["accessibility"] : [])],
+    contextualChecks,
     companionTips,
   };
 }
