@@ -41,17 +41,41 @@ const poi: Record<string, string[]> = {
   nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
 };
 
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+
 const osmPoi: Adapter = async ({ destination, domain, query }) => {
-  const filters = (query ? [query] : poi[domain] ?? poi.experiences);
+  const filters = query ? [query] : poi[domain] ?? poi.experiences;
   const clauses = filters
     .map((filter) => `nwr[${filter}](around:8000,${destination.latitude},${destination.longitude});`)
     .join("");
   const body = `[out:json][timeout:15];(${clauses});out center tags 40;`;
-  const data = await getJson(
-    "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(body),
-    "OpenStreetMap Overpass",
-  );
-  return { domain, status: "ready", data, evidence: [evidence("OpenStreetMap Overpass")] };
+  let lastError: unknown;
+
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const data = await getJson(
+        endpoint,
+        "OpenStreetMap Overpass",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            Accept: "application/json",
+            "User-Agent": "Efecto-Viajero/1.0",
+          },
+          body: new URLSearchParams({ data: body }).toString(),
+        },
+      );
+      return { domain, status: "ready", data, evidence: [evidence("OpenStreetMap Overpass")] };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("OpenStreetMap Overpass: provider unavailable");
 };
 
 const weather: Adapter = async ({ destination, start, end }) => {
@@ -92,7 +116,7 @@ const route: Adapter = async ({ destination, origin }) => {
   return { domain: "transport", status: "ready", data, evidence: [evidence("OSRM")] };
 };
 
-const currency: Adapter = async ({ destination, currency: base }) => {
+const currency: Adapter = async ({ currency: base, destination }) => {
   if (!base) {
     return {
       domain: "currency",
