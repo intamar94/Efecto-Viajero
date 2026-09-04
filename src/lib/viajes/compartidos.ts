@@ -1,0 +1,26 @@
+import { supabase } from "@/lib/supabase/client";
+
+export interface ViajeCompartido { id:string; viaje_id:string; propietario_id:string; invitado_email:string; invitado_id:string|null; creado_en:string; }
+
+export async function invitar(viajeId:string,email:string){
+  const {data:{user},error:authError}=await supabase.auth.getUser();
+  if(authError||!user) throw new Error("Debes iniciar sesión para compartir un viaje.");
+  const {data,error}=await supabase.from("viales_compartidos").insert({viaje_id:viajeId,propietario_id:user.id,invitado_email:email.trim().toLowerCase()}).select().single();
+  if(error) throw new Error(error.message);
+  return data as ViajeCompartido;
+}
+
+export async function revocar(viajeId:string,email:string){
+  const {data:{user}}=await supabase.auth.getUser();
+  if(!user) throw new Error("Debes iniciar sesión.");
+  const {error}=await supabase.from("viales_compartidos").delete().eq("viaje_id",viajeId).eq("propietario_id",user.id).eq("invitado_email",email.trim().toLowerCase());
+  if(error) throw new Error(error.message);
+}
+
+export async function obtenerCompartidos(viajeId:string){
+  const {data:{user}}=await supabase.auth.getUser();
+  if(!user) return [] as ViajeCompartido[];
+  const {data,error}=await supabase.from("viales_compartidos").select("*").eq("viaje_id",viajeId).order("creado_en",{ascending:true});
+  if(error) throw new Error(error.message);
+  return (data??[]) as ViajeCompartido[];
+}
