@@ -1,5 +1,6 @@
 import type { ResearchDomain, ResearchResult, ResearchTask } from "./researchOrchestrator";
 import type { DepartmentReport } from "./departments";
+import type { CapabilityAudit } from "./capabilityAudit";
 
 export type SupervisorPriority = "critical" | "high" | "normal";
 
@@ -22,14 +23,16 @@ export interface OrchestratorUpdate {
   unresolved: string[];
   conflicts: string[];
   departmentReports: DepartmentReport[];
+  capabilityAudit: CapabilityAudit;
   recommendations: SupervisorRecommendation[];
 }
 
 /**
  * Creates the machine-readable handoff from Travel Brain to the external
  * supervisor (the architect/AI reviewing the system). The supervisor does
- * not execute providers: it reviews progress, gaps, conflicts and recovery
- * needs, then returns implementation direction for the next cycle.
+ * not execute providers: it reviews progress, gaps, conflicts, capability
+ * access and recovery needs, then returns implementation direction for the
+ * next cycle.
  */
 export function buildOrchestratorUpdate(
   results: ResearchResult[],
@@ -37,6 +40,7 @@ export function buildOrchestratorUpdate(
   unresolved: string[],
   departmentReports: DepartmentReport[] = [],
   cycle = 1,
+  capabilityAudit?: CapabilityAudit,
 ): OrchestratorUpdate {
   const byDomain = new Map<ResearchDomain, ResearchResult[]>();
   for (const result of results) {
@@ -96,6 +100,19 @@ export function buildOrchestratorUpdate(
     }
   }
 
+  if (capabilityAudit) {
+    for (const request of capabilityAudit.accessRequests) {
+      recommendations.push({
+        id: `access:${request.domain}:${request.capability}`,
+        priority: request.priority === "critical" ? "critical" : request.priority === "high" ? "high" : "normal",
+        domain: request.domain,
+        problem: `La capacidad ${request.capability} de ${request.domain} no está operativa.`,
+        requestedChange: request.requestedFromCeo,
+        reason: `Se requiere acceso/capacidad ${request.accessKind}; proveedores candidatos: ${request.providerCandidates.join(", ")}.`,
+      });
+    }
+  }
+
   if (unresolved.length) {
     recommendations.push({
       id: "context:unresolved",
@@ -116,6 +133,17 @@ export function buildOrchestratorUpdate(
     });
   }
 
+  const audit = capabilityAudit ?? {
+    generatedAt: new Date().toISOString(),
+    operational: [],
+    partial: [],
+    blocked: [],
+    failed: [],
+    notExercised: [],
+    accessRequests: [],
+    items: [],
+  } satisfies CapabilityAudit;
+
   return {
     generatedAt: new Date().toISOString(),
     cycle,
@@ -126,6 +154,7 @@ export function buildOrchestratorUpdate(
     unresolved,
     conflicts,
     departmentReports,
+    capabilityAudit: audit,
     recommendations,
   };
 }
