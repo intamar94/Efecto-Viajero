@@ -1,26 +1,16 @@
 // Modelo de datos central de Efecto Viajero.
-// Separación deliberada: datos permanentes del viajero (esta capa) vs.
-// contexto específico de cada viaje (Viaje.contexto).
+// Separación deliberada: datos permanentes del viajero vs. contexto específico del viaje.
 
 export type TipoDocumento =
-  | "pasaporte"
-  | "dni"
-  | "visado"
-  | "permiso_conduccion"
-  | "certificado"
-  | "vacuna"
-  | "microchip"
-  | "otro";
+  | "pasaporte" | "dni" | "visado" | "permiso_conduccion" | "certificado"
+  | "vacuna" | "microchip" | "otro";
 
 export interface Documento {
   id: string;
   tipo: TipoDocumento;
-  // Solo hace falta rellenarlo cuando el tipo por sí solo no identifica el
-  // documento (ej. "vacuna" → "rabia"). Para el resto se usa la etiqueta
-  // del tipo al mostrarlo.
   nombre?: string;
   lugarExpedicion?: string;
-  fechaVencimiento?: string; // ISO date — "fecha válida" del documento
+  fechaVencimiento?: string;
 }
 
 export interface PersonaViajero {
@@ -28,9 +18,9 @@ export interface PersonaViajero {
   tipo: "persona";
   nombre: string;
   apellido?: string;
-  fechaNacimiento?: string; // ISO date
-  nacionalidad?: string; // código ISO país, ej "ES"
-  residencia?: string; // código ISO país
+  fechaNacimiento?: string;
+  nacionalidad?: string;
+  residencia?: string;
   documentos: Documento[];
   createdAt: string;
 }
@@ -39,7 +29,7 @@ export interface MascotaViajero {
   id: string;
   tipo: "mascota";
   nombre: string;
-  especie?: string; // perro, gato, ...
+  especie?: string;
   raza?: string;
   fechaNacimiento?: string;
   pesoKg?: number;
@@ -49,43 +39,76 @@ export interface MascotaViajero {
 }
 
 export type Viajero = PersonaViajero | MascotaViajero;
-
 export type RitmoViaje = "tranquilo" | "medio" | "intenso";
+
+export interface AccesibilidadViaje {
+  requiereAccesibilidad: boolean;
+  movilidad?: "ninguna" | "ayudas_movilidad" | "movilidad_reducida" | "silla_ruedas";
+  auditiva?: boolean;
+  visual?: boolean;
+  cognitiva?: boolean;
+  otras?: string[];
+}
+
+export type TipoPresupuesto = "total" | "por_persona" | "por_dia";
+
+export interface PresupuestoViaje {
+  importe?: number;
+  moneda: string;
+  tipo: TipoPresupuesto;
+  flexible?: boolean;
+}
+
+export interface ComposicionViaje {
+  adultos: number;
+  ninos: number;
+  edadesNinos?: number[];
+  bebes?: number;
+  personasMayores?: number;
+  accesibilidad?: AccesibilidadViaje;
+  mascotas?: number;
+}
+
+export interface ContextoExplorer {
+  activado: boolean;
+  intencionActual?: string;
+  tiempoDisponibleHoras?: number;
+  preferenciasTemporales?: string[];
+}
 
 export interface ContextoViaje {
   presupuestoTotal?: number;
   duracionDias?: number;
-  // Lo que ya entendimos del texto libre en /planificar, antes de que el
-  // usuario haya puesto nombre a nadie: cuántos adultos, edades de los
-  // menores y si viaja una mascota. Sirve para no perder esa información
-  // mientras no se han creado o asignado los viajeros de verdad.
   numAdultos?: number;
   edadesMenores?: number[];
   mascota?: boolean;
-  // Ciudad desde la que se sale, no el destino. Se usa para las búsquedas
-  // de vuelos (necesitan origen y destino) — no confundir con el origen
-  // de un tramo de transporte concreto, que ya vive en TramoTransporte.
   ciudadOrigen?: string;
+
+  // Contexto completo que alimenta al Travel Brain.
+  textoOriginal?: string;
+  presupuesto?: PresupuestoViaje;
+  viajeros?: ComposicionViaje;
+  accesibilidad?: AccesibilidadViaje;
+  intereses?: string[];
+  preferenciasComida?: string[];
+  ritmo?: RitmoViaje;
+  preferenciasTransporte?: string[];
+  restricciones?: string[];
+  fechaSalida?: string;
+  fechaRegreso?: string;
+  destinoNoDefinido?: boolean;
+  explorer?: ContextoExplorer;
 }
 
 export type ModoPlanificacion = "completo" | "poco_a_poco" | "dejarse_llevar";
-
-export type ModoTransporte =
-  | "avion"
-  | "tren"
-  | "autobus"
-  | "metro"
-  | "taxi"
-  | "coche_alquiler"
-  | "a_pie"
-  | "otro";
+export type ModoTransporte = "avion" | "tren" | "autobus" | "metro" | "taxi" | "coche_alquiler" | "a_pie" | "otro";
 
 export interface TramoTransporte {
   id: string;
   modo: ModoTransporte;
   origen: string;
   destino: string;
-  horaSalida?: string; // ISO datetime local, ej "2026-10-12T09:40"
+  horaSalida?: string;
   costeEstimado?: number;
   notas?: string;
 }
@@ -105,24 +128,18 @@ export type EstadoActividad = "disponible" | "planificada" | "reservada" | "real
 export interface ActividadDestino {
   id: string;
   nombre: string;
-  tipo: string; // naturaleza, gastronomia, cultura, playa, compras...
+  tipo: string;
   duracionHoras: number;
   costeEstimado: number;
-  apta: string[]; // interior, exterior, familiar, tranquilo...
-  // Clasificaciones explícitas para poder filtrar sin adivinar a partir
-  // de `apta`: son las tres preguntas que de verdad condicionan el plan
-  // del día (¿me pilla la lluvia?, ¿puedo llevar al perro?, ¿cuesta?).
+  apta: string[];
   entorno: "exterior" | "interior" | "mixto";
   admiteMascotas: boolean;
   descripcion: string;
 }
 
 export interface ActividadViaje {
-  actividadId: string; // referencia a ActividadDestino.id
+  actividadId: string;
   estado: EstadoActividad;
-  // Actividad puesta por el viajero, para los sitios de los que no
-  // tenemos catálogo: sin esto, en cualquier destino fuera de la lista
-  // curada la pantalla no dejaba hacer absolutamente nada.
   propia?: {
     nombre: string;
     duracionHoras?: number;
@@ -132,17 +149,7 @@ export interface ActividadViaje {
   };
 }
 
-// Categorías del Travel Vault. El documento se archiva solo en una de
-// ellas al subirlo; el usuario solo interviene si la detección falla.
-export type CategoriaDocumento =
-  | "vuelo"
-  | "tren_bus"
-  | "alojamiento"
-  | "transporte_local"
-  | "entrada"
-  | "seguro"
-  | "documento_personal"
-  | "otro";
+export type CategoriaDocumento = "vuelo" | "tren_bus" | "alojamiento" | "transporte_local" | "entrada" | "seguro" | "documento_personal" | "otro";
 
 export interface DocumentoViaje {
   id: string;
@@ -153,9 +160,6 @@ export interface DocumentoViaje {
   hora?: string;
   direccion?: string;
   notas?: string;
-  // Marca si la categoría la puso la detección automática: sirve para
-  // avisar de que conviene revisarla, y para dejar de avisar cuando el
-  // usuario ya la ha corregido a mano.
   autoClasificado?: boolean;
   nombreArchivo?: string;
 }
@@ -167,33 +171,15 @@ export interface SouvenirDestino {
   precioAprox: string;
   descripcion: string;
   datoCurioso: string;
-  avisoEquipaje?: string; // p. ej. líquidos o frágiles, para saber si va en cabina o facturado
+  avisoEquipaje?: string;
 }
 
-export interface Votacion {
-  id: string;
-  pregunta: string;
-  opciones: string[];
-  votos: Record<string, string>; // nombreParticipante -> opción elegida
-}
-
-export interface Recuerdo {
-  id: string;
-  titulo: string;
-  fecha?: string;
-  nota?: string;
-  fotoDataUrl?: string; // miniatura real de la foto elegida, redimensionada en el navegador
-}
-
+export interface Votacion { id: string; pregunta: string; opciones: string[]; votos: Record<string, string>; }
+export interface Recuerdo { id: string; titulo: string; fecha?: string; nota?: string; fotoDataUrl?: string; }
 export type TipoViaje = "simple" | "circuito";
 
-// Una parada del viaje. Un viaje a un solo sitio es simplemente un viaje
-// con una etapa: así toda la app (transporte, emergencias, moneda) usa el
-// mismo camino, y no hay dos modelos que mantener en paralelo.
 export interface Etapa {
   id: string;
-  // Como lo llamó la persona ("Salento", "Eje Cafetero"), no el nombre
-  // del país: es su viaje y su forma de nombrarlo.
   nombre: string;
   paisCodigo?: string;
   destinoId?: string;
@@ -203,36 +189,27 @@ export interface Etapa {
 export interface Viaje {
   id: string;
   destino: string;
-  destinoId?: string; // referencia a Destino.id si viene del explorador
-  paisCodigo?: string; // país del destino principal, aunque no esté en el catálogo
-  tipo?: TipoViaje; // opcional: los viajes creados antes no lo tienen
-  etapas?: Etapa[]; // las paradas en orden; vacío o ausente en viajes de un solo sitio
+  destinoId?: string;
+  paisCodigo?: string;
+  tipo?: TipoViaje;
+  etapas?: Etapa[];
   viajerosIds: string[];
-  fechaSalida?: string; // ISO date; sin confirmar todavía si no está
-  fechaRegreso?: string; // ISO date; sin confirmar todavía si no está
+  fechaSalida?: string;
+  fechaRegreso?: string;
   contexto: ContextoViaje;
   createdAt: string;
-
   modoPlanificacion?: ModoPlanificacion;
   transporte: TramoTransporte[];
-  alojamientoId?: string; // referencia a una OpcionAlojamiento generada por catalogo.ts
+  alojamientoId?: string;
   actividades: ActividadViaje[];
   documentos: DocumentoViaje[];
-  participantes: string[]; // nombres, viaje compartido local
+  participantes: string[];
   votaciones: Votacion[];
   recuerdos: Recuerdo[];
 }
 
 export type EstadoRequisito = "verde" | "amarillo" | "rojo";
-
-export type CategoriaRequisito =
-  | "documentacion"
-  | "visado"
-  | "salud"
-  | "mascota"
-  | "conduccion"
-  | "otros";
-
+export type CategoriaRequisito = "documentacion" | "visado" | "salud" | "mascota" | "conduccion" | "otros";
 export interface ResultadoRequisito {
   viajeroId: string;
   viajeroNombre: string;
@@ -241,29 +218,21 @@ export interface ResultadoRequisito {
   titulo: string;
   motivo: string;
   fuente?: string;
-  fechaComprobacion: string; // ISO date, para dejar claro que no es permanente
+  fechaComprobacion: string;
 }
 
-// Cómo moverse DENTRO del destino, que es lo que no resuelve ningún
-// buscador de vuelos: qué medios hay, con qué se paga y qué conviene
-// saber antes de subirse.
-export interface TransporteLocal {
-  medios: string[];
-  comoSePaga: string;
-  apps?: string;
-  aviso?: string;
-}
+export interface TransporteLocal { medios: string[]; comoSePaga: string; apps?: string; aviso?: string; }
 
 export interface Destino {
   id: string;
   nombre: string;
   pais: string;
-  paisCodigo: string; // ISO usado por el motor de requisitos
+  paisCodigo: string;
   descripcion: string;
-  tags: string[]; // naturaleza, playa, pueblos, gastronomia, aventura, romantico, ciudad, familiar
+  tags: string[];
   ritmo: RitmoViaje[];
   presupuestoDiaEstimado: { bajo: number; medio: number; alto: number };
   mascotaFriendly: boolean;
-  distanciaConduccionCorta: boolean; // "sin conducir demasiado"
+  distanciaConduccionCorta: boolean;
   climaCalido: boolean;
 }
