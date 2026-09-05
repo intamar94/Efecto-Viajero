@@ -41,7 +41,7 @@ export function buildNeuralCycle(requirements: DataRequirement[], results: Agent
     const result = resultByReq.get(requirement.id);
     if (!result) { fired.push(requirement.id); signals.push({ requirementId: requirement.id, source: "scheduler", kind: "activation", strength: priority(requirement.priority), reason: "Requisito pendiente listo para investigación." }); continue; }
     if (result.status === "ready" && result.validation.valid) signals.push({ requirementId: requirement.id, source: result.agentId, kind: "learning", strength: 1, reason: "Salida validada; señal propagable." });
-    else { inhibited.push(requirement.id); signals.push({ requirementId: requirement.id, source: result.agentId, kind: result.status === "error" ? "error" : "inhibition", strength: 1 - priority(requirement.priority) + .25, reason: (result.error ?? result.validation.issues.join("; ")) || "Salida insuficiente." }); }
+    else { inhibited.push(requirement.id); signals.push({ requirementId: result.agentId, source: result.agentId, kind: result.status === "error" ? "error" : "inhibition", strength: 1 - priority(requirement.priority) + .25, reason: (result.error ?? result.validation.issues.join("; ")) || "Salida insuficiente." }); }
   }
   return { cycle, fired, inhibited, signals, followUps: deriveNeuralFollowUps(requirements, results) };
 }
@@ -56,14 +56,15 @@ export function materializeFollowUpRequirements(followUps: NeuralFollowUp[], exi
   return { requirements: [...existing, ...newRequirements], agents: [...agents, ...newAgents] };
 }
 
-export async function runNeuralOrchestration(requirements: DataRequirement[], agents: AgentSpec[], context: CanonicalTripContext, locations: ResolvedDestination[], execute: (requirements: DataRequirement[], agents: AgentSpec[], context: CanonicalTripContext, locations: ResolvedDestination[]) => Promise<AgentResult[]>, maxCycles = DEFAULT_MAX_NEURAL_CYCLES): Promise<{ results: AgentResult[]; cycles: NeuralCycle[] }> {
+export async function runNeuralOrchestration(requirements: DataRequirement[], agents: AgentSpec[], context: CanonicalTripContext, locations: ResolvedDestination[], execute: (requirements: DataRequirement[], agents: AgentSpec[], context: CanonicalTripContext, locations: ResolvedDestination[]) => Promise<AgentResult[]>, maxCycles = DEFAULT_MAX_NEURAL_CYCLES): Promise<{ results: AgentResult[]; cycles: NeuralCycle[]; requirements: DataRequirement[]; agents: AgentSpec[] }> {
   let currentRequirements = [...requirements]; let currentAgents = [...agents]; const allResults = new Map<string, AgentResult>(); const cycles: NeuralCycle[] = [];
   for (let cycle = 1; cycle <= maxCycles; cycle++) {
     const pending = currentRequirements.filter(r => !allResults.has(r.id)); if (!pending.length) break;
-    const results = await execute(pending, currentAgents.filter(a => pending.some(r => r.agentId === a.id)), context, locations); results.forEach(r => allResults.set(r.requirementId, r));
-    const neural = buildNeuralCycle(currentRequirements, results, cycle); cycles.push(neural);
+    const pendingAgents = currentAgents.filter(a => pending.some(r => r.agentId === a.id));
+    const results = await execute(pending, pendingAgents, context, locations); results.forEach(r => allResults.set(r.requirementId, r));
+    const neural = buildNeuralCycle(pending, results, cycle); cycles.push(neural);
     const materialized = materializeFollowUpRequirements(neural.followUps, currentRequirements, currentAgents); currentRequirements = materialized.requirements; currentAgents = materialized.agents;
     if (!neural.followUps.length) break;
   }
-  return { results: [...allResults.values()], cycles };
+  return { results: [...allResults.values()], cycles, requirements: currentRequirements, agents: currentAgents };
 }
