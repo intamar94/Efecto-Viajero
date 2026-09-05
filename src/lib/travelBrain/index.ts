@@ -17,5 +17,6 @@ export * from "./departments";
 export * from "./departmentRunner";
 export * from "./supervisorProtocol";
 export * from "./compatibility";
+export * from "../documentIntelligence";
 export * from "./presentation";
 export * from "./tripBuilder";
