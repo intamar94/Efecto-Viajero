@@ -41,15 +41,22 @@ export function PreferenciaItinerarioForm({ inicial, onGenerar, cargando }: Prop
               key={r}
               type="button"
               onClick={() => setRitmo(r)}
-              className={`flex-1 px-3 py-2 text-sm rounded-lg border transition ${
+              className={`flex-1 px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-lg border transition ${
                 ritmo === r
                   ? "border-marino-500 bg-marino-50 text-marino-800"
                   : "border-neutral-200 text-neutral-600 hover:border-neutral-400"
               }`}
             >
-              {r === "tranquilo" && "🚶 Tranquilo (4-6h)"}
-              {r === "normal" && "🚴 Normal (6-8h)"}
-              {r === "intenso" && "⚡ Intenso (8+ h)"}
+              <span className="hidden sm:inline">
+                {r === "tranquilo" && "🚶 Tranquilo (4-6h)"}
+                {r === "normal" && "🚴 Normal (6-8h)"}
+                {r === "intenso" && "⚡ Intenso (8+ h)"}
+              </span>
+              <span className="sm:hidden">
+                {r === "tranquilo" && "🚶 Tranquilo"}
+                {r === "normal" && "🚴 Normal"}
+                {r === "intenso" && "⚡ Intenso"}
+              </span>
             </button>
           ))}
         </div>

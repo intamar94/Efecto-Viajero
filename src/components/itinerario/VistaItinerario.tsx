@@ -77,7 +77,7 @@ export function VistaItinerario({ viaje, onActualizar }: Props) {
 
       {paso === "edicion" && (
         <>
-          <div className="space-y-3">
+          <div className="space-y-3 pb-24">
             {itinerario.dias.map((dia, idx) => (
               <EditorItinerarioDia
                 key={dia.fecha}
@@ -87,11 +87,11 @@ export function VistaItinerario({ viaje, onActualizar }: Props) {
             ))}
           </div>
 
-          <div className="flex gap-3 sticky bottom-5">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-5 py-3 flex gap-3">
             <button onClick={handleGuardar} className="btn-primary flex-1">
               💾 Guardar itinerario
             </button>
-            <button onClick={() => setPaso("preferencias")} className="btn-secondary">
+            <button onClick={() => setPaso("preferencias")} className="btn-secondary flex-1 sm:flex-none">
               Editar preferencias
             </button>
           </div>
