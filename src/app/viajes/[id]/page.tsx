@@ -167,6 +167,23 @@ export default function ViajeDetallePage() {
           </button>
         </div>
 
+        <section className="mb-6">
+          <h2 className="mb-4 font-medium">Elementos del viaje</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {SECCIONES.map((s) => (
+              <Link
+                key={s.href}
+                href={`/viajes/${viaje.id}/${s.href}`}
+                className="group rounded-2xl border border-neutral-200 bg-white px-4 py-5 transition hover:border-marino-500 hover:bg-marino-50"
+              >
+                <p className="text-3xl mb-2">{s.icono}</p>
+                <p className="text-sm font-medium text-neutral-900 group-hover:text-marino-900">{s.titulo}</p>
+                <p className="mt-1.5 text-xs text-neutral-500 group-hover:text-marino-700">{estadoTexto[s.href]}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {mostrarCompartir && (
           <div className="mb-6 rounded-xl border border-marino-200 bg-marino-50 p-4">
             <p className="mb-3 text-sm font-medium">Compartir viaje con alguien</p>
@@ -492,23 +509,6 @@ export default function ViajeDetallePage() {
             )}
           </section>
         )}
-
-        <section className="mb-6">
-          <h2 className="mb-4 font-medium">Elementos del viaje</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {SECCIONES.map((s) => (
-              <Link
-                key={s.href}
-                href={`/viajes/${viaje.id}/${s.href}`}
-                className="group rounded-2xl border border-neutral-200 bg-white px-4 py-5 transition hover:border-marino-500 hover:bg-marino-50"
-              >
-                <p className="text-3xl mb-2">{s.icono}</p>
-                <p className="text-sm font-medium text-neutral-900 group-hover:text-marino-900">{s.titulo}</p>
-                <p className="mt-1.5 text-xs text-neutral-500 group-hover:text-marino-700">{estadoTexto[s.href]}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
 
         <button onClick={borrarViaje} className="text-sm text-red-600 hover:text-red-800">
           Eliminar viaje
