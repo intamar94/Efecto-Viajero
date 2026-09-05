@@ -2,6 +2,7 @@ import type { CanonicalTripContext } from "./tripContext";
 import type { ResolvedDestination } from "./destinationResolver";
 import type { ResearchPlan, ResearchResult, ResearchTask } from "./researchOrchestrator";
 import { createDepartment, type DepartmentReport } from "./departments";
+import type { ReverseEngineeringPlan } from "./reverseEngineeringOrchestrator";
 
 export interface DepartmentExecution {
   results: ResearchResult[];
@@ -15,50 +16,34 @@ function terminal(result: ResearchResult | undefined) {
 }
 
 function dependencyBlocked(task: ResearchTask, results: Map<string, ResearchResult>) {
-  const failed = task.dependsOn.find((dependency) => {
+  return task.dependsOn.find((dependency) => {
     const result = results.get(dependency);
     return result?.status === "error" || result?.status === "unavailable";
   });
-  return failed;
 }
 
 function blockedResult(task: ResearchTask, failedDependency: string): ResearchResult {
-  return {
-    task,
-    status: "unavailable",
-    data: { reason: `Bloqueado por dependencia no disponible: ${failedDependency}` },
-    error: `Dependencia no disponible: ${failedDependency}`,
-  };
+  return { task, status: "unavailable", data: { reason: `Bloqueado por dependencia no disponible: ${failedDependency}` }, error: `Dependencia no disponible: ${failedDependency}` };
 }
 
-/**
- * The orchestrator's execution boundary. Tasks are scheduled in topological waves:
- * independent departments run in parallel, dependent departments wait for their
- * prerequisites, and a failed prerequisite blocks only its dependent branch.
- */
-export async function runDepartments(plan: ResearchPlan, context: CanonicalTripContext, locations: ResolvedDestination[]): Promise<DepartmentExecution> {
+/** Schedules department managers in topological waves and injects the reverse-engineered atomic requirements into each manager. */
+export async function runDepartments(
+  plan: ResearchPlan,
+  context: CanonicalTripContext,
+  locations: ResolvedDestination[],
+  reversePlan?: ReverseEngineeringPlan,
+): Promise<DepartmentExecution> {
   const pending = new Map(plan.tasks.map((task) => [task.id, task]));
   const results = new Map<string, ResearchResult>();
   const reports: DepartmentReport[] = [];
 
   while (pending.size) {
     const ready = [...pending.values()].filter((task) => task.dependsOn.every((dependency) => terminal(results.get(dependency))));
-
     if (!ready.length) {
       for (const task of pending.values()) {
-        const report: DepartmentReport = {
-          domain: task.domain,
-          objective: `Investigar ${task.domain} dentro del contexto completo del viaje.`,
-          subtasks: [],
-          findings: [],
-          evidence: [],
-          unresolved: ["No se pudo resolver el grafo de dependencias."],
-          conflicts: [],
-          status: "error",
-          error: "Dependency graph contains a cycle or unresolved prerequisite.",
-        };
-        reports.push(report);
-        results.set(task.id, { task, status: "error", error: report.error });
+        const error = "Dependency graph contains a cycle or unresolved prerequisite.";
+        reports.push({ domain: task.domain, objective: `Investigar ${task.domain} dentro del contexto completo del viaje.`, subtasks: [], findings: [], evidence: [], unresolved: [error], conflicts: [], status: "error", error });
+        results.set(task.id, { task, status: "error", error });
       }
       break;
     }
@@ -69,21 +54,9 @@ export async function runDepartments(plan: ResearchPlan, context: CanonicalTripC
       if (failedDependency) {
         const result = blockedResult(task, failedDependency);
         results.set(task.id, result);
-        reports.push({
-          domain: task.domain,
-          objective: `Investigar ${task.domain} dentro del contexto completo del viaje.`,
-          subtasks: [],
-          findings: [],
-          evidence: [],
-          unresolved: [result.error ?? "Dependencia no disponible"],
-          conflicts: [],
-          status: "unavailable",
-          error: result.error,
-        });
+        reports.push({ domain: task.domain, objective: `Investigar ${task.domain} dentro del contexto completo del viaje.`, subtasks: [], findings: [], evidence: [], unresolved: [result.error ?? "Dependencia no disponible"], conflicts: [], status: "unavailable", error: result.error });
         pending.delete(task.id);
-      } else {
-        executable.push(task);
-      }
+      } else executable.push(task);
     }
 
     if (executable.length) {
@@ -93,19 +66,12 @@ export async function runDepartments(plan: ResearchPlan, context: CanonicalTripC
           const result = results.get(id);
           return result ? [result] : [];
         });
-        const mission = department.mission(context, task, dependencyResults);
+        const requirements = reversePlan?.requirements.filter((requirement) => requirement.domain === task.domain) ?? [];
+        const mission = department.mission(context, task, dependencyResults, requirements);
         const subtasks = department.organize(mission);
         const report = await department.execute(mission, subtasks, locations);
-        const result: ResearchResult = {
-          task,
-          status: report.status,
-          data: { findings: report.findings, dependencyResults },
-          evidence: report.evidence as ResearchResult["evidence"],
-          error: report.error,
-        };
-        return { task, report, result };
+        return { task, report, result: { task, status: report.status, data: { findings: report.findings, dependencyResults, requirements }, evidence: report.evidence as ResearchResult["evidence"], error: report.error } as ResearchResult };
       }));
-
       for (const item of wave) {
         results.set(item.task.id, item.result);
         reports.push(item.report);
@@ -116,6 +82,5 @@ export async function runDepartments(plan: ResearchPlan, context: CanonicalTripC
 
   const availableDomains = [...results.values()].filter((result) => result.status === "ready" || result.status === "partial").map((result) => result.task.domain);
   const unavailableDomains = [...results.values()].filter((result) => result.status === "unavailable").map((result) => result.task.domain);
-
   return { results: [...results.values()], reports, availableDomains, unavailableDomains };
 }
