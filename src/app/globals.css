@@ -1,15 +1,6 @@
 @import "tailwindcss";
 
-/* Psicología de color aplicada al viaje.
-   - La base deja de ser gris frío (que leía como panel de administración)
-     y pasa a arena cálida: acoge en vez de intimidar.
-   - Azul marino (mar y cielo): confianza y calma. Sostiene la estructura
-     — cabecera, navegación, foco de los campos.
-   - Coral (sol, atardecer): energía y ganas de salir. Se reserva SOLO
-     para lo que hace avanzar el viaje; si se usara en todo perdería
-     fuerza y dejaría de empujar a la acción.
-   Se redefine la escala `neutral` completa en vez de cambiar clase por
-   clase: así toda la app se calienta a la vez y sin diferencias. */
+/* Sistema visual semántico: identidad, estado y acción permanecen separados. */
 @theme {
   --color-neutral-50: #faf8f5;
   --color-neutral-100: #f3efe9;
@@ -40,149 +31,87 @@
   --color-coral-600: #e35420;
   --color-coral-700: #bd3f17;
 
+  /* Roles semánticos: no usar estos roles como decoración. */
+  --color-status-success-bg: #eef8f1;
+  --color-status-success-border: #b7dfc2;
+  --color-status-success-text: #215c32;
+  --color-status-warning-bg: #fff8e8;
+  --color-status-warning-border: #f0d38a;
+  --color-status-warning-text: #74530a;
+  --color-status-error-bg: #fff1f0;
+  --color-status-error-border: #efb4b0;
+  --color-status-error-text: #8a2e28;
+  --color-status-pending-bg: #f5f1ea;
+  --color-status-pending-border: #d8cdbd;
+  --color-status-pending-text: #5e574d;
+
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-body {
-  /* Antes se forzaba Arial aquí, anulando la tipografía Geist que carga
-     el layout: la app se veía con la fuente por defecto del sistema. */
-  font-family: var(--font-sans);
+body { font-family: var(--font-sans); }
+
+*:focus-visible {
+  outline: 3px solid var(--color-marino-300);
+  outline-offset: 2px;
 }
 
 .input {
-  width: 100%;
-  border-radius: 0.75rem;
-  border: 1px solid var(--color-neutral-200);
-  background: #fff;
-  padding: 0.55rem 0.8rem;
-  font-size: 0.9rem;
-  color: var(--color-neutral-900);
-  outline: none;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+  width: 100%; border-radius: 0.75rem; border: 1px solid var(--color-neutral-200);
+  background: #fff; padding: 0.55rem 0.8rem; font-size: 0.9rem;
+  color: var(--color-neutral-900); outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
+.input:focus { border-color: var(--color-marino-500); box-shadow: 0 0 0 3px var(--color-marino-100); }
+.input::placeholder { color: var(--color-neutral-400); }
 
-.input:focus {
-  border-color: var(--color-marino-500);
-  box-shadow: 0 0 0 3px var(--color-marino-100);
-}
-
-.input::placeholder {
-  color: var(--color-neutral-400);
-}
-
-/* Lo que hace avanzar el viaje. */
 .btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  border-radius: 0.75rem;
-  background: var(--color-coral-500);
-  padding: 0.65rem 1.1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  min-height: 2.75rem; border-radius: 0.75rem; background: var(--color-coral-500);
+  padding: 0.65rem 1.1rem; font-size: 0.875rem; font-weight: 600; color: #fff;
   box-shadow: 0 1px 2px rgb(189 63 23 / 0.2);
-  transition:
-    background-color 0.15s,
-    transform 0.1s;
+  transition: background-color 0.15s, transform 0.1s;
 }
+.btn-primary:hover:not(:disabled) { background: var(--color-coral-600); }
+.btn-primary:active:not(:disabled) { transform: translateY(1px); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--color-coral-600);
-}
-
-.btn-primary:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.btn-primary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-/* Acción secundaria: acompaña, no compite con el coral. */
 .btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--color-marino-200);
-  background: #fff;
-  padding: 0.65rem 1.1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-marino-700);
-  transition:
-    border-color 0.15s,
-    background-color 0.15s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  min-height: 2.75rem; border-radius: 0.75rem; border: 1px solid var(--color-marino-200);
+  background: #fff; padding: 0.65rem 1.1rem; font-size: 0.875rem; font-weight: 500;
+  color: var(--color-marino-700); transition: border-color 0.15s, background-color 0.15s;
 }
-
-.btn-secondary:hover:not(:disabled) {
-  border-color: var(--color-marino-500);
-  background: var(--color-marino-50);
-}
-
-.btn-secondary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+.btn-secondary:hover:not(:disabled) { border-color: var(--color-marino-500); background: var(--color-marino-50); }
+.btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .card {
-  border-radius: 1rem;
-  border: 1px solid var(--color-neutral-200);
-  background: #fff;
-  padding: 1.25rem;
-  box-shadow: 0 1px 2px rgb(28 25 23 / 0.04);
+  border-radius: 1rem; border: 1px solid var(--color-neutral-200); background: #fff;
+  padding: 1.25rem; box-shadow: 0 1px 2px rgb(28 25 23 / 0.04);
 }
-
-/* Un consejo no es un dato reservable ni una opción que se elige: tiene
-   que verse distinto de una tarjeta normal para que nadie lo confunda
-   con algo que puede contratar aquí. */
 .tip {
-  border-radius: 1rem;
-  border: 1px solid var(--color-coral-200);
-  background: linear-gradient(180deg, var(--color-coral-50), #fff 70%);
-  padding: 1.25rem;
+  border-radius: 1rem; border: 1px solid var(--color-coral-200);
+  background: linear-gradient(180deg, var(--color-coral-50), #fff 70%); padding: 1.25rem;
 }
 
-/* La guía de ruta se imprime: en papel sobran los menús y los botones,
-   y los colores de fondo se comen la tinta. */
-@media print {
-  header,
-  nav,
-  .no-imprimir {
-    display: none !important;
-  }
+.status-success { border: 1px solid var(--color-status-success-border); background: var(--color-status-success-bg); color: var(--color-status-success-text); }
+.status-warning { border: 1px solid var(--color-status-warning-border); background: var(--color-status-warning-bg); color: var(--color-status-warning-text); }
+.status-error { border: 1px solid var(--color-status-error-border); background: var(--color-status-error-bg); color: var(--color-status-error-text); }
+.status-pending { border: 1px solid var(--color-status-pending-border); background: var(--color-status-pending-bg); color: var(--color-status-pending-text); }
 
-  .card,
-  .tip {
-    border: 1px solid #999 !important;
-    background: #fff !important;
-    box-shadow: none !important;
-    break-inside: avoid;
-  }
-
-  body {
-    background: #fff !important;
-  }
-}
-
-/* Etiqueta de clasificación (interior/exterior, gratis, mascotas...). */
 .chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  border-radius: 9999px;
-  border: 1px solid var(--color-neutral-200);
-  background: var(--color-neutral-50);
-  padding: 0.15rem 0.55rem;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--color-neutral-600);
-  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 0.25rem; border-radius: 9999px;
+  border: 1px solid var(--color-neutral-200); background: var(--color-neutral-50);
+  padding: 0.15rem 0.55rem; font-size: 0.7rem; font-weight: 500;
+  color: var(--color-neutral-600); white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+@media print {
+  header, nav, .no-imprimir { display: none !important; }
+  .card, .tip { border: 1px solid #999 !important; background: #fff !important; box-shadow: none !important; break-inside: avoid; }
+  body { background: #fff !important; }
 }
