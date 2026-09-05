@@ -9,18 +9,12 @@ import type { ChangeSet } from "./changeSet";
 import type { OptimizationResult } from "./optimizer";
 import type { MarketingDesignBrief } from "./marketingDesignNeuron";
 import type { DesignSystemBrief } from "./designSystemNeuron";
+import type { CreativeDepartmentPlan } from "./creativeDepartment";
+import type { ActionExecution } from "./actionExecutor";
 
-export type BrainPhase =
-  | "understanding" | "planning" | "researching" | "validating" | "resolving"
-  | "deciding" | "applying" | "optimizing" | "complete" | "blocked";
+export type BrainPhase = "understanding" | "planning" | "researching" | "validating" | "resolving" | "deciding" | "applying" | "optimizing" | "complete" | "blocked";
 
-export interface BrainBlocker {
-  id: string;
-  type: "missing-data" | "conflict" | "provider" | "validation" | "system";
-  target: string;
-  reason: string;
-  severity: "high" | "critical";
-}
+export interface BrainBlocker { id: string; type: "missing-data" | "conflict" | "provider" | "validation" | "system"; target: string; reason: string; severity: "high" | "critical"; }
 
 export interface BrainControlCycle {
   cycle: number;
@@ -35,30 +29,16 @@ export interface BrainControlCycle {
 }
 
 export interface BrainState {
-  runId: string;
-  phase: BrainPhase;
-  context: CanonicalTripContext;
-  requirements: DataRequirement[];
-  agents: AgentSpec[];
-  results: AgentResult[];
-  facts: WorkingMemory["facts"];
-  evidence: EvidenceRef[];
-  conflicts: WorkingMemory["conflicts"];
-  decisions: WorkingMemory["decisions"];
-  pendingActions: BrainAction[];
-  completedActions: BrainAction[];
-  blockers: BrainBlocker[];
-  decision?: BrainDecision;
-  changeSets: ChangeSet[];
-  optimization?: OptimizationResult;
-  controlCycles: BrainControlCycle[];
-  marketingDesign?: MarketingDesignBrief;
-  designSystem?: DesignSystemBrief;
+  runId: string; phase: BrainPhase; context: CanonicalTripContext;
+  requirements: DataRequirement[]; agents: AgentSpec[]; results: AgentResult[];
+  facts: WorkingMemory["facts"]; evidence: EvidenceRef[]; conflicts: WorkingMemory["conflicts"];
+  decisions: WorkingMemory["decisions"]; pendingActions: BrainAction[]; completedActions: BrainAction[];
+  blockers: BrainBlocker[]; decision?: BrainDecision; changeSets: ChangeSet[];
+  optimization?: OptimizationResult; controlCycles: BrainControlCycle[];
+  marketingDesign?: MarketingDesignBrief; designSystem?: DesignSystemBrief;
+  creativeDepartment?: CreativeDepartmentPlan; executionHistory: ActionExecution[];
   terminationReason?: "converged" | "blocked" | "max-cycles";
-  cycles: number;
-  completeness: number;
-  confidence: number;
-  updatedAt: string;
+  cycles: number; completeness: number; confidence: number; updatedAt: string;
 }
 
 export function createBrainState(input: { runId: string; context: CanonicalTripContext; requirements?: DataRequirement[]; agents?: AgentSpec[] }): BrainState {
@@ -66,7 +46,8 @@ export function createBrainState(input: { runId: string; context: CanonicalTripC
     runId: input.runId, phase: "understanding", context: input.context,
     requirements: input.requirements ?? [], agents: input.agents ?? [], results: [], facts: [], evidence: [],
     conflicts: [], decisions: [], pendingActions: [], completedActions: [], blockers: [], changeSets: [],
-    optimization: undefined, controlCycles: [], marketingDesign: undefined, designSystem: undefined, terminationReason: undefined,
+    optimization: undefined, controlCycles: [], marketingDesign: undefined, designSystem: undefined,
+    creativeDepartment: undefined, executionHistory: [], terminationReason: undefined,
     cycles: 0, completeness: 0, confidence: 0, updatedAt: new Date().toISOString(),
   };
 }
