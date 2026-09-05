@@ -16,6 +16,9 @@ export interface DomainProviderContext {
   start?: string;
   end?: string;
   currency?: string;
+  budgetAmount?: number;
+  budgetType?: string;
+  travelerCounts?: { adults: number; children: number; babies: number; seniors: number; pets: number };
   query?: string;
   origin?: { latitude: number; longitude: number };
   requirementId?: string;
@@ -34,12 +37,7 @@ export interface DomainProviderResult {
 
 type Adapter = (context: DomainProviderContext) => Promise<DomainProviderResult>;
 
-const evidence = (source: string, confidence: EvidenceRef["confidence"] = "medium"): EvidenceRef => ({
-  source,
-  checkedAt: new Date().toISOString(),
-  freshness: "live",
-  confidence,
-});
+const evidence = (source: string, confidence: EvidenceRef["confidence"] = "medium"): EvidenceRef => ({ source, checkedAt: new Date().toISOString(), freshness: "live", confidence });
 
 async function getJson(url: string, source: string, init?: RequestInit) {
   const response = await fetch(url, { ...init, next: { revalidate: 900 } });
@@ -48,16 +46,10 @@ async function getJson(url: string, source: string, init?: RequestInit) {
 }
 
 const poi: Record<string, string[]> = {
-  experiences: ["tourism=attraction"],
-  culture: ["tourism=museum", "tourism=gallery", "historic"],
-  gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"],
-  nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
+  experiences: ["tourism=attraction"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
 };
 
-const OVERPASS_ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-];
+const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 
 const osmPoi: Adapter = async ({ destination, domain, query }) => {
   const filters = query ? [query] : poi[domain] ?? poi.experiences;
@@ -66,11 +58,7 @@ const osmPoi: Adapter = async ({ destination, domain, query }) => {
   let lastError: unknown;
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
-      const data = await getJson(endpoint, "OpenStreetMap Overpass", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" },
-        body: new URLSearchParams({ data: body }).toString(),
-      });
+      const data = await getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() });
       return { domain, status: "ready", data, evidence: [evidence("OpenStreetMap Overpass")] };
     } catch (error) { lastError = error; }
   }
@@ -79,9 +67,7 @@ const osmPoi: Adapter = async ({ destination, domain, query }) => {
 
 const weather: Adapter = async ({ destination, start, end }) => {
   const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude", String(destination.latitude)); url.searchParams.set("longitude", String(destination.longitude));
-  url.searchParams.set("current", "temperature_2m,precipitation,weather_code,wind_speed_10m");
-  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code"); url.searchParams.set("timezone", "auto");
+  url.searchParams.set("latitude", String(destination.latitude)); url.searchParams.set("longitude", String(destination.longitude)); url.searchParams.set("current", "temperature_2m,precipitation,weather_code,wind_speed_10m"); url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code"); url.searchParams.set("timezone", "auto");
   if (start) url.searchParams.set("start_date", start); if (end) url.searchParams.set("end_date", end);
   const data = await getJson(url.toString(), "Open-Meteo Forecast");
   return { domain: "weather", status: "ready", data, evidence: [evidence("Open-Meteo Forecast", "high")] };
@@ -106,7 +92,35 @@ const currency: Adapter = async ({ currency: base, destination, dependencySignal
   return { domain: "currency", status: "ready", data: { destination, rates: data, upstream: dependencySignals }, evidence: [evidence("Frankfurter")] };
 };
 
-const adapters: Partial<Record<ResearchDomain, Adapter>> = { experiences: osmPoi, culture: osmPoi, gastronomy: osmPoi, nature: osmPoi, weather, map, transport: route, currency };
+/** Native decision capability: converts the user's budget into an explicit planning envelope. It never pretends these are market prices. */
+const budget: Adapter = async ({ destination, currency: base, budgetAmount, budgetType, travelerCounts, dependencySignals }) => {
+  if (!budgetAmount || budgetAmount <= 0) return { domain: "budget", status: "unavailable", data: { reason: "Falta un presupuesto total positivo." } };
+  const people = (travelerCounts?.adults ?? 0) + (travelerCounts?.children ?? 0) + (travelerCounts?.babies ?? 0) + (travelerCounts?.seniors ?? 0);
+  const allocation = { transport: 0.30, accommodation: 0.35, food: 0.15, activities: 0.10, contingency: 0.10 };
+  const envelope = Object.fromEntries(Object.entries(allocation).map(([key, ratio]) => [key, Math.round(budgetAmount * ratio * 100) / 100]));
+  return { domain: "budget", status: "ready", data: { destination, currency: base ?? "EUR", total: budgetAmount, type: budgetType ?? "total", travelers: people, allocation: envelope, methodology: "planning-envelope", dependencySignals }, evidence: [evidence("Efecto Viajero Budget Engine", "medium")] };
+};
+
+/** Native ledger capability: aggregates explicit numeric amounts found in upstream provider signals. */
+const expenses: Adapter = async ({ destination, currency: base, dependencySignals }) => {
+  const items = (dependencySignals ?? []).flatMap((signal) => {
+    const data = signal.data as Record<string, unknown> | undefined;
+    const candidates = [data?.cost, data?.price, data?.amount].filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    return candidates.map((amount) => ({ requirementId: signal.requirementId, dataType: signal.dataType, amount }));
+  });
+  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  return { domain: "expenses", status: "ready", data: { destination, currency: base ?? "EUR", items, total, coverage: items.length ? "partial-from-observed-data" : "no-observed-costs" }, evidence: [evidence("Efecto Viajero Expense Ledger", "medium")] };
+};
+
+/** Native offline planner: creates a deterministic manifest from the facts already available to the brain. */
+const offline: Adapter = async ({ destination, dependencySignals }) => {
+  const required = ["traveler_documents", "emergency_info", "transport", "accommodation", "offline_map", "weather", "currency"];
+  const available = new Set((dependencySignals ?? []).map((signal) => signal.dataType));
+  const bundle = required.map((item) => ({ item, status: available.has(item) ? "ready" : "pending" }));
+  return { domain: "offline", status: "ready", data: { destination, bundle, readyCount: bundle.filter((item) => item.status === "ready").length, total: bundle.length, policy: "never fabricate missing offline content" }, evidence: [evidence("Efecto Viajero Offline Planner", "medium")] };
+};
+
+const adapters: Partial<Record<ResearchDomain, Adapter>> = { experiences: osmPoi, culture: osmPoi, gastronomy: osmPoi, nature: osmPoi, weather, map, transport: route, currency, budget, expenses, offline };
 
 export async function executeDomainProvider(domain: ResearchDomain, context: Omit<DomainProviderContext, "domain">): Promise<DomainProviderResult> {
   const adapter = adapters[domain];
