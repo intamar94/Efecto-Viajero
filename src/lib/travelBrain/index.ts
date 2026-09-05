@@ -12,6 +12,7 @@ export * from "./providerRegistry";
 export * from "./capabilityRequirements";
 export * from "./capabilityAudit";
 export * from "./providerExecutor";
+export * from "./officialSourceProvider";
 export * from "./domainProviders";
 export * from "./departments";
 export * from "./departmentRunner";
