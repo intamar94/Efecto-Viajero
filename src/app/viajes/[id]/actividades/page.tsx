@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
@@ -9,6 +9,7 @@ import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { actividadesDe, urlBuscarActividad, urlMapsActividad, queProbarDe } from "@/lib/catalogo";
 import { destinoParaCatalogo, destinoPrincipal, etapasDe } from "@/lib/viaje";
+import { obtenerGuiaWikivoyage, type TipoListingWikivoyage } from "@/lib/wikivoyage";
 import type { CategoriaSitio, SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
 
@@ -61,16 +62,29 @@ const CATEGORIA_DE_SITIO: Record<CategoriaSitio, CategoriaActividad> = {
   experiencias: "otro",
 };
 
+// "sleep" (alojamiento) no cuenta aquí: eso ya lo cubre la sección de
+// Alojamiento, no tiene sentido como "actividad".
+const CATEGORIA_DE_LISTING: Partial<Record<TipoListingWikivoyage, CategoriaActividad>> = {
+  see: "museo",
+  do: "otro",
+  buy: "compras",
+  eat: "restaurante",
+  drink: "discoteca",
+};
+
 type Item = ActividadDestino & {
   esPropia: boolean;
   esSitioReal?: boolean;
+  fuenteEtiqueta?: string;
   etapaId: string;
   etapaNombre: string;
   pais?: string;
   notaPrecio?: string;
   horario?: string;
+  direccion?: string;
   mapaUrl?: string;
   webUrl?: string;
+  webEsDirecta?: boolean;
 };
 
 // Insignia de progreso por ciudad: sencilla, sin más objetivo que hacer
@@ -108,6 +122,30 @@ export default function ActividadesPage() {
   const [categoriaNueva, setCategoriaNueva] = useState<CategoriaActividad>("otro");
   const [entornoNueva, setEntornoNueva] = useState<"exterior" | "interior" | "mixto">("exterior");
   const [mascotaNueva, setMascotaNueva] = useState(false);
+
+  // Investigación bajo demanda: al abrir Actividades, se busca la guía
+  // Wikivoyage de cada ciudad que aún no la tenga guardada. Una sola vez
+  // por ciudad — luego queda en el propio viaje y funciona sin conexión.
+  // Va antes del "if (!viaje)" porque los hooks no pueden depender de una
+  // condición: en la primera carga viaje aún no está hidratado.
+  useEffect(() => {
+    if (!viaje) return;
+    let cancelado = false;
+    (async () => {
+      for (const etapa of etapasDe(viaje)) {
+        if (viaje.wikivoyage?.[etapa.nombre]) continue;
+        const guia = await obtenerGuiaWikivoyage(etapa.nombre);
+        if (cancelado) return;
+        if (guia) {
+          actualizarViaje(viaje.id, { wikivoyage: { ...viaje.wikivoyage, [etapa.nombre]: guia } });
+        }
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viaje?.id]);
 
   if (!viaje) {
     return (
@@ -157,13 +195,52 @@ export default function ActividadesPage() {
         descripcion: s.detalle ?? "Sitio real cercano (OpenStreetMap).",
         esPropia: false,
         esSitioReal: true,
+        fuenteEtiqueta: "OpenStreetMap",
         etapaId: etapa.id,
         etapaNombre: etapa.nombre,
         notaPrecio: s.precioAprox,
         horario: s.horarioApertura ? `${s.horarioApertura}${s.horarioCierre ? ` - ${s.horarioCierre}` : ""}` : undefined,
         mapaUrl: s.lat && s.lon ? `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}` : undefined,
         webUrl: s.url,
+        webEsDirecta: !!s.url,
       }));
+
+    // Guía real de Wikivoyage (nombre, dirección, horario, precio, web ya
+    // escritos por otros viajeros): sustituye la búsqueda genérica en
+    // Google por datos concretos, cuando el artículo los trae.
+    const guiaWikivoyage = viaje!.wikivoyage?.[etapa.nombre];
+    const idsWikivoyageYaAñadidos = idsPropiosYaAñadidos;
+    const deWikivoyage: Item[] = (guiaWikivoyage?.listings ?? []).flatMap((l) => {
+      const categoria = CATEGORIA_DE_LISTING[l.tipo];
+      if (!categoria || !l.nombre) return [];
+      const id = `wv-${etapa.id}-${slug(l.nombre)}`;
+      if (idsWikivoyageYaAñadidos.has(id)) return [];
+      return [
+        {
+          id,
+          nombre: l.nombre,
+          tipo: l.tipo,
+          categoria,
+          duracionHoras: 0,
+          costeEstimado: 0,
+          apta: [],
+          entorno: "mixto" as const,
+          admiteMascotas: false,
+          descripcion: l.contenido || "Recomendado en la guía Wikivoyage de la ciudad.",
+          esPropia: false,
+          esSitioReal: true,
+          fuenteEtiqueta: "Wikivoyage",
+          etapaId: etapa.id,
+          etapaNombre: etapa.nombre,
+          notaPrecio: l.precio,
+          horario: l.horario,
+          direccion: l.direccion,
+          mapaUrl: l.lat && l.lon ? `https://www.google.com/maps/search/?api=1&query=${l.lat},${l.lon}` : urlMapsActividad(l.nombre, etapa.nombre),
+          webUrl: l.url || urlBuscarActividad(l.nombre, etapa.nombre),
+          webEsDirecta: !!l.url,
+        },
+      ];
+    });
 
     const propiasDeEtapa: Item[] = viaje!.actividades
       .filter((a) => a.propia && !a.propia.esSitioReal && (a.etapaId === etapa.id || (!a.etapaId && etapas.length === 1)))
@@ -183,7 +260,7 @@ export default function ActividadesPage() {
         etapaNombre: etapa.nombre,
       }));
 
-    return [...propiasDeEtapa, ...deSitiosReales, ...delCatalogo];
+    return [...propiasDeEtapa, ...deSitiosReales, ...deWikivoyage, ...delCatalogo];
   }
 
   function setEstado(item: Item, estado: EstadoActividad | null) {
@@ -509,8 +586,10 @@ export default function ActividadesPage() {
                                       {it.horarioHabitual && <span className="chip">🕐 {it.horarioHabitual}</span>}
                                       {it.admiteMascotas && <span className="chip">🐾 Mascotas</span>}
                                       {it.esPropia && <span className="chip">✍️ Tuya</span>}
-                                      {it.esSitioReal && <span className="chip">🌍 Sitio real</span>}
+                                      {it.fuenteEtiqueta && <span className="chip">🌍 {it.fuenteEtiqueta}</span>}
                                     </div>
+
+                                    {it.direccion && <p className="mt-2 text-xs text-neutral-500">📍 {it.direccion}</p>}
 
                                     {it.consejo && <p className="mt-2 text-xs text-neutral-500">💡 {it.consejo}</p>}
 
@@ -533,12 +612,12 @@ export default function ActividadesPage() {
                                     <div className="mt-2.5 flex flex-wrap gap-2">
                                       {it.mapaUrl && (
                                         <a href={it.mapaUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-marino-500">
-                                          📍 {it.esSitioReal ? "Mapa" : "Ver opciones reales en el mapa"}
+                                          📍 {it.fuenteEtiqueta ? "Mapa" : "Ver opciones reales en el mapa"}
                                         </a>
                                       )}
                                       {it.webUrl && (
                                         <a href={it.webUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg bg-marino-50 border border-marino-200 text-marino-700 hover:bg-marino-100">
-                                          {it.esSitioReal ? "🔗 Sitio web" : "🔎 Buscar en Google"}
+                                          {it.webEsDirecta ? "🔗 Sitio web" : "🔎 Buscar en Google"}
                                         </a>
                                       )}
                                       {estado === "disponible" && (

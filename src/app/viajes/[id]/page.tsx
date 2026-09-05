@@ -21,6 +21,7 @@ const SECCIONES = [
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
   { href: "actividades", icono: "🎒", titulo: "Actividades" },
+  { href: "guia", icono: "🎧", titulo: "Modo Guía" },
   { href: "vault", icono: "📁", titulo: "Travel Vault" },
   { href: "souvenirs", icono: "🎁", titulo: "Qué comprar" },
   { href: "compartido", icono: "👥", titulo: "Compartido" },
@@ -103,6 +104,7 @@ export default function ViajeDetallePage() {
       numActividadesDisponibles > 0
         ? `${numActividadesEnMarcha} en marcha · ${numActividadesDisponibles} disponibles`
         : `${numActividadesEnMarcha} en marcha`,
+    guia: "GPS + audio del lugar",
     vault: viaje.documentos.length > 0 ? `${viaje.documentos.length} documento(s)` : "Vacío",
     souvenirs: "Consejos de compras",
     compartido: viaje.participantes.length > 0 ? `${viaje.participantes.length} participante(s)` : "Solo tú",

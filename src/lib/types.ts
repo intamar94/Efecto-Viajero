@@ -1,4 +1,5 @@
 import type { Investigacion } from "./investigacion";
+import type { WikivoyageResumen } from "./wikivoyage";
 
 // Modelo de datos central de Efecto Viajero.
 // Separación deliberada: datos permanentes del viajero vs. contexto específico del viaje.
@@ -243,6 +244,10 @@ export interface Viaje {
   // perdía al salir de /planificar y había que volver a pedirla.
   investigacion?: Investigacion;
   itinerario?: Itinerario;
+  // Guía real por ciudad (Wikivoyage), obtenida bajo demanda desde
+  // Actividades: por eso vive aparte de `investigacion`, que solo se
+  // rellena una vez al crear el viaje.
+  wikivoyage?: Record<string, WikivoyageResumen>;
 }
 
 export type EstadoRequisito = "verde" | "amarillo" | "rojo";
