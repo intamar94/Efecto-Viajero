@@ -7,6 +7,7 @@ import { scoreDestinations } from "./compatibility";
 import { buildTripDraft } from "./tripBuilder";
 import { buildOrchestratorUpdate } from "./supervisorProtocol";
 import { auditCapabilities } from "./capabilityAudit";
+import { deriveOrchestrationSignals, selectResearchDomains } from "./orchestrationPolicy";
 
 export type ResearchDomain = "destination" | "requirements" | "laws" | "emergency" | "transport" | "accommodation" | "weather" | "experiences" | "culture" | "gastronomy" | "nature" | "events" | "language" | "currency" | "map" | "budget" | "expenses" | "memory" | "offline" | "social";
 export type ResearchStatus = "queued" | "running" | "ready" | "partial" | "needs_review" | "unavailable" | "error";
@@ -14,7 +15,7 @@ export type ResearchPriority = "critical" | "high" | "normal" | "background";
 export interface ResearchTask { id: string; domain: ResearchDomain; priority: ResearchPriority; dependsOn: string[]; phase: "understand" | "prepare" | "plan" | "live" | "memory"; }
 export interface EvidenceRef { source: string; checkedAt: string; freshness: "live" | "recent" | "dated" | "unknown"; confidence: "high" | "medium" | "low"; }
 export interface ResearchResult { task: ResearchTask; status: ResearchStatus; data?: unknown; evidence?: EvidenceRef[]; error?: string; }
-export interface ResearchPlan { tasks: ResearchTask[]; }
+export interface ResearchPlan { tasks: ResearchTask[]; selectedDomains: ResearchDomain[]; skippedDomains: ResearchDomain[]; selectionReasons: Partial<Record<ResearchDomain, string>>; }
 
 const DEFINITIONS: Array<[ResearchDomain, ResearchPriority, ResearchDomain[], ResearchTask["phase"]]> = [
   ["destination", "critical", [], "understand"],
@@ -39,15 +40,26 @@ const DEFINITIONS: Array<[ResearchDomain, ResearchPriority, ResearchDomain[], Re
   ["memory", "background", [], "memory"],
 ];
 
-export function buildResearchPlan(): ResearchPlan {
-  return {
-    tasks: DEFINITIONS.map(([domain, priority, dependencies, phase]) => ({
+export function buildResearchPlan(context: CanonicalTripContext): ResearchPlan {
+  const selected = selectResearchDomains(context, DEFINITIONS);
+  const signals = deriveOrchestrationSignals(context);
+  const tasks = DEFINITIONS
+    .filter(([domain]) => selected.has(domain))
+    .map(([domain, priority, dependencies, phase]) => ({
       id: `research:${domain}`,
       domain,
       priority,
       phase,
-      dependsOn: dependencies.map((d) => `research:${d}`),
-    })),
+      dependsOn: dependencies.filter((d) => selected.has(d)).map((d) => `research:${d}`),
+    }));
+
+  return {
+    tasks,
+    selectedDomains: tasks.map((task) => task.domain),
+    skippedDomains: DEFINITIONS.map(([domain]) => domain).filter((domain) => !selected.has(domain)),
+    selectionReasons: Object.fromEntries(
+      [...signals.explicit, ...signals.inferred].map((domain) => [domain, signals.reasons[domain] ?? "Necesario por el contexto o por una dependencia."]),
+    ),
   };
 }
 
@@ -80,15 +92,11 @@ function fallbackContext(rawText: string): CanonicalTripContext {
 }
 
 export async function analyzeTrip(rawText: string, context?: CanonicalTripContext, trip: { destino?: string; etapas?: Array<{ nombre: string }> } = {}) {
-  const candidates = unique(extractLocationCandidates(rawText).concat(context?.destinations ?? [], trip.destino ?? "", ...(trip.etapas ?? []).map((e) => e.nombre)));
+  const ctx = context ?? fallbackContext(rawText);
+  const candidates = unique(extractLocationCandidates(rawText).concat(ctx.destinations ?? [], trip.destino ?? "", ...(trip.etapas ?? []).map((e) => e.nombre)));
   const hint = countryHint(candidates);
   let countryCode: string | undefined;
 
-  // Un lugar que no se resuelve no puede tumbar el viaje entero: antes, si
-  // el geocodificador fallaba con UN candidato (o estaba caído, o devolvía
-  // 429), la petición completa moría con 502 y no se podía crear ningún
-  // viaje. Ahora cada fallo se degrada a "no resuelto", que es un caso que
-  // la respuesta ya sabía representar.
   async function resolverTolerante(valor: string, code?: string) {
     try {
       return await resolveDestination(valor, code);
@@ -97,7 +105,6 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
     }
   }
 
-  // Solo la identificación inicial del país precede a la resolución paralela de lugares.
   if (hint) {
     const matches = await resolverTolerante(hint);
     countryCode = matches.find((r) => r.name.toLowerCase() === hint.toLowerCase())?.countryCode ?? matches[0]?.countryCode;
@@ -119,29 +126,20 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
     if (item.unresolved || (!item.destination && item.candidate !== hint)) unresolved.push(item.candidate);
   }
 
-  const plan = buildResearchPlan();
-  const ctx = context ?? fallbackContext(rawText);
-
-  // El Orquestador ya no ejecuta proveedores directamente: entrega misiones a
-  // departamentos y estos se ejecutan en ondas según el grafo de dependencias.
+  // Selección semántica primero; ejecución después. El runner recibe únicamente
+  // las misiones que el contexto justifica, junto con el cierre de dependencias.
+  const plan = buildResearchPlan(ctx);
   const departmentExecution = await runDepartments(plan, ctx, locations);
   const results = departmentExecution.results;
   const ranked = scoreDestinations(ctx, locations);
   const draft = buildTripDraft(ctx, ranked);
-  const explorer = context?.planningMode === "dejarse_llevar"
-    ? buildExplorerPlan({ request: context.rawText || rawText, context, now: { iso: new Date().toISOString() } })
+  const explorer = ctx.planningMode === "dejarse_llevar"
+    ? buildExplorerPlan({ request: ctx.rawText || rawText, context: ctx, now: { iso: new Date().toISOString() } })
     : undefined;
   const normalizedUnresolved = unique(unresolved.concat(departmentExecution.reports.flatMap((report) => report.unresolved)));
   const pendingCount = plan.tasks.filter((task) => !results.some((result) => result.task.id === task.id)).length;
   const capabilityAudit = auditCapabilities(plan.tasks, results, departmentExecution.reports);
-  const supervisorUpdate = buildOrchestratorUpdate(
-    results,
-    plan.tasks,
-    normalizedUnresolved,
-    departmentExecution.reports,
-    1,
-    capabilityAudit,
-  );
+  const supervisorUpdate = buildOrchestratorUpdate(results, plan.tasks, normalizedUnresolved, departmentExecution.reports, 1, capabilityAudit);
 
   return {
     locations,
@@ -153,8 +151,15 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
     draft,
     availableDomains: departmentExecution.availableDomains,
     unavailableDomains: departmentExecution.unavailableDomains,
-    mode: context?.planningMode ?? "completo",
+    mode: ctx.planningMode,
     pendingCount,
+    orchestration: {
+      selected: plan.selectedDomains,
+      skipped: plan.skippedDomains,
+      reasons: plan.selectionReasons,
+      explicitSignals: [...deriveOrchestrationSignals(ctx).explicit],
+      inferredSignals: [...deriveOrchestrationSignals(ctx).inferred],
+    },
     phases: {
       understand: results.filter((r) => r.task.phase === "understand").map((r) => r.task.domain),
       prepare: results.filter((r) => r.task.phase === "prepare").map((r) => r.task.domain),
