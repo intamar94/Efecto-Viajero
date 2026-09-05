@@ -6,6 +6,7 @@ import type { WorkingMemory } from "./workingMemory";
 import type { BrainAction } from "./brainActions";
 import type { BrainDecision } from "./decisionEngine";
 import type { ChangeSet } from "./changeSet";
+import type { OptimizationResult } from "./optimizer";
 
 export type BrainPhase =
   | "understanding" | "planning" | "researching" | "validating" | "resolving"
@@ -35,6 +36,7 @@ export interface BrainState {
   blockers: BrainBlocker[];
   decision?: BrainDecision;
   changeSets: ChangeSet[];
+  optimization?: OptimizationResult;
   cycles: number;
   completeness: number;
   confidence: number;
@@ -43,24 +45,10 @@ export interface BrainState {
 
 export function createBrainState(input: { runId: string; context: CanonicalTripContext; requirements?: DataRequirement[]; agents?: AgentSpec[] }): BrainState {
   return {
-    runId: input.runId,
-    phase: "understanding",
-    context: input.context,
-    requirements: input.requirements ?? [],
-    agents: input.agents ?? [],
-    results: [],
-    facts: [],
-    evidence: [],
-    conflicts: [],
-    decisions: [],
-    pendingActions: [],
-    completedActions: [],
-    blockers: [],
-    changeSets: [],
-    cycles: 0,
-    completeness: 0,
-    confidence: 0,
-    updatedAt: new Date().toISOString(),
+    runId: input.runId, phase: "understanding", context: input.context,
+    requirements: input.requirements ?? [], agents: input.agents ?? [], results: [], facts: [], evidence: [],
+    conflicts: [], decisions: [], pendingActions: [], completedActions: [], blockers: [], changeSets: [],
+    cycles: 0, completeness: 0, confidence: 0, updatedAt: new Date().toISOString(),
   };
 }
 
