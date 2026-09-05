@@ -85,6 +85,9 @@ export default function ModoGuiaPage() {
   function manejarPosicion(pos: GeolocationPosition) {
     const actual = { lat: pos.coords.latitude, lon: pos.coords.longitude };
     setPosicion(actual);
+    // Un fallo de GPS puede ser puntual (túnel, señal débil un instante): si
+    // después llega una posición válida, el aviso de error ya no aplica.
+    setError(null);
     // No habla solo: al detectar cercanía se pregunta primero (como una
     // notificación), nunca se reproduce audio sin que el viajero lo pida.
     if (silenciadoRef.current || pendienteRef.current) return;
