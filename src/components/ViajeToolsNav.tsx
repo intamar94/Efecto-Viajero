@@ -4,6 +4,7 @@ import { useRouter, usePathname } from "next/navigation";
 
 const HERRAMIENTAS = [
   { href: "", icono: "🏠", titulo: "Resumen" },
+  { href: "decisiones", icono: "🧠", titulo: "Decisiones" },
   { href: "ruta", icono: "🧭", titulo: "Ruta e itinerario" },
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
@@ -17,9 +18,6 @@ const HERRAMIENTAS = [
   { href: "imprimir", icono: "🖨️", titulo: "Imprimir / PDF" },
 ] as const;
 
-// Un desplegable en vez de una fila de píldoras: en móvil la fila obligaba
-// a hacer scroll horizontal para encontrar la sección, y competía visualmente
-// con el resto de la página.
 export function ViajeToolsNav({ viajeId }: { viajeId: string }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -29,16 +27,8 @@ export function ViajeToolsNav({ viajeId }: { viajeId: string }) {
   return (
     <div className="mb-6">
       <label className="mb-1 block text-xs font-medium text-neutral-500">Ir a otra sección</label>
-      <select
-        value={actual?.href ?? ""}
-        onChange={(e) => router.push(`${base}${e.target.value ? `/${e.target.value}` : ""}`)}
-        className="input text-sm font-medium"
-      >
-        {HERRAMIENTAS.map((h) => (
-          <option key={h.href} value={h.href}>
-            {h.icono} {h.titulo}
-          </option>
-        ))}
+      <select value={actual?.href ?? ""} onChange={(e) => router.push(`${base}${e.target.value ? `/${e.target.value}` : ""}`)} className="input text-sm font-medium">
+        {HERRAMIENTAS.map((h) => <option key={h.href} value={h.href}>{h.icono} {h.titulo}</option>)}
       </select>
     </div>
   );
