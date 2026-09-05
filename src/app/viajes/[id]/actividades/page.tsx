@@ -10,6 +10,7 @@ import { generarId } from "@/lib/id";
 import { actividadesDe, urlBuscarActividad, urlMapsActividad, queProbarDe } from "@/lib/catalogo";
 import { destinoParaCatalogo, destinoPrincipal, etapasDe } from "@/lib/viaje";
 import { obtenerGuiaWikivoyage, type TipoListingWikivoyage } from "@/lib/wikivoyage";
+import { obtenerResumenLugar, type ResumenWikipedia } from "@/lib/wikipedia";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
 import type { CategoriaSitio, SitioReal } from "@/lib/investigacion";
@@ -77,6 +78,7 @@ const CATEGORIA_DE_LISTING: Partial<Record<TipoListingWikivoyage, CategoriaActiv
 type Item = ActividadDestino & {
   esPropia: boolean;
   esSitioReal?: boolean;
+  esGenerica?: boolean;
   fuenteEtiqueta?: string;
   etapaId: string;
   etapaNombre: string;
@@ -126,7 +128,14 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
         {it.admiteMascotas && <span className="chip">🐾 Mascotas</span>}
         {it.esPropia && <span className="chip">✍️ Tuya</span>}
         {it.fuenteEtiqueta && <span className="chip">🌍 {it.fuenteEtiqueta}</span>}
+        {it.esGenerica && <span className="chip">💡 Idea general</span>}
       </div>
+
+      {it.esGenerica && (
+        <p className="mt-2 text-xs text-amber-700">
+          Todavía no encontramos un sitio concreto para esto en {it.etapaNombre}: es una idea orientativa, no un lugar investigado.
+        </p>
+      )}
 
       {it.direccion && <p className="mt-2 text-xs text-neutral-500">📍 {it.direccion}</p>}
 
@@ -203,6 +212,7 @@ export default function ActividadesPage() {
   const [entornoNueva, setEntornoNueva] = useState<"exterior" | "interior" | "mixto">("exterior");
   const [mascotaNueva, setMascotaNueva] = useState(false);
   const [estadoWikivoyage, setEstadoWikivoyage] = useState<Record<string, "cargando" | "sin_datos" | "listo">>({});
+  const [resumenCiudad, setResumenCiudad] = useState<Record<string, ResumenWikipedia | "cargando" | "sin_datos">>({});
   // Por ciudad: cada etapa tiene su propia búsqueda de intención, ya que
   // "quiero comida típica" en Cartagena no debería mostrar resultados de
   // Bogotá.
@@ -259,6 +269,27 @@ export default function ActividadesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viaje?.id]);
 
+  // "Sobre esta ciudad": un resumen real (Wikipedia, sin clave) para
+  // invitar a descubrir el lugar al abrir su tarjeta, en vez de que la
+  // pantalla sea solo botones y enlaces.
+  useEffect(() => {
+    if (!viaje) return;
+    let cancelado = false;
+    (async () => {
+      for (const etapa of etapasDe(viaje)) {
+        if (resumenCiudad[etapa.nombre]) continue;
+        setResumenCiudad((prev) => ({ ...prev, [etapa.nombre]: "cargando" }));
+        const resumen = await obtenerResumenLugar(etapa.nombre);
+        if (cancelado) return;
+        setResumenCiudad((prev) => ({ ...prev, [etapa.nombre]: resumen ?? "sin_datos" }));
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viaje?.id]);
+
   if (!viaje) {
     return (
       <main className="flex-1 px-5 py-8">
@@ -281,6 +312,7 @@ export default function ActividadesPage() {
     const delCatalogo: Item[] = actividadesDe(destinoEtapa).map((a) => ({
       ...a,
       esPropia: false,
+      esGenerica: true,
       etapaId: etapa.id,
       etapaNombre: etapa.nombre,
       pais: destinoEtapa.pais,
@@ -579,8 +611,23 @@ export default function ActividadesPage() {
               items: items.filter((it) => it.categoria === cat),
             })).filter((g) => g.items.length > 0);
 
-            const textoIntencion = textosIntencion[etapa.id] ?? "";
-            const categoriasBuscadas = categoriasBuscadasPorEtapa[etapa.id] ?? null;
+            // Lo que la persona describió al crear el viaje ("restaurantes
+            // típicos, naturaleza, museos de historia...") ya dice qué le
+            // interesa: se usa como punto de partida en cada ciudad, sin
+            // obligar a volver a escribirlo — pero solo mientras esta etapa
+            // no tenga su propia búsqueda (ni una activa ni un "Limpiar"
+            // explícito, que también debe respetarse).
+            const textoOriginalViaje = viaje.contexto.textoOriginal;
+            const categoriasSugeridas = textoOriginalViaje ? interpretarIntencion(textoOriginalViaje) : [];
+            const haySugerenciaDelViaje = categoriasBuscadasPorEtapa[etapa.id] === undefined && categoriasSugeridas.length > 0;
+
+            const textoIntencion = textosIntencion[etapa.id] ?? (haySugerenciaDelViaje ? textoOriginalViaje ?? "" : "");
+            const categoriasBuscadas =
+              categoriasBuscadasPorEtapa[etapa.id] !== undefined
+                ? categoriasBuscadasPorEtapa[etapa.id]
+                : haySugerenciaDelViaje
+                  ? categoriasSugeridas
+                  : null;
             const resultadosBusqueda = categoriasBuscadas
               ? categoriasBuscadas.flatMap((cat) => items.filter((it) => it.categoria === cat))
               : [];
@@ -609,6 +656,20 @@ export default function ActividadesPage() {
 
                 {abierta && (
                   <div className="space-y-3 p-4">
+                    {(() => {
+                      const resumen = resumenCiudad[etapa.nombre];
+                      if (!resumen || resumen === "cargando" || resumen === "sin_datos") return null;
+                      return (
+                        <div className="rounded-xl bg-gradient-to-br from-marino-50 to-coral-50 p-4">
+                          <p className="mb-1 text-sm font-medium text-marino-900">🌎 Sobre {etapa.nombre}</p>
+                          <p className="text-sm leading-relaxed text-neutral-700">{resumen.extracto}</p>
+                          <a href={resumen.url} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-block text-xs text-marino-600 underline hover:text-marino-800">
+                            Seguir leyendo en Wikipedia
+                          </a>
+                        </div>
+                      );
+                    })()}
+
                     <div className="rounded-xl border border-dashed border-marino-200 bg-marino-50/50 p-3">
                       <p className="mb-1 text-sm font-medium text-marino-900">✨ ¿Qué te gustaría hacer en {etapa.nombre}?</p>
                       <p className="mb-2 text-xs text-neutral-500">
@@ -651,7 +712,8 @@ export default function ActividadesPage() {
                           ) : (
                             <>
                               <p className="mb-2 text-xs text-neutral-500">
-                                Detectamos: {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta).join(", ")}
+                                {haySugerenciaDelViaje ? "✨ Basado en lo que describiste al crear el viaje: " : "Detectamos: "}
+                                {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta).join(", ")}
                               </p>
                               {resultadosBusqueda.length === 0 ? (
                                 <p className="text-sm text-neutral-400">Todavía no tenemos nada así investigado en {etapa.nombre}.</p>

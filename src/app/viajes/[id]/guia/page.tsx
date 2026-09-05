@@ -8,6 +8,7 @@ import { useData } from "@/lib/store";
 import { etapasDe } from "@/lib/viaje";
 import { distanciaMetros, hablar, haySintesisDeVoz } from "@/lib/geoAudio";
 import { puntosConCoordenadas } from "@/lib/puntosGeo";
+import { obtenerResumenLugar, type ResumenWikipedia } from "@/lib/wikipedia";
 
 const UMBRAL_METROS = 120;
 
@@ -19,6 +20,7 @@ interface PuntoGuia {
   lon: number;
   etapaNombre: string;
   fuente: string;
+  wikipediaUrl?: string;
 }
 
 export default function ModoGuiaPage() {
@@ -41,6 +43,7 @@ export default function ModoGuiaPage() {
   const preguntadosRef = useRef<Set<string>>(new Set());
   const silenciadoRef = useRef(false);
   const pendienteRef = useRef<PuntoGuia | null>(null);
+  const [resumenesSitio, setResumenesSitio] = useState<Record<string, ResumenWikipedia | "sin_datos">>({});
 
   useEffect(() => {
     silenciadoRef.current = silenciado;
@@ -56,6 +59,32 @@ export default function ModoGuiaPage() {
     };
   }, []);
 
+  // Enriquecer la narración con datos reales (Wikipedia, sin clave): un
+  // sitio famoso como "Monserrate" o "La Candelaria" suele tener artículo
+  // propio con historia real, mucho más que el "detalle" corto que trae
+  // OpenStreetMap. No inventamos leyendas: si no hay artículo, se narra
+  // igual con lo que ya sabemos del sitio.
+  useEffect(() => {
+    if (!viaje) return;
+    let cancelado = false;
+    (async () => {
+      const nombresYaVistos = new Set<string>();
+      for (const etapa of etapasDe(viaje)) {
+        for (const p of puntosConCoordenadas(viaje, etapa)) {
+          if (nombresYaVistos.has(p.id)) continue;
+          nombresYaVistos.add(p.id);
+          const resumen = await obtenerResumenLugar(p.nombre);
+          if (cancelado) return;
+          setResumenesSitio((prev) => ({ ...prev, [p.id]: resumen ?? "sin_datos" }));
+        }
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viaje?.id]);
+
   if (!viaje) {
     return (
       <main className="flex-1 px-5 py-8">
@@ -70,16 +99,25 @@ export default function ModoGuiaPage() {
   // OpenStreetMap y listings de Wikivoyage, con los mismos ids que usa
   // Actividades (vía lib/puntosGeo) para que "añadido al itinerario" y
   // "detectado por el GPS" sean siempre la misma actividad.
+  // Cuando hay artículo de Wikipedia para el sitio (algo frecuente en
+  // lugares conocidos como Monserrate o La Candelaria), se narra ese
+  // resumen real en vez del "detalle" corto de OpenStreetMap: más
+  // historia y datos curiosos, corto pero claro, sin inventar nada.
   const puntos: PuntoGuia[] = etapasDe(viaje).flatMap((etapa) =>
-    puntosConCoordenadas(viaje, etapa).map((p) => ({
-      id: p.id,
-      nombre: p.nombre,
-      texto: `Estás cerca de ${p.nombre}. ${p.detalle ?? `Un sitio recomendado en ${etapa.nombre}.`}`,
-      lat: p.lat,
-      lon: p.lon,
-      etapaNombre: etapa.nombre,
-      fuente: p.fuente,
-    }))
+    puntosConCoordenadas(viaje, etapa).map((p) => {
+      const resumen = resumenesSitio[p.id];
+      const rico = resumen && resumen !== "sin_datos" ? resumen : null;
+      return {
+        id: p.id,
+        nombre: p.nombre,
+        texto: `Estás cerca de ${p.nombre}. ${rico?.extracto ?? p.detalle ?? `Un sitio recomendado en ${etapa.nombre}.`}`,
+        lat: p.lat,
+        lon: p.lon,
+        etapaNombre: etapa.nombre,
+        fuente: p.fuente,
+        wikipediaUrl: rico?.url,
+      };
+    })
   );
 
   function manejarPosicion(pos: GeolocationPosition) {
@@ -186,6 +224,9 @@ export default function ModoGuiaPage() {
               <div className="mb-5 rounded-2xl border-2 border-marino-400 bg-marino-50 p-4">
                 <p className="text-sm font-medium text-marino-900">📍 Estás cerca de {pendiente.nombre}</p>
                 <p className="mt-1 text-xs text-marino-700">¿Quieres escuchar sobre este lugar?</p>
+                {pendiente.wikipediaUrl && (
+                  <p className="mt-2 line-clamp-2 text-xs text-marino-600">{pendiente.texto}</p>
+                )}
                 <div className="mt-3 flex gap-2">
                   <button onClick={() => responderPendiente(true)} className="btn-primary flex-1 text-sm">
                     🔊 Sí, cuéntame
@@ -216,6 +257,11 @@ export default function ModoGuiaPage() {
                           {p.etapaNombre} · {p.fuente}
                           {d !== null && ` · ${d < 1000 ? `${d} m` : `${(d / 1000).toFixed(1)} km`}`}
                         </p>
+                        {p.wikipediaUrl && (
+                          <a href={p.wikipediaUrl} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-block text-[11px] text-marino-600 underline">
+                            📖 Historia real en Wikipedia
+                          </a>
+                        )}
                       </div>
                       <button
                         onClick={() => {

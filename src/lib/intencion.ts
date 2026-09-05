@@ -34,6 +34,12 @@ function escaparRegex(s: string): string {
 // la persona). Usa límites de palabra (\b): sin esto, "bar" aparecía
 // dentro de "probar" y "caminar" dentro de otra palabra podía disparar
 // una categoría equivocada por pura coincidencia de subcadena.
+//
+// El límite de palabra por sí solo era demasiado estricto: "restaurantes
+// típicos" (plural, la forma más natural de escribirlo) no coincidía con
+// la palabra clave "restaurante" y la categoría entera se perdía en
+// silencio. Se admite un plural regular al final ("s" o "es") sin
+// convertir esto en un analizador morfológico completo.
 export function interpretarIntencion(texto: string): CategoriaActividad[] {
   const normalizado = normalizar(texto);
   if (!normalizado.trim()) return [];
@@ -42,7 +48,7 @@ export function interpretarIntencion(texto: string): CategoriaActividad[] {
   for (const [categoria, palabras] of Object.entries(PALABRAS_CLAVE) as [CategoriaActividad, string[]][]) {
     let mejorPos = -1;
     for (const palabra of palabras) {
-      const regex = new RegExp(`\\b${escaparRegex(normalizar(palabra))}\\b`);
+      const regex = new RegExp(`\\b${escaparRegex(normalizar(palabra))}(?:es|s)?\\b`);
       const m = regex.exec(normalizado);
       if (m && (mejorPos === -1 || m.index < mejorPos)) mejorPos = m.index;
     }
