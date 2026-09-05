@@ -20,6 +20,18 @@ export interface BrainBlocker {
   severity: "high" | "critical";
 }
 
+export interface BrainControlCycle {
+  cycle: number;
+  phase: BrainPhase;
+  decisionId: string;
+  selectedActionId?: string;
+  selectedActionType?: BrainAction["type"];
+  selectedTarget?: string;
+  outcome: "completed" | "blocked" | "waiting" | "converged";
+  reason: string;
+  createdAt: string;
+}
+
 export interface BrainState {
   runId: string;
   phase: BrainPhase;
@@ -37,6 +49,8 @@ export interface BrainState {
   decision?: BrainDecision;
   changeSets: ChangeSet[];
   optimization?: OptimizationResult;
+  controlCycles: BrainControlCycle[];
+  terminationReason?: "converged" | "blocked" | "max-cycles";
   cycles: number;
   completeness: number;
   confidence: number;
@@ -48,6 +62,7 @@ export function createBrainState(input: { runId: string; context: CanonicalTripC
     runId: input.runId, phase: "understanding", context: input.context,
     requirements: input.requirements ?? [], agents: input.agents ?? [], results: [], facts: [], evidence: [],
     conflicts: [], decisions: [], pendingActions: [], completedActions: [], blockers: [], changeSets: [],
+    optimization: undefined, controlCycles: [], terminationReason: undefined,
     cycles: 0, completeness: 0, confidence: 0, updatedAt: new Date().toISOString(),
   };
 }
