@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { RutaDiaVisual } from "../RutaDiaVisual";
 import type { DiaItinerario, ActividadEnHorario } from "@/lib/types";
 
 interface Props {
@@ -31,8 +32,9 @@ export function EditorItinerarioDia({ dia, onChange }: Props) {
   };
 
   return (
-    <div className="card">
-      <div className="flex items-start justify-between gap-3 mb-4">
+    <div className="space-y-3">
+      {/* Encabezado */}
+      <div className="flex items-start justify-between gap-3 px-1">
         <div>
           <p className="font-medium">
             Día {dia.dia} ·{" "}
@@ -47,19 +49,51 @@ export function EditorItinerarioDia({ dia, onChange }: Props) {
         {dia.descansoTotal && <span className="chip">😴 Descanso</span>}
       </div>
 
+      {/* Visualización de la ruta del día */}
+      <RutaDiaVisual dia={dia} />
+
+      {/* Editor de detalles */}
       {dia.descansoTotal ? (
-        <p className="text-sm text-neutral-500 mb-3">Día libre para descansar</p>
+        <div className="card">
+          {editando ? (
+            <div className="space-y-2">
+              <textarea
+                value={notasDia}
+                onChange={(e) => setNotasDia(e.target.value)}
+                placeholder="Notas del día de descanso..."
+                className="input text-sm"
+                rows={2}
+              />
+              <div className="flex gap-2">
+                <button onClick={handleAgregarNota} className="btn-primary text-xs px-3">
+                  Guardar
+                </button>
+                <button onClick={() => setEditando(false)} className="btn-secondary text-xs px-3">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditando(true)}
+              className="text-xs text-neutral-500 hover:text-neutral-700 underline"
+            >
+              {notasDia ? "✏️ Editar notas" : "➕ Añadir notas"}
+            </button>
+          )}
+        </div>
       ) : (
-        <>
+        <div className="card space-y-3">
+          <div className="text-sm font-medium text-neutral-900">Editar este día</div>
+
           {dia.actividades.length > 0 && (
-            <div className="space-y-2 mb-4">
+            <div className="space-y-2">
               {dia.actividades.map((act, idx) => (
                 <div key={idx} className="flex items-start gap-3 bg-neutral-50 p-3 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">
                       {act.horaInicio} - {act.horaFin}
                     </p>
-                    <p className="text-xs text-neutral-500 truncate">{/* nombre actividad */}</p>
                     {act.notas && <p className="text-xs text-neutral-600 mt-1">{act.notas}</p>}
                   </div>
                   <div className="flex gap-1">
@@ -83,7 +117,7 @@ export function EditorItinerarioDia({ dia, onChange }: Props) {
           )}
 
           {editando ? (
-            <div className="space-y-2 mb-3">
+            <div className="space-y-2">
               <textarea
                 value={notasDia}
                 onChange={(e) => setNotasDia(e.target.value)}
@@ -108,7 +142,7 @@ export function EditorItinerarioDia({ dia, onChange }: Props) {
               {notasDia ? "✏️ Editar notas" : "➕ Añadir notas"}
             </button>
           )}
-        </>
+        </div>
       )}
     </div>
   );
