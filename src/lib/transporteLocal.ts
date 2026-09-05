@@ -30,6 +30,27 @@ export interface TransporteLocalDetallado {
   };
 }
 
+// Enlaces conocidos de las apps de transporte más comunes. Antes se
+// mostraban solo como texto plano ("Uber", "DiDi"...): el viajero tenía que
+// buscarlas él mismo. Con esto son un botón real a la web de la app; si no
+// la conocemos, cae a una búsqueda en Google Play en vez de un enlace roto.
+const ENLACES_APPS: Record<string, string> = {
+  Uber: "https://www.uber.com/global/es/ride/",
+  DiDi: "https://www.didiglobal.com/",
+  Cabify: "https://cabify.com/",
+  Bolt: "https://bolt.eu/",
+  Grab: "https://www.grab.com/",
+  Citymapper: "https://citymapper.com/",
+  "Google Maps": "https://maps.google.com/",
+  "TMB App": "https://www.tmb.cat/es/barcelona/tmb-app",
+  Spotify: "https://www.spotify.com/",
+};
+
+export function urlApp(nombreConNotas: string): string {
+  const nombre = nombreConNotas.replace(/\s*\(.*\)\s*$/, "").trim();
+  return ENLACES_APPS[nombre] ?? `https://play.google.com/store/search?q=${encodeURIComponent(nombre)}`;
+}
+
 // Base de datos de transporte local por ciudad
 export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallado> = {
   // COLOMBIA

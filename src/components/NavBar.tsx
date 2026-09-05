@@ -7,11 +7,7 @@ import { useData } from "@/lib/store";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { logout } from "@/lib/supabase/auth-client";
 
-const ENLACES = [
-  { href: "/planificar", icono: "✈️", titulo: "Planificar", corto: "Planear" },
-  { href: "/viajes", icono: "🗺️", titulo: "Mis viajes", corto: "Viajes" },
-  { href: "/viajeros", icono: "🧑‍🤝‍🧑", titulo: "Viajeros", corto: "Quién" },
-] as const;
+const ENLACES = [{ href: "/viajes", icono: "🗺️", titulo: "Mis viajes", corto: "Viajes" }] as const;
 
 export function NavBar() {
   const pathname = usePathname();
@@ -57,35 +53,59 @@ export function NavBar() {
           </nav>
 
           <div className="relative">
-            {authLoading ? null : user ? (
-              <>
-                <button
-                  onClick={() => setMenuOpen(!menuOpen)}
-                  className="rounded-full bg-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/30 transition"
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="rounded-full bg-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/30 transition"
+            >
+              {authLoading ? "👤" : user ? `👤 ${user.email?.split("@")[0]}` : "👤 Acceder"}
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white py-1 shadow-lg">
+                <Link
+                  href="/planificar"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
                 >
-                  👤 {user.email?.split("@")[0]}
-                </button>
-                {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-40 rounded-lg bg-white shadow-lg">
+                  ✈️ Planificar un viaje
+                </Link>
+                <Link
+                  href="/viajeros"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                >
+                  🧑‍🤝‍🧑 Viajeros
+                </Link>
+                {!authLoading && user ? (
+                  <>
                     <Link
                       href="/settings"
-                      className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                      onClick={() => setMenuOpen(false)}
+                      className="block border-t border-neutral-100 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
                     >
                       ⚙️ Configuración
                     </Link>
                     <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full border-t border-neutral-100 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
                     >
                       🚪 Cerrar sesión
                     </button>
-                  </div>
+                  </>
+                ) : (
+                  !authLoading && (
+                    <Link
+                      href="/auth/login"
+                      onClick={() => setMenuOpen(false)}
+                      className="block border-t border-neutral-100 px-4 py-2 text-sm text-marino-700 hover:bg-neutral-50"
+                    >
+                      🔓 Acceder
+                    </Link>
+                  )
                 )}
-              </>
-            ) : (
-              <Link href="/auth/login" className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/30 transition">
-                🔓 Acceder
-              </Link>
+              </div>
             )}
           </div>
         </div>

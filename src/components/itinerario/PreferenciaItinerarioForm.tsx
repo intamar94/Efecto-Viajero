@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { HoraSelect } from "@/components/HoraSelect";
 import type { PreferenciaItinerario } from "@/lib/types";
 
 interface Props {
@@ -86,21 +87,11 @@ export function PreferenciaItinerarioForm({ inicial, onGenerar, cargando }: Prop
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium mb-1">Hora de llegada</label>
-          <input
-            type="time"
-            value={horaLlegada}
-            onChange={(e) => setHoraLlegada(e.target.value)}
-            className="input text-sm"
-          />
+          <HoraSelect value={horaLlegada} onChange={setHoraLlegada} />
         </div>
         <div>
           <label className="block text-xs font-medium mb-1">Última actividad</label>
-          <input
-            type="time"
-            value={horaSalida}
-            onChange={(e) => setHoraSalida(e.target.value)}
-            className="input text-sm"
-          />
+          <HoraSelect value={horaSalida} onChange={setHoraSalida} />
         </div>
       </div>
 

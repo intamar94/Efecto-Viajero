@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
-import { urlBuscarConsulado } from "@/lib/emergencias";
+import { urlBuscarConsulado, urlMapsCercaDeMi, urlMapsConsulado } from "@/lib/emergencias";
 import { paisesDelViaje } from "@/lib/viaje";
 
 const PROBLEMAS = [
@@ -18,6 +18,7 @@ const PROBLEMAS = [
       "Contacta con tu embajada o consulado para un documento de viaje de emergencia (enlace arriba).",
       "Revisa si tu seguro de viaje cubre gestiones o gastos asociados.",
     ],
+    buscarCerca: { etiqueta: "🚓 Comisaría cerca de mí", consulta: "comisaría de policía" },
   },
   {
     id: "vuelo",
@@ -50,6 +51,7 @@ const PROBLEMAS = [
       "Contacta con tu seguro de viaje si tienes cobertura de robo.",
       "Si te robaron el pasaporte, sigue también los pasos de esa sección.",
     ],
+    buscarCerca: { etiqueta: "🚓 Comisaría cerca de mí", consulta: "comisaría de policía" },
   },
   {
     id: "alojamiento",
@@ -70,6 +72,7 @@ const PROBLEMAS = [
       "Lleva la documentación veterinaria de tu mascota (ficha en Viajeros).",
       "Contacta con tu seguro si cubre a la mascota.",
     ],
+    buscarCerca: { etiqueta: "🐾 Veterinario cerca de mí", consulta: "veterinario de urgencias" },
   },
   {
     id: "medico",
@@ -80,6 +83,7 @@ const PROBLEMAS = [
       "Fuera de la UE, revisa tu seguro de viaje y su teléfono de asistencia.",
       "Para una urgencia grave, usa el número de emergencias de arriba.",
     ],
+    buscarCerca: { etiqueta: "🏥 Hospital o clínica cerca de mí", consulta: "hospital o clínica de urgencias" },
   },
 ];
 
@@ -175,30 +179,38 @@ export default function ResolverPage() {
                   </a>
                 </li>
               ))}
-            <li>
-              <a
-                href={urlBuscarConsulado(paisDestino, nacionalidad)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-4 py-3 transition hover:border-marino-500 hover:bg-marino-50"
-              >
-                <span>
-                  <span className="block font-medium text-neutral-900">
-                    🛂 {nacionalidad ? `Consulado de ${nacionalidad} en ${paisDestino}` : `Tu consulado en ${paisDestino}`}
-                  </span>
-                  <span className="block text-xs text-neutral-500">
-                    {nacionalidad
-                      ? "Dirección y teléfono actualizados, con la nacionalidad de tu ficha de viajero."
-                      : "Añade la nacionalidad en Viajeros y la búsqueda saldrá directa."}
-                  </span>
-                </span>
-                <span className="text-neutral-300">↗</span>
-              </a>
+            <li className="rounded-xl border border-neutral-200 px-4 py-3">
+              <span className="block font-medium text-neutral-900">
+                🛂 {nacionalidad ? `Consulado de ${nacionalidad} en ${paisDestino}` : `Tu consulado en ${paisDestino}`}
+              </span>
+              <span className="mt-0.5 block text-xs text-neutral-500">
+                {nacionalidad
+                  ? "Elige dónde buscarlo: el mapa suele traer teléfono y dirección directos."
+                  : "Añade la nacionalidad en Viajeros y la búsqueda saldrá directa."}
+              </span>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a
+                  href={urlMapsConsulado(paisDestino, nacionalidad)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-marino-600 px-3 py-2 text-xs font-medium text-white hover:bg-marino-700"
+                >
+                  📍 Ver en el mapa (teléfono y dirección) ↗
+                </a>
+                <a
+                  href={urlBuscarConsulado(paisDestino, nacionalidad)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 hover:border-marino-500"
+                >
+                  🔎 Buscar la web oficial ↗
+                </a>
+              </div>
             </li>
           </ul>
           <p className="mt-3 text-xs text-neutral-400">
             No guardamos teléfonos ni correos de consulados: cambian a menudo y dar uno caducado en una urgencia es peor
-            que no dar ninguno. El enlace te lleva a la información oficial vigente.
+            que no dar ninguno. Los enlaces te llevan a la información vigente.
           </p>
         </section>
 
@@ -213,13 +225,25 @@ export default function ResolverPage() {
                 <span className="text-neutral-400">{abierto === p.id ? "−" : "+"}</span>
               </button>
               {abierto === p.id && (
-                <ol className="mt-3 space-y-1.5 border-t border-neutral-100 pt-3 text-sm text-neutral-600">
-                  {p.pasos.map((paso, i) => (
-                    <li key={i}>
-                      {i + 1}. {paso}
-                    </li>
-                  ))}
-                </ol>
+                <>
+                  <ol className="mt-3 space-y-1.5 border-t border-neutral-100 pt-3 text-sm text-neutral-600">
+                    {p.pasos.map((paso, i) => (
+                      <li key={i}>
+                        {i + 1}. {paso}
+                      </li>
+                    ))}
+                  </ol>
+                  {"buscarCerca" in p && p.buscarCerca && (
+                    <a
+                      href={urlMapsCercaDeMi(p.buscarCerca.consulta)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700"
+                    >
+                      {p.buscarCerca.etiqueta} ↗
+                    </a>
+                  )}
+                </>
               )}
             </li>
           ))}

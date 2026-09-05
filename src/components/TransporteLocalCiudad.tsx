@@ -1,6 +1,6 @@
 "use client";
 
-import { obtenerTransporteLocal } from "@/lib/transporteLocal";
+import { obtenerTransporteLocal, urlApp } from "@/lib/transporteLocal";
 import type { TransporteLocalDetallado } from "@/lib/transporteLocal";
 
 interface TransporteLocalCiudadProps {
@@ -79,16 +79,16 @@ export function TransporteLocalCiudad({ ciudad }: TransporteLocalCiudadProps) {
       {transporte.precios && (
         <div className="mb-5">
           <h3 className="mb-2 text-sm font-medium text-marino-900">Precios</h3>
-          <dl className="space-y-1.5 text-sm text-neutral-700">
+          <dl className="space-y-2 text-sm text-neutral-700">
             {transporte.precios.viajeSencillo && (
-              <div className="flex justify-between">
-                <dt className="font-medium">Viaje sencillo:</dt>
+              <div>
+                <dt className="font-medium text-marino-900">Viaje sencillo</dt>
                 <dd>{transporte.precios.viajeSencillo}</dd>
               </div>
             )}
             {transporte.precios.abonoDescargas && (
-              <div className="flex justify-between">
-                <dt className="font-medium">Abono/10 viajes:</dt>
+              <div>
+                <dt className="font-medium text-marino-900">Abono / 10 viajes</dt>
                 <dd>{transporte.precios.abonoDescargas}</dd>
               </div>
             )}
@@ -101,15 +101,41 @@ export function TransporteLocalCiudad({ ciudad }: TransporteLocalCiudadProps) {
         </div>
       )}
 
-      {/* Apps */}
+      {/* Apps: enlace real a cada una, no solo el nombre en texto. */}
       {transporte.apps && transporte.apps.length > 0 && (
         <div className="mb-5">
           <h3 className="mb-2 text-sm font-medium text-marino-900">Apps útiles</h3>
           <div className="flex flex-wrap gap-2">
             {transporte.apps.map((app) => (
-              <span key={app} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-marino-700">
-                {app}
-              </span>
+              <a
+                key={app}
+                href={urlApp(app)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-marino-700 underline decoration-marino-300 underline-offset-2 hover:bg-marino-100"
+              >
+                {app} ↗
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sitios oficiales de transporte público, si los hay. */}
+      {transporte.sitiosOficiales && transporte.sitiosOficiales.length > 0 && (
+        <div className="mb-5">
+          <h3 className="mb-2 text-sm font-medium text-marino-900">Sitios oficiales</h3>
+          <div className="flex flex-wrap gap-2">
+            {transporte.sitiosOficiales.map((url) => (
+              <a
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-marino-700 underline decoration-marino-300 underline-offset-2 hover:bg-marino-100"
+              >
+                {url.replace(/^https?:\/\//, "").replace(/\/$/, "")} ↗
+              </a>
             ))}
           </div>
         </div>

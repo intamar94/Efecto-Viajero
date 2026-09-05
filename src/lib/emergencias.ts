@@ -47,3 +47,19 @@ export function urlBuscarConsulado(paisDestino: string, nacionalidad?: string): 
     : `embajada de mi país en ${paisDestino}`;
   return `https://www.google.com/search?q=${encodeURIComponent(consulta)}`;
 }
+
+// Misma idea que arriba pero en Google Maps: normalmente muestra teléfono,
+// dirección y horario del sitio directamente en la ficha, sin tener que
+// entrar a una web. Útil para embajadas, comisarías, hospitales o
+// veterinarios: en una urgencia, un teléfono a un clic es mejor que un enlace
+// a una web que hay que rebuscar.
+export function urlMapsCercaDeMi(consulta: string): string {
+  return `https://www.google.com/maps/search/${encodeURIComponent(consulta)}`;
+}
+
+export function urlMapsConsulado(paisDestino: string, nacionalidad?: string): string {
+  const consulta = nacionalidad
+    ? `embajada o consulado de ${nacionalidad} en ${paisDestino}`
+    : `embajada en ${paisDestino}`;
+  return urlMapsCercaDeMi(consulta);
+}

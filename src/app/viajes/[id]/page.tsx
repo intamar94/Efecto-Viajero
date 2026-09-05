@@ -13,7 +13,6 @@ import { sugerirAjustePresupuesto, calcularPresupuesto as calcularPresupuestoDet
 import { calcularPresupuesto, calcularImporteVault } from "@/lib/calcularPresupuesto";
 import { resumenViaje } from "@/lib/travelBrain";
 import { MODOS } from "@/lib/modos";
-import { NOMBRE_DOMINIO } from "@/lib/investigacion";
 import { invitar as compartirViaje } from "@/lib/viajes/compartidos";
 import { formatearRangoFechas } from "@/lib/formatoFecha";
 import type { ContextoViaje, EstadoRequisito, Viaje } from "@/lib/types";
@@ -58,7 +57,6 @@ export default function ViajeDetallePage() {
   const [mostrarAjuste, setMostrarAjuste] = useState(false);
   const [editandoViajeros, setEditandoViajeros] = useState(false);
   const [editandoModo, setEditandoModo] = useState(false);
-  const [verAuditoria, setVerAuditoria] = useState(false);
   const [requisitosAbiertos, setRequisitosAbiertos] = useState<Set<string>>(new Set());
   const [mostrarCompartir, setMostrarCompartir] = useState(false);
   const [emailACompartir, setEmailACompartir] = useState("");
@@ -97,7 +95,6 @@ export default function ViajeDetallePage() {
   const etapas = etapasDe(viaje);
   const circuito = esCircuito(viaje);
   const paises = paisesDelViaje(viaje);
-  const auditoria = viaje.investigacion?.auditoria;
 
   const estadoTexto: Record<(typeof SECCIONES)[number]["href"], string> = {
     itinerario: viaje.itinerario ? `${viaje.itinerario.dias.length} días` : "Por generar",
@@ -444,71 +441,6 @@ export default function ViajeDetallePage() {
             </>
           )}
         </section>
-
-        {/* La honestidad, hecha visible. El sistema ya sabía qué había
-            podido comprobar de verdad y qué no; hasta ahora ese estado se
-            calculaba y se tiraba, así que el viajero no tenía forma de
-            distinguir un dato verificado de una estimación. */}
-        {auditoria && (
-          <section className="card mb-6">
-            <div className="mb-1 flex items-center justify-between">
-              <h2 className="font-medium">Qué sabemos de este viaje</h2>
-              <button onClick={() => setVerAuditoria((v) => !v)} className="text-sm text-neutral-500 hover:text-neutral-900">
-                {verAuditoria ? "Ocultar" : "Ver detalle"}
-              </button>
-            </div>
-            <p className="mb-3 text-xs text-neutral-500">
-              Qué hemos podido comprobar con fuentes reales y qué todavía no. Preferimos decirlo a que lo parezca todo
-              igual de fiable.
-            </p>
-
-            <div className="flex flex-wrap gap-1.5">
-              {auditoria.operativas.length > 0 && (
-                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-800">
-                  ✓ {auditoria.operativas.length} con datos reales
-                </span>
-              )}
-              {auditoria.parciales.length > 0 && (
-                <span className="rounded-full border border-coral-200 bg-coral-50 px-3 py-1 text-xs text-coral-800">
-                  ~ {auditoria.parciales.length} parciales
-                </span>
-              )}
-              {(auditoria.bloqueadas.length > 0 || auditoria.fallidas.length > 0) && (
-                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-600">
-                  · {auditoria.bloqueadas.length + auditoria.fallidas.length} sin construir
-                </span>
-              )}
-            </div>
-
-            {verAuditoria && (
-              <dl className="mt-4 space-y-3 border-t border-neutral-100 pt-3 text-sm">
-                {[
-                  { titulo: "Comprobado con fuentes reales", dominios: auditoria.operativas, estilo: "text-emerald-700" },
-                  { titulo: "Parcial: hay datos, pero incompletos", dominios: auditoria.parciales, estilo: "text-coral-700" },
-                  { titulo: "Todavía no construido", dominios: [...auditoria.bloqueadas, ...auditoria.fallidas], estilo: "text-neutral-500" },
-                ]
-                  .filter((grupo) => grupo.dominios.length > 0)
-                  .map((grupo) => (
-                    <div key={grupo.titulo}>
-                      <dt className={`text-xs font-medium ${grupo.estilo}`}>{grupo.titulo}</dt>
-                      <dd className="mt-1 flex flex-wrap gap-1.5">
-                        {grupo.dominios.map((d) => (
-                          <span key={d} className="chip">
-                            {NOMBRE_DOMINIO[d] ?? d}
-                          </span>
-                        ))}
-                      </dd>
-                    </div>
-                  ))}
-                {viaje.investigacion?.fuentes.length ? (
-                  <p className="border-t border-neutral-100 pt-3 text-xs text-neutral-400">
-                    Fuentes consultadas: {viaje.investigacion.fuentes.join(", ")}.
-                  </p>
-                ) : null}
-              </dl>
-            )}
-          </section>
-        )}
 
         <button onClick={borrarViaje} className="text-sm text-red-600 hover:text-red-800">
           Eliminar viaje
