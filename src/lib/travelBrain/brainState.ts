@@ -12,6 +12,8 @@ import type { DesignSystemBrief } from "./designSystemNeuron";
 import type { CreativeDepartmentPlan } from "./creativeDepartment";
 import type { CreativeAuditReport } from "./creativeAuditEngine";
 import type { ActionExecution } from "./actionExecutor";
+import type { ImplementationTask } from "./implementationWorker";
+import type { VerificationResult } from "./verificationWorker";
 
 export type BrainPhase = "understanding" | "planning" | "researching" | "validating" | "resolving" | "deciding" | "applying" | "optimizing" | "complete" | "blocked";
 export interface BrainBlocker { id: string; type: "missing-data" | "conflict" | "provider" | "validation" | "system"; target: string; reason: string; severity: "high" | "critical"; }
@@ -24,11 +26,12 @@ export interface BrainState {
   blockers: BrainBlocker[]; decision?: BrainDecision; changeSets: ChangeSet[];
   optimization?: OptimizationResult; controlCycles: BrainControlCycle[];
   marketingDesign?: MarketingDesignBrief; designSystem?: DesignSystemBrief;
-  creativeDepartment?: CreativeDepartmentPlan; creativeAudit?: CreativeAuditReport; executionHistory: ActionExecution[];
+  creativeDepartment?: CreativeDepartmentPlan; creativeAudit?: CreativeAuditReport;
+  implementationTasks: ImplementationTask[]; verificationResults: VerificationResult[]; executionHistory: ActionExecution[];
   terminationReason?: "converged" | "blocked" | "max-cycles";
   cycles: number; completeness: number; confidence: number; updatedAt: string;
 }
 export function createBrainState(input: { runId: string; context: CanonicalTripContext; requirements?: DataRequirement[]; agents?: AgentSpec[] }): BrainState {
-  return { runId: input.runId, phase: "understanding", context: input.context, requirements: input.requirements ?? [], agents: input.agents ?? [], results: [], facts: [], evidence: [], conflicts: [], decisions: [], pendingActions: [], completedActions: [], blockers: [], changeSets: [], optimization: undefined, controlCycles: [], marketingDesign: undefined, designSystem: undefined, creativeDepartment: undefined, creativeAudit: undefined, executionHistory: [], terminationReason: undefined, cycles: 0, completeness: 0, confidence: 0, updatedAt: new Date().toISOString() };
+  return { runId: input.runId, phase: "understanding", context: input.context, requirements: input.requirements ?? [], agents: input.agents ?? [], results: [], facts: [], evidence: [], conflicts: [], decisions: [], pendingActions: [], completedActions: [], blockers: [], changeSets: [], optimization: undefined, controlCycles: [], marketingDesign: undefined, designSystem: undefined, creativeDepartment: undefined, creativeAudit: undefined, implementationTasks: [], verificationResults: [], executionHistory: [], terminationReason: undefined, cycles: 0, completeness: 0, confidence: 0, updatedAt: new Date().toISOString() };
 }
 export function updateBrainState(state: BrainState, patch: Partial<Omit<BrainState, "runId">>): BrainState { Object.assign(state, patch, { updatedAt: new Date().toISOString() }); return state; }
