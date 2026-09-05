@@ -34,4 +34,6 @@ export * from "./creativeAuditEngine";
 export * from "./creativeAuditSource";
 export * from "./creativeAuditBridge";
 export * from "./actionExecutor";
+export * from "./implementationWorker";
+export * from "./verificationWorker";
 export * from "./brainController";
