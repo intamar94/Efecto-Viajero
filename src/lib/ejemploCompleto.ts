@@ -7,7 +7,7 @@ Queremos comer comida colombiana auténtica, pero necesitamos opciones para niñ
 
 Necesitamos saber qué documentos necesita cada persona para entrar en Colombia, qué requisitos tiene el bebé, qué debe llevar la abuela, qué seguro de viaje conviene comprobar y qué documentos y certificados necesita Nilo para viajar con nosotros. Queremos conservar pasaportes, documentos de los niños, certificado de nacimiento del bebé, documentación de la abuela, seguro de viaje y documentación veterinaria del perro dentro del viaje.
 
-También queremos controlar un presupuesto familiar total de 6.000 EUR, incluyendo transporte, alojamiento, comida, actividades y gastos previstos. Queremos una ruta completa día por día, clima, moneda, transporte, emergencias, requisitos, lugares para comer, actividades familiares, actividades para diferentes miembros del grupo, descansos, mapa y un paquete de información útil sin conexión. Si una información no puede verificarse, debe quedar marcada como pendiente y no inventarse.` ,
+También queremos controlar un presupuesto familiar total de 6.000 EUR, incluyendo transporte, alojamiento, comida, actividades y gastos previstos. Queremos una ruta completa día por día, clima, moneda, transporte, emergencias, requisitos, lugares para comer, actividades familiares, actividades para diferentes miembros del grupo, descansos, mapa y un paquete de información útil sin conexión. Si una información no puede verificarse, debe quedar marcada como pendiente y no inventarse.`,
   fechaSalida: "2027-04-10",
   fechaRegreso: "2027-04-24",
   presupuesto: 6000,
@@ -25,7 +25,6 @@ También queremos controlar un presupuesto familiar total de 6.000 EUR, incluyen
   food: ["comida colombiana", "platos típicos", "mercados", "opciones para niños", "opciones para bebé", "opciones aptas para mascota"],
   transport: ["avión", "transporte cómodo", "sin conducir"],
   constraints: ["ritmo tranquilo", "sin conducir", "descansos", "apto para mascota", "apto para bebé", "apto para persona mayor", "alternativas bajo techo"],
-  mascotas: 1,
   modoPlanificacion: "completo" as const,
 };
 
