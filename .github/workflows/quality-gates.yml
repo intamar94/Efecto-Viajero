@@ -1,0 +1,31 @@
+name: Quality gates
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  static-and-browser-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - run: npm start > /tmp/efecto-viajero.log 2>&1 &
+      - run: sleep 5
+      - run: node scripts/browser-audit.mjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-audit
+          path: |
+            browser-audit-*.png
+            /tmp/efecto-viajero.log
+          if-no-files-found: ignore
