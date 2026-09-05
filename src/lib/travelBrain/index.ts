@@ -30,4 +30,5 @@ export * from "./persistentMemory";
 export * from "./marketingDesignNeuron";
 export * from "./designSystemNeuron";
 export * from "./creativeDepartment";
+export * from "./creativeAuditEngine";
 export * from "./brainController";
