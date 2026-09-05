@@ -8,6 +8,7 @@ import type { BrainDecision } from "./decisionEngine";
 import type { ChangeSet } from "./changeSet";
 import type { OptimizationResult } from "./optimizer";
 import type { MarketingDesignBrief } from "./marketingDesignNeuron";
+import type { DesignSystemBrief } from "./designSystemNeuron";
 
 export type BrainPhase =
   | "understanding" | "planning" | "researching" | "validating" | "resolving"
@@ -52,6 +53,7 @@ export interface BrainState {
   optimization?: OptimizationResult;
   controlCycles: BrainControlCycle[];
   marketingDesign?: MarketingDesignBrief;
+  designSystem?: DesignSystemBrief;
   terminationReason?: "converged" | "blocked" | "max-cycles";
   cycles: number;
   completeness: number;
@@ -64,7 +66,7 @@ export function createBrainState(input: { runId: string; context: CanonicalTripC
     runId: input.runId, phase: "understanding", context: input.context,
     requirements: input.requirements ?? [], agents: input.agents ?? [], results: [], facts: [], evidence: [],
     conflicts: [], decisions: [], pendingActions: [], completedActions: [], blockers: [], changeSets: [],
-    optimization: undefined, controlCycles: [], marketingDesign: undefined, terminationReason: undefined,
+    optimization: undefined, controlCycles: [], marketingDesign: undefined, designSystem: undefined, terminationReason: undefined,
     cycles: 0, completeness: 0, confidence: 0, updatedAt: new Date().toISOString(),
   };
 }
