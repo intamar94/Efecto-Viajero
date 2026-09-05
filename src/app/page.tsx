@@ -1,2 +1,46 @@
 import Link from "next/link";
-export default function Home(){return <main className="flex-1 px-5 pb-16"><section className="-mx-5 mb-8 bg-gradient-to-b from-marino-800 via-marino-700 to-neutral-50 px-5 pb-10 pt-12 text-center"><p className="mb-2 text-[0.7rem] font-medium tracking-[0.3em] text-marino-200">EFECTO VIAJERO</p><h1 className="mb-3 text-3xl font-semibold text-white sm:text-4xl">Un viaje. Todo el contexto.</h1><p className="mx-auto max-w-xl text-sm leading-6 text-marino-100">Un único ejemplo para ver cómo el cerebro recibe una petición compleja, la deconstruye, crea requisitos, delega agentes y muestra qué puede verificar y qué falta.</p></section><div className="mx-auto max-w-xl"><Link href="/cerebro" className="group block rounded-3xl border border-coral-300 bg-white p-6 text-left shadow-sm ring-1 ring-coral-100 transition hover:-translate-y-0.5 hover:shadow-lg"><div className="mb-4 flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-600">Ejemplo único</p><h2 className="mt-2 text-xl font-semibold text-neutral-900">Familia multigeneracional + mascota</h2></div><span className="text-2xl" aria-hidden="true">→</span></div><p className="text-sm leading-6 text-neutral-600">Colombia · 14 días · 2 adultos · 2 niños · 1 bebé · 1 abuela · 1 perro · 6.000 € · actividades para todos · documentos de todos · transporte · alojamiento · comida · clima · requisitos · emergencias · presupuesto · mapa · offline.</p><p className="mt-5 text-sm font-medium text-marino-700">Ejecutar el ejemplo completo</p></Link></div></main>}
+
+export default function Home() {
+  return (
+    <main className="flex-1 px-5 pb-16">
+      <section className="-mx-5 mb-8 bg-gradient-to-b from-marino-800 via-marino-700 to-neutral-50 px-5 pb-12 pt-14 text-center">
+        <p className="mb-3 text-[0.7rem] font-semibold tracking-[0.3em] text-marino-200">EFECTO VIAJERO</p>
+        <h1 className="mx-auto mb-4 max-w-3xl text-3xl font-semibold tracking-tight text-white sm:text-5xl">Tu viaje no debería vivir en diez aplicaciones.</h1>
+        <p className="mx-auto max-w-2xl text-sm leading-6 text-marino-100 sm:text-base">Cuéntanos cómo quieres viajar. Efecto Viajero organiza el contexto, comprueba lo que puede comprobar y te muestra con claridad qué está listo y qué falta.</p>
+        <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link href="/planificar" className="btn-primary">Empezar mi viaje <span aria-hidden="true">→</span></Link>
+          <Link href="/cerebro" className="btn-secondary border-marino-300 bg-white/95">Ver cómo funciona</Link>
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-5xl gap-4 md:grid-cols-3">
+        <article className="card">
+          <p className="text-xs font-semibold uppercase tracking-wider text-coral-600">01 · Entender</p>
+          <h2 className="mt-2 text-lg font-semibold">Dinos el viaje como lo contarías.</h2>
+          <p className="mt-2 text-sm leading-6 text-neutral-600">Personas, fechas, ritmo, presupuesto, mascotas, intereses, restricciones y lo que todavía no tienes decidido.</p>
+        </article>
+        <article className="card">
+          <p className="text-xs font-semibold uppercase tracking-wider text-coral-600">02 · Comprobar</p>
+          <h2 className="mt-2 text-lg font-semibold">Separa lo confirmado de lo pendiente.</h2>
+          <p className="mt-2 text-sm leading-6 text-neutral-600">Las recomendaciones no se presentan como hechos cuando todavía necesitan una fuente o comprobación.</p>
+        </article>
+        <article className="card">
+          <p className="text-xs font-semibold uppercase tracking-wider text-coral-600">03 · Decidir</p>
+          <h2 className="mt-2 text-lg font-semibold">Recibe el siguiente paso útil.</h2>
+          <p className="mt-2 text-sm leading-6 text-neutral-600">El sistema prioriza qué investigar, qué falta y qué decisiones pueden tomarse ya.</p>
+        </article>
+      </section>
+
+      <section className="mx-auto mt-8 max-w-5xl rounded-3xl border border-neutral-200 bg-neutral-50 p-6 sm:p-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">¿Quieres ver el sistema por dentro?</p>
+            <h2 className="mt-1 text-xl font-semibold">Ejemplo: familia multigeneracional + mascota</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-neutral-600">Madrid → Colombia · 14 días · 2 adultos · 2 niños · bebé · abuela · perro · 6.000 €.</p>
+          </div>
+          <Link href="/cerebro" className="btn-secondary shrink-0">Abrir ejemplo</Link>
+        </div>
+      </section>
+    </main>
+  );
+}
