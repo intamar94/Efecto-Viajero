@@ -6,6 +6,7 @@ import { deriveBrainActions } from "./brainActions";
 import { resolveWorkingMemoryConflicts, type ConflictClaim } from "./conflictResolver";
 import { decideNextAction, type BrainDecision } from "./decisionEngine";
 import { buildChangeSet } from "./changeSet";
+import { optimizePlanningState } from "./optimizer";
 import type { AccesibilidadViaje, ModoPlanificacion, PresupuestoViaje } from "@/lib/types";
 
 export interface BrainInput {
@@ -46,19 +47,12 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
   for (const result of results) claims.set(result.requirementId, { requirementId: result.requirementId, value: result.data, evidence: result.evidence ?? [] });
   const conflictResolutions = resolveWorkingMemoryConflicts(analysis.workingMemory.conflicts, claims);
   const decision: BrainDecision = decideNextAction(context, actions, results, conflictResolutions);
+  const optimization = optimizePlanningState(context, actions);
   const initial = updateBrainState(brain, {
-    phase: analysis.workingMemory.conflicts.length ? "resolving" : actions.length ? "deciding" : validated.length && validated.length === results.length ? "complete" : "validating",
-    results,
-    facts: analysis.workingMemory.facts,
-    evidence,
-    conflicts: analysis.workingMemory.conflicts,
-    decisions: analysis.workingMemory.decisions,
-    pendingActions: actions,
-    blockers: buildBlockers(analysis),
-    decision,
-    cycles: analysis.neuralCycles.length,
-    completeness,
-    confidence,
+    phase: analysis.workingMemory.conflicts.length ? "resolving" : actions.length ? "deciding" : validated.length > 0 && validated.length === results.length ? "complete" : "validating",
+    results, facts: analysis.workingMemory.facts, evidence, conflicts: analysis.workingMemory.conflicts,
+    decisions: analysis.workingMemory.decisions, pendingActions: actions, blockers: buildBlockers(analysis),
+    decision, optimization, cycles: analysis.neuralCycles.length, completeness, confidence,
   });
   const changeSet = buildChangeSet(undefined, initial, "Estado inicial materializado por BrainController.");
   return updateBrainState(initial, { changeSets: [changeSet] });
