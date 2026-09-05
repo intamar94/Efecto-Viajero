@@ -73,9 +73,8 @@ function priorityFor(domain: ResearchDomain, base: RequirementPriority): Require
 export function buildReverseEngineeringPlan(context: CanonicalTripContext, researchPlan: ResearchPlan, locations: ResolvedDestination[]): ReverseEngineeringPlan {
   const requirements: DataRequirement[] = [];
   const agents: AgentSpec[] = [];
-
   for (const task of researchPlan.tasks) {
-    const blueprint = DATA_BLUEPRINTS[task.domain] ?? [["domain_data", `¿Qué datos concretos necesita resolver ${task.domain}?`, "resolver la misión departamental", "normal"]];
+    const blueprint: Array<[string, string, string, RequirementPriority]> = DATA_BLUEPRINTS[task.domain] ?? [["domain_data", `¿Qué datos concretos necesita resolver ${task.domain}?`, "resolver la misión departamental", "normal"]];
     const departmentRequirements = blueprint.map(([dataType, question, purpose, basePriority], index) => ({
       id: `req:${task.domain}:${dataType}`,
       domain: task.domain,
@@ -88,28 +87,14 @@ export function buildReverseEngineeringPlan(context: CanonicalTripContext, resea
       status: (locations.length || task.domain === "social" || task.domain === "memory" ? "planned" : "partial") as RequirementStatus,
     }));
     requirements.push(...departmentRequirements);
-    agents.push(...departmentRequirements.map((requirement) => ({
-      id: requirement.agentId,
-      name: `${task.domain}.${requirement.dataType}`,
-      domain: task.domain,
-      input: ["TripContext", "destination", "date_window", "constraints"],
-      output: [requirement.dataType, "evidence", "confidence", "freshness"],
-      requirementIds: [requirement.id],
-      mode: task.domain === "destination" ? "deterministic-provider" as const : "research" as const,
-    })));
+    agents.push(...departmentRequirements.map((requirement) => ({ id: requirement.agentId, name: `${task.domain}.${requirement.dataType}`, domain: task.domain, input: ["TripContext", "destination", "date_window", "constraints"], output: [requirement.dataType, "evidence", "confidence", "freshness"], requirementIds: [requirement.id], mode: task.domain === "destination" ? "deterministic-provider" as const : "research" as const })));
   }
-
   return {
     version: 1,
     objective: `Deconstrucción de la intención: ${context.rawText}`,
     source: "general-orchestrator",
     requirements,
     agents,
-    departments: researchPlan.selectedDomains.map((domain) => ({
-      domain,
-      objective: `Deconstruir ${domain} en datos atómicos verificables para el viaje.`,
-      requirements: requirements.filter((r) => r.domain === domain),
-      agents: agents.filter((a) => a.domain === domain),
-    })),
+    departments: researchPlan.selectedDomains.map((domain) => ({ domain, objective: `Deconstruir ${domain} en datos atómicos verificables para el viaje.`, requirements: requirements.filter((r) => r.domain === domain), agents: agents.filter((a) => a.domain === domain) })),
   };
 }
