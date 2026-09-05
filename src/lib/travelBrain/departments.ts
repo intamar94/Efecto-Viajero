@@ -2,6 +2,7 @@ import type { CanonicalTripContext } from "./tripContext";
 import type { ResearchDomain, ResearchResult, ResearchTask } from "./researchOrchestrator";
 import { executeTask } from "./providerExecutor";
 import type { ResolvedDestination } from "./destinationResolver";
+import type { DataRequirement } from "./reverseEngineeringOrchestrator";
 
 export interface DepartmentMission {
   domain: ResearchDomain;
@@ -10,12 +11,15 @@ export interface DepartmentMission {
   task: ResearchTask;
   dependencies: ResearchDomain[];
   dependencyResults: ResearchResult[];
+  requirements?: DataRequirement[];
 }
 
 export interface DepartmentSubtask {
   id: string;
   question: string;
   priority: "critical" | "high" | "normal" | "background";
+  dataType?: string;
+  agentId?: string;
 }
 
 export interface DepartmentReport {
@@ -32,7 +36,7 @@ export interface DepartmentReport {
 
 export interface TravelDepartment {
   domain: ResearchDomain;
-  mission(context: CanonicalTripContext, task: ResearchTask, dependencyResults?: ResearchResult[]): DepartmentMission;
+  mission(context: CanonicalTripContext, task: ResearchTask, dependencyResults?: ResearchResult[], requirements?: DataRequirement[]): DepartmentMission;
   organize(mission: DepartmentMission): DepartmentSubtask[];
   execute(mission: DepartmentMission, subtasks: DepartmentSubtask[], locations: ResolvedDestination[]): Promise<DepartmentReport>;
 }
@@ -82,7 +86,7 @@ function statusFromResults(results: ResearchResult[]): DepartmentReport["status"
 export function createDepartment(domain: ResearchDomain): TravelDepartment {
   return {
     domain,
-    mission(context, task, dependencyResults = []) {
+    mission(context, task, dependencyResults = [], requirements = []) {
       return {
         domain,
         objective: OBJECTIVES[domain] ?? `Investigar ${domain} de forma autónoma dentro del contexto completo del viaje.`,
@@ -90,23 +94,25 @@ export function createDepartment(domain: ResearchDomain): TravelDepartment {
         task,
         dependencies: task.dependsOn.map((id) => id.replace("research:", "") as ResearchDomain),
         dependencyResults,
+        requirements,
       };
     },
     organize(mission) {
+      if (mission.requirements?.length) {
+        return mission.requirements.map((requirement) => ({
+          id: requirement.id,
+          question: requirement.question,
+          priority: requirement.priority,
+          dataType: requirement.dataType,
+          agentId: requirement.agentId,
+        }));
+      }
       return (DEFAULT_SUBTASKS[mission.domain] ?? ["determinar necesidades", "investigar fuentes", "validar resultados", "detectar incertidumbres"]).map((question, index) => ({ id: `${mission.domain}:${index + 1}`, question, priority: index === 0 ? "high" : "normal" }));
     },
     async execute(mission, subtasks, locations) {
       try {
-        // La resolución geográfica ya realizada por el Orquestador es la evidencia
-        // primaria del departamento de destino; no se vuelve a pedir a un proveedor.
         if (mission.domain === "destination") {
-          const findings = locations.map((location) => ({
-            name: location.name,
-            countryCode: location.countryCode,
-            region: location.region,
-            latitude: location.latitude,
-            longitude: location.longitude,
-          }));
+          const findings = locations.map((location) => ({ name: location.name, countryCode: location.countryCode, region: location.region, latitude: location.latitude, longitude: location.longitude }));
           return {
             domain: mission.domain,
             objective: mission.objective,
@@ -118,26 +124,13 @@ export function createDepartment(domain: ResearchDomain): TravelDepartment {
             status: findings.length ? "ready" : "unavailable",
           };
         }
-
-        // El departamento ejecuta únicamente su propia misión. Las dependencias ya
-        // fueron resueltas por el Orquestador y se entregan como contexto de misión.
         const task: ResearchTask = { ...mission.task, dependsOn: [] };
         const results = await executeTask(task, mission.context, locations);
         const status = statusFromResults(results);
         const findings = results.flatMap((result) => Array.isArray(result.data) ? result.data : result.data === undefined ? [] : [result.data]);
         const evidence = results.flatMap((result) => result.evidence ?? []);
         const unresolved = results.flatMap((result) => result.error ? [result.error] : []);
-        return {
-          domain: mission.domain,
-          objective: mission.objective,
-          subtasks,
-          findings,
-          evidence,
-          unresolved,
-          conflicts: [],
-          status,
-          error: results.find((result) => result.error)?.error,
-        };
+        return { domain: mission.domain, objective: mission.objective, subtasks, findings, evidence, unresolved, conflicts: [], status, error: results.find((result) => result.error)?.error };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Department execution error";
         return { domain: mission.domain, objective: mission.objective, subtasks, findings: [], evidence: [], unresolved: [message], conflicts: [], status: "error", error: message };
@@ -146,13 +139,13 @@ export function createDepartment(domain: ResearchDomain): TravelDepartment {
   };
 }
 
-export function organizeDepartments(tasks: ResearchTask[], context: CanonicalTripContext, dependencyResults: Map<string, ResearchResult> = new Map()) {
+export function organizeDepartments(tasks: ResearchTask[], context: CanonicalTripContext, dependencyResults: Map<string, ResearchResult> = new Map(), requirements: DataRequirement[] = []) {
   return tasks.map((task) => {
     const department = createDepartment(task.domain);
     const mission = department.mission(context, task, task.dependsOn.flatMap((id) => {
       const result = dependencyResults.get(id);
       return result ? [result] : [];
-    }));
+    }), requirements.filter((requirement) => requirement.domain === task.domain));
     return { department, mission, subtasks: department.organize(mission) };
   });
 }
