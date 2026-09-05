@@ -3,27 +3,13 @@ import type { DataRequirement, AgentSpec } from "./reverseEngineeringOrchestrato
 import type { AgentResult } from "./agentRuntime";
 import type { EvidenceRef } from "./researchOrchestrator";
 import type { WorkingMemory } from "./workingMemory";
+import type { BrainAction } from "./brainActions";
+import type { BrainDecision } from "./decisionEngine";
+import type { ChangeSet } from "./changeSet";
 
 export type BrainPhase =
-  | "understanding"
-  | "planning"
-  | "researching"
-  | "validating"
-  | "resolving"
-  | "deciding"
-  | "applying"
-  | "complete"
-  | "blocked";
-
-export interface BrainAction {
-  id: string;
-  type: "research" | "verify" | "cross_check" | "resolve_conflict" | "request_missing_data" | "recalculate";
-  target: string;
-  reason: string;
-  priority: "critical" | "high" | "normal" | "background";
-  dependsOn: string[];
-  status: "pending" | "completed" | "blocked";
-}
+  | "understanding" | "planning" | "researching" | "validating" | "resolving"
+  | "deciding" | "applying" | "optimizing" | "complete" | "blocked";
 
 export interface BrainBlocker {
   id: string;
@@ -47,18 +33,15 @@ export interface BrainState {
   pendingActions: BrainAction[];
   completedActions: BrainAction[];
   blockers: BrainBlocker[];
+  decision?: BrainDecision;
+  changeSets: ChangeSet[];
   cycles: number;
   completeness: number;
   confidence: number;
   updatedAt: string;
 }
 
-export function createBrainState(input: {
-  runId: string;
-  context: CanonicalTripContext;
-  requirements?: DataRequirement[];
-  agents?: AgentSpec[];
-}): BrainState {
+export function createBrainState(input: { runId: string; context: CanonicalTripContext; requirements?: DataRequirement[]; agents?: AgentSpec[] }): BrainState {
   return {
     runId: input.runId,
     phase: "understanding",
@@ -73,6 +56,7 @@ export function createBrainState(input: {
     pendingActions: [],
     completedActions: [],
     blockers: [],
+    changeSets: [],
     cycles: 0,
     completeness: 0,
     confidence: 0,
