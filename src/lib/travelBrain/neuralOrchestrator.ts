@@ -28,6 +28,7 @@ export function deriveNeuralFollowUps(requirements: DataRequirement[], results: 
     for (const missingItem of missing) {
       const recovery = recoveryFor(missingItem);
       const dataType = `${parent.dataType}:followup:${recovery}:${missingItem}`;
+      const reason = result.error ?? result.validation.issues.join("; ") || "Resultado incompleto";
       followUps.push({
         id: `followup:${parent.id}:${recovery}:${missingItem}`,
         parentRequirementId: parent.id,
@@ -40,7 +41,7 @@ export function deriveNeuralFollowUps(requirements: DataRequirement[], results: 
             : `Resolver específicamente ${missingItem} necesario para completar ${parent.dataType}.`,
         priority: priority(parent.priority) >= .8 ? "high" : "normal",
         dependsOn: [parent.id],
-        reason: result.error ?? result.validation.issues.join("; ") || "Resultado incompleto",
+        reason,
         recovery,
       });
     }
