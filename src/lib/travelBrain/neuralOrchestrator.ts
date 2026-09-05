@@ -5,19 +5,44 @@ import type { AgentResult } from "./agentRuntime";
 
 /** Neural-style control layer: an engineering analogy, not a biological equivalence. */
 export interface NeuralSignal { requirementId: string; source: string; kind: "activation" | "inhibition" | "error" | "learning"; strength: number; reason: string; }
-export interface NeuralFollowUp { id: string; parentRequirementId: string; domain: DataRequirement["domain"]; dataType: string; question: string; priority: DataRequirement["priority"]; dependsOn: string[]; reason: string; }
+export interface NeuralFollowUp { id: string; parentRequirementId: string; domain: DataRequirement["domain"]; dataType: string; question: string; priority: DataRequirement["priority"]; dependsOn: string[]; reason: string; recovery: "missing-data" | "validation" | "evidence"; }
 export interface NeuralCycle { cycle: number; fired: string[]; inhibited: string[]; signals: NeuralSignal[]; followUps: NeuralFollowUp[]; }
 function priority(p: DataRequirement["priority"]): number { return p === "critical" ? 1 : p === "high" ? .8 : p === "normal" ? .5 : .25; }
+
+function recoveryFor(issue: string): NeuralFollowUp["recovery"] {
+  const value = issue.toLowerCase();
+  if (value.includes("evidence") || value.includes("fuente") || value.includes("source")) return "evidence";
+  if (value === "validation" || value.includes("valid")) return "validation";
+  return "missing-data";
+}
 
 export function deriveNeuralFollowUps(requirements: DataRequirement[], results: AgentResult[]): NeuralFollowUp[] {
   const byId = new Map(requirements.map(r => [r.id, r])); const followUps: NeuralFollowUp[] = [];
   for (const result of results) {
     const parent = byId.get(result.requirementId); if (!parent) continue;
+    // Provider/capability absence is a capability gap, not missing data. Do
+    // not keep firing the same neuron against an unavailable provider.
+    if (result.status === "unavailable") continue;
     const missing = [...new Set([...result.validation.missing, ...(result.validation.issues.length ? ["validation"] : [])])];
     if (!missing.length && result.status !== "error") continue;
     for (const missingItem of missing) {
-      const dataType = `${parent.dataType}:followup:${missingItem}`;
-      followUps.push({ id: `followup:${parent.id}:${missingItem}`, parentRequirementId: parent.id, domain: parent.domain, dataType, question: `Resolver específicamente ${missingItem} necesario para validar ${parent.dataType}.`, priority: priority(parent.priority) >= .8 ? "high" : "normal", dependsOn: [parent.id], reason: result.error ?? result.validation.issues.join("; ") || "Resultado incompleto" });
+      const recovery = recoveryFor(missingItem);
+      const dataType = `${parent.dataType}:followup:${recovery}:${missingItem}`;
+      followUps.push({
+        id: `followup:${parent.id}:${recovery}:${missingItem}`,
+        parentRequirementId: parent.id,
+        domain: parent.domain,
+        dataType,
+        question: recovery === "evidence"
+          ? `Buscar evidencia adicional para validar ${parent.dataType}.`
+          : recovery === "validation"
+            ? `Contrastar y validar de nuevo ${parent.dataType}.`
+            : `Resolver específicamente ${missingItem} necesario para completar ${parent.dataType}.`,
+        priority: priority(parent.priority) >= .8 ? "high" : "normal",
+        dependsOn: [parent.id],
+        reason: result.error ?? result.validation.issues.join("; ") || "Resultado incompleto",
+        recovery,
+      });
     }
   }
   return followUps;
