@@ -31,4 +31,6 @@ export * from "./marketingDesignNeuron";
 export * from "./designSystemNeuron";
 export * from "./creativeDepartment";
 export * from "./creativeAuditEngine";
+export * from "./creativeAuditSource";
+export * from "./creativeAuditBridge";
 export * from "./brainController";
