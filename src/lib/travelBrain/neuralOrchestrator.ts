@@ -19,31 +19,14 @@ function recoveryFor(issue: string): NeuralFollowUp["recovery"] {
 export function deriveNeuralFollowUps(requirements: DataRequirement[], results: AgentResult[]): NeuralFollowUp[] {
   const byId = new Map(requirements.map(r => [r.id, r])); const followUps: NeuralFollowUp[] = [];
   for (const result of results) {
-    const parent = byId.get(result.requirementId); if (!parent) continue;
-    // Provider/capability absence is a capability gap, not missing data. Do
-    // not keep firing the same neuron against an unavailable provider.
-    if (result.status === "unavailable") continue;
+    const parent = byId.get(result.requirementId); if (!parent || result.status === "unavailable") continue;
     const missing = [...new Set([...result.validation.missing, ...(result.validation.issues.length ? ["validation"] : [])])];
     if (!missing.length && result.status !== "error") continue;
     for (const missingItem of missing) {
       const recovery = recoveryFor(missingItem);
       const dataType = `${parent.dataType}:followup:${recovery}:${missingItem}`;
-      const reason = result.error ?? result.validation.issues.join("; ") || "Resultado incompleto";
-      followUps.push({
-        id: `followup:${parent.id}:${recovery}:${missingItem}`,
-        parentRequirementId: parent.id,
-        domain: parent.domain,
-        dataType,
-        question: recovery === "evidence"
-          ? `Buscar evidencia adicional para validar ${parent.dataType}.`
-          : recovery === "validation"
-            ? `Contrastar y validar de nuevo ${parent.dataType}.`
-            : `Resolver específicamente ${missingItem} necesario para completar ${parent.dataType}.`,
-        priority: priority(parent.priority) >= .8 ? "high" : "normal",
-        dependsOn: [parent.id],
-        reason,
-        recovery,
-      });
+      const reason = (result.error ?? result.validation.issues.join("; ")) || "Resultado incompleto";
+      followUps.push({ id: `followup:${parent.id}:${recovery}:${missingItem}`, parentRequirementId: parent.id, domain: parent.domain, dataType, question: recovery === "evidence" ? `Buscar evidencia adicional para validar ${parent.dataType}.` : recovery === "validation" ? `Contrastar y validar de nuevo ${parent.dataType}.` : `Resolver específicamente ${missingItem} necesario para completar ${parent.dataType}.`, priority: priority(parent.priority) >= .8 ? "high" : "normal", dependsOn: [parent.id], reason, recovery });
     }
   }
   return followUps;
