@@ -21,4 +21,8 @@ export * from "../documentIntelligence";
 export * from "./presentation";
 export * from "./tripBuilder";
 export * from "./brainState";
+export * from "./brainActions";
+export * from "./conflictResolver";
+export * from "./decisionEngine";
+export * from "./changeSet";
 export * from "./brainController";
