@@ -1,46 +1,81 @@
 import type { CanonicalTripContext } from "./tripContext";
 import type { ResolvedDestination } from "./destinationResolver";
-import type { ResearchPlan, ResearchResult, ResearchTask } from "./researchOrchestrator";
+import type { ResearchPlan, ResearchResult } from "./researchOrchestrator";
 import { createDepartment, type DepartmentReport } from "./departments";
 import type { ReverseEngineeringPlan } from "./reverseEngineeringOrchestrator";
+import { executeAgents, type AgentResult } from "./agentRuntime";
 
 export interface DepartmentExecution { results: ResearchResult[]; reports: DepartmentReport[]; availableDomains: string[]; unavailableDomains: string[]; }
-function terminal(result: ResearchResult | undefined) { return Boolean(result && ["ready", "partial", "needs_review", "unavailable", "error"].includes(result.status)); }
-function dependencyBlocked(task: ResearchTask, results: Map<string, ResearchResult>) { return task.dependsOn.find((dependency) => { const result = results.get(dependency); return result?.status === "error" || result?.status === "unavailable"; }); }
-function blockedResult(task: ResearchTask, failedDependency: string): ResearchResult { return { task, status: "unavailable", data: { reason: `Bloqueado por dependencia no disponible: ${failedDependency}` }, error: `Dependencia no disponible: ${failedDependency}` }; }
 
-/** Schedules managers in topological waves and injects atomic requirements + agent specs. */
-export async function runDepartments(plan: ResearchPlan, context: CanonicalTripContext, locations: ResolvedDestination[], reversePlan?: ReverseEngineeringPlan): Promise<DepartmentExecution> {
-  const pending = new Map(plan.tasks.map((task) => [task.id, task]));
-  const results = new Map<string, ResearchResult>();
-  const reports: DepartmentReport[] = [];
-  while (pending.size) {
-    const ready = [...pending.values()].filter((task) => task.dependsOn.every((dependency) => terminal(results.get(dependency))));
-    if (!ready.length) {
-      for (const task of pending.values()) { const error = "Dependency graph contains a cycle or unresolved prerequisite."; reports.push({ domain: task.domain, objective: `Investigar ${task.domain} dentro del contexto completo del viaje.`, subtasks: [], findings: [], evidence: [], unresolved: [error], conflicts: [], status: "error", error }); results.set(task.id, { task, status: "error", error }); }
-      break;
-    }
-    const executable: ResearchTask[] = [];
-    for (const task of ready) {
-      const failedDependency = dependencyBlocked(task, results);
-      if (failedDependency) { const result = blockedResult(task, failedDependency); results.set(task.id, result); reports.push({ domain: task.domain, objective: `Investigar ${task.domain} dentro del contexto completo del viaje.`, subtasks: [], findings: [], evidence: [], unresolved: [result.error ?? "Dependencia no disponible"], conflicts: [], status: "unavailable", error: result.error }); pending.delete(task.id); }
-      else executable.push(task);
-    }
-    if (executable.length) {
-      const wave = await Promise.all(executable.map(async (task) => {
-        const department = createDepartment(task.domain);
-        const dependencyResults = task.dependsOn.flatMap((id) => { const result = results.get(id); return result ? [result] : []; });
-        const requirements = reversePlan?.requirements.filter((r) => r.domain === task.domain) ?? [];
-        const agents = reversePlan?.agents.filter((a) => a.domain === task.domain) ?? [];
-        const mission = department.mission(context, task, dependencyResults, requirements, agents);
-        const subtasks = department.organize(mission);
-        const report = await department.execute(mission, subtasks, locations);
-        return { task, report, result: { task, status: report.status, data: { findings: report.findings, dependencyResults, requirements, agents: report.agentResults }, evidence: report.evidence as ResearchResult["evidence"], error: report.error } as ResearchResult };
-      }));
-      for (const item of wave) { results.set(item.task.id, item.result); reports.push(item.report); pending.delete(item.task.id); }
-    }
+function statusForAgents(items: AgentResult[]): DepartmentReport["status"] {
+  if (!items.length) return "unavailable";
+  if (items.every((r) => r.status === "unavailable")) return "unavailable";
+  if (items.some((r) => r.status === "error")) return items.every((r) => r.status === "error") ? "error" : "partial";
+  if (items.some((r) => r.status === "partial")) return "partial";
+  return "ready";
+}
+
+/**
+ * Executes the reverse-engineered requirement graph once, globally.
+ * This is intentional: requirements may depend on requirements owned by another
+ * department (e.g. transport -> destination), so department-local execution
+ * would incorrectly report valid dependencies as missing.
+ */
+export async function runDepartments(
+  plan: ResearchPlan,
+  context: CanonicalTripContext,
+  locations: ResolvedDestination[],
+  reversePlan?: ReverseEngineeringPlan,
+): Promise<DepartmentExecution> {
+  if (!reversePlan) {
+    return { results: [], reports: [], availableDomains: [], unavailableDomains: plan.selectedDomains };
   }
-  const availableDomains = [...results.values()].filter((r) => r.status === "ready" || r.status === "partial").map((r) => r.task.domain);
-  const unavailableDomains = [...results.values()].filter((r) => r.status === "unavailable").map((r) => r.task.domain);
-  return { results: [...results.values()], reports, availableDomains, unavailableDomains };
+
+  const agentResults = await executeAgents(reversePlan.requirements, reversePlan.agents, context, locations, []);
+  const byDomain = new Map<string, AgentResult[]>();
+  for (const result of agentResults) {
+    const list = byDomain.get(result.domain) ?? [];
+    list.push(result);
+    byDomain.set(result.domain, list);
+  }
+
+  const results: ResearchResult[] = [];
+  const reports: DepartmentReport[] = [];
+  const available = new Set<string>();
+  const unavailable = new Set<string>();
+
+  for (const task of plan.tasks) {
+    const items = byDomain.get(task.domain) ?? [];
+    const department = createDepartment(task.domain);
+    const requirements = reversePlan.requirements.filter((r) => r.domain === task.domain);
+    const agents = reversePlan.agents.filter((a) => a.domain === task.domain);
+    const subtasks = requirements.map((r) => ({ id: r.id, question: r.question, priority: r.priority, dataType: r.dataType, agentId: r.agentId }));
+    const status = statusForAgents(items);
+    const findings = items.flatMap((r) => r.data === undefined ? [] : Array.isArray(r.data) ? r.data : [r.data]);
+    const evidence = items.flatMap((r) => r.evidence ?? []);
+    const unresolved = items.flatMap((r) => r.error ? [r.error] : r.validation.issues);
+    const report: DepartmentReport = {
+      domain: task.domain,
+      objective: department.mission(context, task).objective,
+      subtasks,
+      findings,
+      evidence,
+      unresolved: [...new Set(unresolved)],
+      conflicts: [],
+      status,
+      agentResults: items,
+    };
+    reports.push(report);
+    results.push({
+      task,
+      status,
+      data: { findings, requirements, agents, agentResults: items },
+      evidence: evidence as ResearchResult["evidence"],
+      error: report.unresolved.length ? report.unresolved.join("; ") : undefined,
+    });
+    if (status === "ready" || status === "partial") available.add(task.domain);
+    if (status === "unavailable") unavailable.add(task.domain);
+  }
+
+  return { results, reports, availableDomains: [...available], unavailableDomains: [...unavailable] };
 }
