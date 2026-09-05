@@ -28,7 +28,6 @@ export function buildResearchPlan(context: CanonicalTripContext): ResearchPlan {
   const tasks = DEFINITIONS.filter(([domain]) => selected.has(domain)).map(([domain, priority, dependencies, phase]) => ({ id: `research:${domain}`, domain, priority, phase, dependsOn: dependencies.filter((d) => selected.has(d)).map((d) => `research:${d}`) }));
   return { tasks, selectedDomains: tasks.map((task) => task.domain), skippedDomains: DEFINITIONS.map(([domain]) => domain).filter((domain) => !selected.has(domain)), selectionReasons: Object.fromEntries([...signals.explicit, ...signals.inferred].map((domain) => [domain, signals.reasons[domain] ?? "Necesario por el contexto o por una dependencia."])) };
 }
-
 function unique(values: string[]) { return values.filter((v, i, a) => v && a.findIndex((x) => x.toLowerCase() === v.toLowerCase()) === i); }
 function countryHint(values: string[]) { return values.find((v) => /^(colombia|ecuador|per[uú]|bolivia|chile|espa[ñn]a|alemania|francia|italia|jap[oó]n|m[eé]xico|brasil|argentina)$/i.test(v)); }
 function bestMatch(results: ResolvedDestination[], code?: string) { return results.find((r) => !code || r.countryCode.toUpperCase() === code.toUpperCase()) ?? results[0]; }
@@ -47,8 +46,6 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   for (const item of resolved) { if (item.destination) locations.push(item.destination); if (item.unresolved || (!item.destination && item.candidate !== hint)) unresolved.push(item.candidate); }
 
   const plan = buildResearchPlan(ctx);
-  // El Orquestador General entrega el contexto y el plan semántico a un
-  // Orquestador de Ingeniería Inversa antes de ejecutar cualquier departamento.
   const reverseEngineering = buildReverseEngineeringPlan(ctx, plan, locations);
   const departmentExecution = await runDepartments(plan, ctx, locations, reverseEngineering);
   const results = departmentExecution.results;
@@ -58,12 +55,13 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   const normalizedUnresolved = unique(unresolved.concat(departmentExecution.reports.flatMap((report) => report.unresolved)));
   const pendingCount = plan.tasks.filter((task) => !results.some((result) => result.task.id === task.id)).length;
   const capabilityAudit = auditCapabilities(plan.tasks, results, departmentExecution.reports);
-  const supervisorUpdate = buildOrchestratorUpdate(results, plan.tasks, normalizedUnresolved, departmentExecution.reports, 1, capabilityAudit);
+  const supervisorUpdate = buildOrchestratorUpdate(results, plan.tasks, normalizedUnresolved, departmentExecution.reports, departmentExecution.neuralCycles.length, capabilityAudit);
   return {
     locations, unresolved: normalizedUnresolved, countryCode, plan, results, ranked, draft,
     availableDomains: departmentExecution.availableDomains, unavailableDomains: departmentExecution.unavailableDomains, mode: ctx.planningMode, pendingCount,
     orchestration: { selected: plan.selectedDomains, skipped: plan.skippedDomains, reasons: plan.selectionReasons, explicitSignals: [...deriveOrchestrationSignals(ctx).explicit], inferredSignals: [...deriveOrchestrationSignals(ctx).inferred] },
     reverseEngineering,
+    neuralCycles: departmentExecution.neuralCycles,
     phases: { understand: results.filter((r) => r.task.phase === "understand").map((r) => r.task.domain), prepare: results.filter((r) => r.task.phase === "prepare").map((r) => r.task.domain), plan: results.filter((r) => r.task.phase === "plan").map((r) => r.task.domain), live: results.filter((r) => r.task.phase === "live").map((r) => r.task.domain), memory: results.filter((r) => r.task.phase === "memory").map((r) => r.task.domain) },
     explorer, departmentReports: departmentExecution.reports, capabilityAudit, supervisorUpdate,
   };
