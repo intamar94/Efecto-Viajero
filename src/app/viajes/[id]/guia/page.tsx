@@ -7,6 +7,7 @@ import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { etapasDe } from "@/lib/viaje";
 import { distanciaMetros, hablar, haySintesisDeVoz } from "@/lib/geoAudio";
+import { puntosConCoordenadas } from "@/lib/puntosGeo";
 
 const UMBRAL_METROS = 120;
 
@@ -28,20 +29,25 @@ export default function ModoGuiaPage() {
   const [activo, setActivo] = useState(false);
   const [posicion, setPosicion] = useState<{ lat: number; lon: number } | null>(null);
   const [narrados, setNarrados] = useState<Set<string>>(new Set());
+  const [pendiente, setPendiente] = useState<PuntoGuia | null>(null);
   const [silenciado, setSilenciado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const watchId = useRef<number | null>(null);
-  // Evita narrar con datos ya obsoletos de un render anterior al cambiar
-  // de posición muy rápido (varias actualizaciones de GPS seguidas).
-  const narradosRef = useRef<Set<string>>(new Set());
+  // Evita preguntar dos veces por el mismo sitio con datos ya obsoletos de
+  // un render anterior al cambiar de posición muy rápido (varias
+  // actualizaciones de GPS seguidas). Incluye tanto lo ya narrado como lo
+  // que se preguntó y se respondió "ahora no": no se vuelve a interrumpir
+  // por el mismo sitio en la misma sesión.
+  const preguntadosRef = useRef<Set<string>>(new Set());
   const silenciadoRef = useRef(false);
+  const pendienteRef = useRef<PuntoGuia | null>(null);
 
-  useEffect(() => {
-    narradosRef.current = narrados;
-  }, [narrados]);
   useEffect(() => {
     silenciadoRef.current = silenciado;
   }, [silenciado]);
+  useEffect(() => {
+    pendienteRef.current = pendiente;
+  }, [pendiente]);
 
   useEffect(() => {
     return () => {
@@ -61,51 +67,45 @@ export default function ModoGuiaPage() {
   }
 
   // Todos los puntos con coordenadas reales que tenemos: sitios de
-  // OpenStreetMap (guardados al crear el viaje) y los listings de
-  // Wikivoyage con lat/long, que traen un texto propio mucho mejor para
-  // narrar que una simple categoría.
-  const puntos: PuntoGuia[] = etapasDe(viaje).flatMap((etapa) => {
-    const deOsm = (viaje.investigacion?.sitios?.[etapa.nombre] ?? [])
-      .filter((s) => s.lat !== undefined && s.lon !== undefined)
-      .map((s) => ({
-        id: `osm-${etapa.id}-${s.nombre}`,
-        nombre: s.nombre,
-        texto: `Estás cerca de ${s.nombre}${s.detalle ? `, ${s.detalle} de ${etapa.nombre}` : ` en ${etapa.nombre}`}.`,
-        lat: s.lat!,
-        lon: s.lon!,
-        etapaNombre: etapa.nombre,
-        fuente: "OpenStreetMap",
-      }));
-
-    const deWikivoyage = (viaje.wikivoyage?.[etapa.nombre]?.listings ?? [])
-      .filter((l) => l.lat !== undefined && l.lon !== undefined && l.nombre)
-      .map((l) => ({
-        id: `wv-${etapa.id}-${l.nombre}`,
-        nombre: l.nombre!,
-        texto: `Estás cerca de ${l.nombre}. ${l.contenido ?? `Un sitio recomendado en ${etapa.nombre}.`}`,
-        lat: l.lat!,
-        lon: l.lon!,
-        etapaNombre: etapa.nombre,
-        fuente: "Wikivoyage",
-      }));
-
-    return [...deOsm, ...deWikivoyage];
-  });
+  // OpenStreetMap y listings de Wikivoyage, con los mismos ids que usa
+  // Actividades (vía lib/puntosGeo) para que "añadido al itinerario" y
+  // "detectado por el GPS" sean siempre la misma actividad.
+  const puntos: PuntoGuia[] = etapasDe(viaje).flatMap((etapa) =>
+    puntosConCoordenadas(viaje, etapa).map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      texto: `Estás cerca de ${p.nombre}. ${p.detalle ?? `Un sitio recomendado en ${etapa.nombre}.`}`,
+      lat: p.lat,
+      lon: p.lon,
+      etapaNombre: etapa.nombre,
+      fuente: p.fuente,
+    }))
+  );
 
   function manejarPosicion(pos: GeolocationPosition) {
     const actual = { lat: pos.coords.latitude, lon: pos.coords.longitude };
     setPosicion(actual);
-    if (silenciadoRef.current) return;
+    // No habla solo: al detectar cercanía se pregunta primero (como una
+    // notificación), nunca se reproduce audio sin que el viajero lo pida.
+    if (silenciadoRef.current || pendienteRef.current) return;
     for (const p of puntos) {
-      if (narradosRef.current.has(p.id)) continue;
+      if (preguntadosRef.current.has(p.id)) continue;
       const d = distanciaMetros(actual.lat, actual.lon, p.lat, p.lon);
       if (d <= UMBRAL_METROS) {
-        hablar(p.texto);
-        narradosRef.current = new Set(narradosRef.current).add(p.id);
-        setNarrados(new Set(narradosRef.current));
-        break; // uno a la vez: si hay dos muy cerca, no se solapan las voces
+        setPendiente(p);
+        break; // una notificación a la vez, aunque haya varios sitios cerca
       }
     }
+  }
+
+  function responderPendiente(escuchar: boolean) {
+    if (!pendiente) return;
+    preguntadosRef.current = new Set(preguntadosRef.current).add(pendiente.id);
+    if (escuchar) {
+      hablar(pendiente.texto);
+      setNarrados((prev) => new Set(prev).add(pendiente.id));
+    }
+    setPendiente(null);
   }
 
   function activar() {
@@ -127,6 +127,7 @@ export default function ModoGuiaPage() {
     watchId.current = null;
     setActivo(false);
     setPosicion(null);
+    setPendiente(null);
     window.speechSynthesis?.cancel();
   }
 
@@ -177,6 +178,22 @@ export default function ModoGuiaPage() {
 
             {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
+            {/* La notificación: nunca habla sola, siempre pregunta primero. */}
+            {pendiente && (
+              <div className="mb-5 rounded-2xl border-2 border-marino-400 bg-marino-50 p-4">
+                <p className="text-sm font-medium text-marino-900">📍 Estás cerca de {pendiente.nombre}</p>
+                <p className="mt-1 text-xs text-marino-700">¿Quieres escuchar sobre este lugar?</p>
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => responderPendiente(true)} className="btn-primary flex-1 text-sm">
+                    🔊 Sí, cuéntame
+                  </button>
+                  <button onClick={() => responderPendiente(false)} className="btn-secondary flex-1 text-sm">
+                    Ahora no
+                  </button>
+                </div>
+              </div>
+            )}
+
             {activo && (
               <p className="mb-4 text-xs text-neutral-500">
                 {posicion ? `📍 Ubicación activa · ${narrados.size} sitio(s) narrados` : "Buscando tu ubicación…"}
@@ -198,7 +215,11 @@ export default function ModoGuiaPage() {
                         </p>
                       </div>
                       <button
-                        onClick={() => hablar(p.texto)}
+                        onClick={() => {
+                          hablar(p.texto);
+                          preguntadosRef.current = new Set(preguntadosRef.current).add(p.id);
+                          setNarrados((prev) => new Set(prev).add(p.id));
+                        }}
                         className="shrink-0 rounded-lg border border-marino-200 bg-marino-50 px-2.5 py-1.5 text-xs font-medium text-marino-700 hover:bg-marino-100"
                       >
                         🔊 Escuchar

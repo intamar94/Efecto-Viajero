@@ -6,13 +6,28 @@ import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { PreferenciaItinerarioForm } from "@/components/itinerario/PreferenciaItinerarioForm";
 import { EditorItinerarioDia } from "@/components/itinerario/EditorItinerarioDia";
+import { MapaDia } from "@/components/MapaDia";
 import { useData } from "@/lib/store";
 import { crucesDe, esCircuito, etapasDe, paisDeEtapa, destinoParaCatalogo } from "@/lib/viaje";
 import { ETIQUETA_BLOQUE, REGLA_BLOQUE } from "@/lib/paises";
 import { actividadesDe } from "@/lib/catalogo";
 import { GeneradorItinerario } from "@/lib/generador-itinerario";
 import { formatearFecha } from "@/lib/formatoFecha";
+import { puntosConCoordenadas, type PuntoGeo } from "@/lib/puntosGeo";
 import type { ActividadDestino, DiaItinerario, Etapa, Itinerario, PreferenciaItinerario } from "@/lib/types";
+
+// Solo las paradas del día que sí tienen ubicación exacta, en el orden en
+// que se visitan: las actividades a mano (sin sitio real detrás) no
+// tienen coordenadas y simplemente no aparecen en el mapa.
+function puntosDelDia(dia: DiaItinerario, viaje: Parameters<typeof puntosConCoordenadas>[0], etapa: Etapa): PuntoGeo[] {
+  const disponibles = new Map(puntosConCoordenadas(viaje, etapa).map((p) => [p.id, p]));
+  return [...dia.actividades]
+    .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
+    .flatMap((a) => {
+      const p = disponibles.get(a.actividadId);
+      return p ? [p] : [];
+    });
+}
 
 // Cuánto dura cada etapa en días, para poder poner una fecha real (no solo
 // "3 días") a cada parada del viaje.
@@ -38,6 +53,7 @@ export default function RutaPage() {
   const [inicializado, setInicializado] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [etapasAbiertas, setEtapasAbiertas] = useState<Set<string>>(new Set());
+  const [mapasAbiertos, setMapasAbiertos] = useState<Set<string>>(new Set());
 
   // El viaje se hidrata desde localStorage de forma asíncrona: si se lee
   // viaje.itinerario en el useState inicial, esa lectura llega demasiado
@@ -118,6 +134,15 @@ export default function RutaPage() {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleMapa(fecha: string) {
+    setMapasAbiertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(fecha)) next.delete(fecha);
+      else next.add(fecha);
       return next;
     });
   }
@@ -291,9 +316,31 @@ export default function RutaPage() {
                           {diasDeEtapa.length === 0 ? (
                             <p className="text-sm text-neutral-400">Sin días asignados a esta etapa.</p>
                           ) : (
-                            diasDeEtapa.map((dia) => (
-                              <EditorItinerarioDia key={dia.fecha} dia={dia} onChange={(d) => handleActualizarDia(dia.fecha, d)} />
-                            ))
+                            diasDeEtapa.map((dia) => {
+                              const puntosDia = puntosDelDia(dia, viaje, etapa);
+                              const mapaAbierto = mapasAbiertos.has(dia.fecha);
+                              return (
+                                <div key={dia.fecha} className="space-y-2">
+                                  <EditorItinerarioDia dia={dia} onChange={(d) => handleActualizarDia(dia.fecha, d)} />
+                                  {puntosDia.length >= 2 && (
+                                    <div className="rounded-xl border border-neutral-100 p-2">
+                                      <button
+                                        onClick={() => toggleMapa(dia.fecha)}
+                                        className="flex w-full items-center justify-between px-1 py-1 text-left text-xs font-medium text-marino-700"
+                                      >
+                                        🗺️ {mapaAbierto ? "Ocultar mapa del día" : "Ver mapa del día"}
+                                        <span className="text-neutral-400">{mapaAbierto ? "−" : "+"}</span>
+                                      </button>
+                                      {mapaAbierto && (
+                                        <div className="mt-2">
+                                          <MapaDia puntos={puntosDia} />
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
                           )}
                         </div>
                       )}

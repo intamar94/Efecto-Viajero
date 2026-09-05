@@ -10,6 +10,8 @@ import { generarId } from "@/lib/id";
 import { actividadesDe, urlBuscarActividad, urlMapsActividad, queProbarDe } from "@/lib/catalogo";
 import { destinoParaCatalogo, destinoPrincipal, etapasDe } from "@/lib/viaje";
 import { obtenerGuiaWikivoyage, type TipoListingWikivoyage } from "@/lib/wikivoyage";
+import { interpretarIntencion } from "@/lib/intencion";
+import { slug } from "@/lib/puntosGeo";
 import type { CategoriaSitio, SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
 
@@ -96,13 +98,92 @@ function medalla(n: number): string {
   return "";
 }
 
-function slug(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+// Una sola tarjeta de actividad, reutilizada tanto en el listado por
+// ciudad/categoría como en los resultados de la búsqueda por intención:
+// antes eran dos bloques de JSX casi idénticos.
+function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: EstadoActividad; onCambiarEstado: (e: EstadoActividad | null) => void }) {
+  return (
+    <li className="rounded-lg bg-neutral-50 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">{it.nombre}</p>
+          <p className="text-xs text-neutral-500">{it.descripcion}</p>
+        </div>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTILO_ESTADO[estado]}`}>{ETIQUETA_ESTADO[estado]}</span>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {it.duracionHoras > 0 && <span className="chip">⏱️ {it.duracionHoras}h</span>}
+        {it.notaPrecio ? (
+          <span className="chip">💵 {it.notaPrecio}</span>
+        ) : it.esSitioReal ? (
+          <span className="chip">💵 Consultar precio</span>
+        ) : (
+          <span className="chip">{it.costeEstimado > 0 ? `💵 ${it.costeEstimado}€` : "🆓 Gratis"}</span>
+        )}
+        {it.horario && <span className="chip">🕐 {it.horario}</span>}
+        {it.horarioHabitual && <span className="chip">🕐 {it.horarioHabitual}</span>}
+        {it.admiteMascotas && <span className="chip">🐾 Mascotas</span>}
+        {it.esPropia && <span className="chip">✍️ Tuya</span>}
+        {it.fuenteEtiqueta && <span className="chip">🌍 {it.fuenteEtiqueta}</span>}
+      </div>
+
+      {it.direccion && <p className="mt-2 text-xs text-neutral-500">📍 {it.direccion}</p>}
+
+      {it.consejo && <p className="mt-2 text-xs text-neutral-500">💡 {it.consejo}</p>}
+
+      {it.categoria === "restaurante" && !it.esSitioReal && it.pais && queProbarDe(it.pais).length > 0 && (
+        <div className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2">
+          <p className="text-xs font-medium text-amber-800">🍴 Si no sabes qué pedir, prueba:</p>
+          <ul className="mt-1 space-y-0.5 text-xs text-amber-700">
+            {queProbarDe(it.pais).map((s) => (
+              <li key={s.id}>
+                <span className="font-medium">{s.nombre}</span> — {s.descripcion}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        {it.mapaUrl && (
+          <a href={it.mapaUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-marino-500">
+            📍 {it.fuenteEtiqueta ? "Mapa" : "Ver opciones reales en el mapa"}
+          </a>
+        )}
+        {it.webUrl && (
+          <a href={it.webUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg bg-marino-50 border border-marino-200 text-marino-700 hover:bg-marino-100">
+            {it.webEsDirecta ? "🔗 Sitio web" : "🔎 Buscar en Google"}
+          </a>
+        )}
+        {estado === "disponible" && (
+          <button onClick={() => onCambiarEstado("planificada")} className="btn-primary px-3 py-1.5 text-xs">
+            + Añadir al itinerario
+          </button>
+        )}
+        {(estado === "planificada" || estado === "reservada") && (
+          <>
+            {estado === "planificada" && (
+              <button onClick={() => onCambiarEstado("reservada")} className="btn-secondary px-3 py-1.5 text-xs">
+                Reservada
+              </button>
+            )}
+            <button onClick={() => onCambiarEstado("realizada")} className="btn-secondary px-3 py-1.5 text-xs">
+              Ya la hicimos
+            </button>
+            <button onClick={() => onCambiarEstado(null)} className="px-2 py-1.5 text-xs text-neutral-400 hover:text-red-600">
+              Quitar
+            </button>
+          </>
+        )}
+        {estado === "realizada" && (
+          <button onClick={() => onCambiarEstado("planificada")} className="px-2 py-1.5 text-xs text-neutral-400 hover:text-neutral-900">
+            Deshacer
+          </button>
+        )}
+      </div>
+    </li>
+  );
 }
 
 export default function ActividadesPage() {
@@ -111,7 +192,6 @@ export default function ActividadesPage() {
   const viaje = obtenerViaje(params.id);
   const destino = viaje ? destinoPrincipal(viaje) : undefined;
 
-  const [horasLibres, setHorasLibres] = useState("");
   const [adaptacion, setAdaptacion] = useState<"lluvia" | "cansancio" | "transporte_perdido" | null>(null);
   const [etapasAbiertas, setEtapasAbiertas] = useState<Set<string>>(new Set());
   const [categoriasAbiertas, setCategoriasAbiertas] = useState<Set<string>>(new Set());
@@ -123,6 +203,8 @@ export default function ActividadesPage() {
   const [entornoNueva, setEntornoNueva] = useState<"exterior" | "interior" | "mixto">("exterior");
   const [mascotaNueva, setMascotaNueva] = useState(false);
   const [estadoWikivoyage, setEstadoWikivoyage] = useState<Record<string, "cargando" | "sin_datos" | "listo">>({});
+  const [textoIntencion, setTextoIntencion] = useState("");
+  const [categoriasBuscadas, setCategoriasBuscadas] = useState<CategoriaActividad[] | null>(null);
 
   // Investigación bajo demanda: al abrir Actividades, se busca la guía
   // Wikivoyage de cada ciudad que aún no la tenga guardada. Una sola vez
@@ -393,17 +475,19 @@ export default function ActividadesPage() {
     .find((t) => new Date(t.horaSalida!) >= hoy);
   const actividadesPendientes = viaje.actividades.filter((a) => a.estado === "planificada" || a.estado === "reservada").length;
 
-  // Catálogo combinado de todas las etapas, para las sugerencias rápidas
-  // (rato libre / algo ha cambiado), que no necesitan saber de qué ciudad
-  // es cada cosa.
+  // Catálogo combinado de todas las etapas, para "algo ha cambiado", que
+  // no necesita saber de qué ciudad es cada cosa.
   const catalogoCompleto: Item[] = etapas.flatMap((e) => itemsDeEtapa(e));
   const yaEnItinerario = new Set(viaje.actividades.filter((a) => a.estado !== "disponible" && a.estado !== "descartada").map((a) => a.actividadId));
 
-  const horas = Number.parseFloat(horasLibres);
-  const sugerenciasHorasLibres =
-    !Number.isNaN(horas) && horas > 0
-      ? catalogoCompleto.filter((a) => a.duracionHoras > 0 && a.duracionHoras <= horas && !yaEnItinerario.has(a.id)).slice(0, 3)
-      : [];
+  const resultadosBusqueda = categoriasBuscadas
+    ? categoriasBuscadas.flatMap((cat) => catalogoCompleto.filter((it) => it.categoria === cat))
+    : [];
+
+  function buscarPorIntencion(e: React.FormEvent) {
+    e.preventDefault();
+    setCategoriasBuscadas(interpretarIntencion(textoIntencion));
+  }
 
   const sugerenciasAdaptacion = (() => {
     if (adaptacion === "lluvia") return catalogoCompleto.filter((a) => a.entorno === "interior" || a.entorno === "mixto").slice(0, 3);
@@ -451,34 +535,6 @@ export default function ActividadesPage() {
         </section>
 
         <section className="card mb-6">
-          <h2 className="mb-3 font-medium">Tengo un rato libre</h2>
-          <input
-            type="number"
-            step="0.5"
-            className="input"
-            placeholder="¿Cuántas horas tienes?"
-            value={horasLibres}
-            onChange={(e) => setHorasLibres(e.target.value)}
-          />
-          {sugerenciasHorasLibres.length > 0 && (
-            <ul className="mt-3 space-y-2">
-              {sugerenciasHorasLibres.map((a) => (
-                <li key={a.id} className="rounded-xl bg-neutral-50 px-3 py-2 text-sm">
-                  <span className="font-medium">{a.nombre}</span>
-                  <span className="text-neutral-500">
-                    {" "}
-                    — {a.etapaNombre} · ~{a.duracionHoras}h, {a.costeEstimado > 0 ? `${a.costeEstimado}€` : "gratis"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {horas > 0 && sugerenciasHorasLibres.length === 0 && (
-            <p className="mt-3 text-sm text-neutral-400">Nada en tu lista cabe en ese tiempo.</p>
-          )}
-        </section>
-
-        <section className="card mb-6">
           <h2 className="mb-3 font-medium">Algo ha cambiado</h2>
           <div className="flex flex-wrap gap-2">
             {(
@@ -521,6 +577,73 @@ export default function ActividadesPage() {
                 </li>
               ))}
             </ul>
+          )}
+        </section>
+
+        <section className="card mb-6">
+          <h2 className="mb-1 font-medium">¿Qué te gustaría hacer?</h2>
+          <p className="mb-3 text-xs text-neutral-500">
+            Escribe con tus palabras y buscamos en todo tu viaje lo que coincida — restaurantes típicos, naturaleza,
+            museos de historia, rutas para caminar, ferias, miradores… No es un menú fijo, es lo que tú pidas.
+          </p>
+          <form onSubmit={buscarPorIntencion} className="space-y-2">
+            <textarea
+              className="input text-sm"
+              rows={2}
+              placeholder="Ej: quiero probar la comida típica, conocer la ciudad caminando y saber sobre su historia"
+              value={textoIntencion}
+              onChange={(e) => setTextoIntencion(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <button type="submit" className="btn-primary flex-1 text-sm">
+                🔎 Buscar en mi viaje
+              </button>
+              {categoriasBuscadas !== null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoriasBuscadas(null);
+                    setTextoIntencion("");
+                  }}
+                  className="btn-secondary text-sm"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
+          </form>
+
+          {categoriasBuscadas !== null && (
+            <div className="mt-4 border-t border-neutral-100 pt-4">
+              {categoriasBuscadas.length === 0 ? (
+                <p className="text-sm text-neutral-400">
+                  No detectamos categorías conocidas en tu búsqueda. Prueba mencionando cosas como "restaurantes",
+                  "naturaleza", "museos", "caminar" o "vida nocturna".
+                </p>
+              ) : (
+                <>
+                  <p className="mb-3 text-xs text-neutral-500">
+                    Detectamos: {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta).join(", ")}
+                  </p>
+                  {resultadosBusqueda.length === 0 ? (
+                    <p className="text-sm text-neutral-400">Todavía no tenemos nada así investigado en tu viaje.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {resultadosBusqueda.map((it) => {
+                        const entrada = viaje.actividades.find((a) => a.actividadId === it.id);
+                        const estado = entrada?.estado ?? "disponible";
+                        return (
+                          <li key={it.id}>
+                            <p className="mb-1 text-xs font-medium text-marino-700">📍 {it.etapaNombre}</p>
+                            <TarjetaActividad it={it} estado={estado} onCambiarEstado={(e) => setEstado(it, e)} />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
           )}
         </section>
 
@@ -596,93 +719,7 @@ export default function ActividadesPage() {
                               {itemsCategoria.map((it) => {
                                 const entrada = viaje.actividades.find((a) => a.actividadId === it.id);
                                 const estado = entrada?.estado ?? "disponible";
-                                return (
-                                  <li key={it.id} className="rounded-lg bg-neutral-50 p-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div>
-                                        <p className="text-sm font-medium">{it.nombre}</p>
-                                        <p className="text-xs text-neutral-500">{it.descripcion}</p>
-                                      </div>
-                                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTILO_ESTADO[estado]}`}>
-                                        {ETIQUETA_ESTADO[estado]}
-                                      </span>
-                                    </div>
-
-                                    <div className="mt-2 flex flex-wrap gap-1.5">
-                                      {it.duracionHoras > 0 && <span className="chip">⏱️ {it.duracionHoras}h</span>}
-                                      {it.notaPrecio ? (
-                                        <span className="chip">💵 {it.notaPrecio}</span>
-                                      ) : it.esSitioReal ? (
-                                        <span className="chip">💵 Consultar precio</span>
-                                      ) : (
-                                        <span className="chip">{it.costeEstimado > 0 ? `💵 ${it.costeEstimado}€` : "🆓 Gratis"}</span>
-                                      )}
-                                      {it.horario && <span className="chip">🕐 {it.horario}</span>}
-                                      {it.horarioHabitual && <span className="chip">🕐 {it.horarioHabitual}</span>}
-                                      {it.admiteMascotas && <span className="chip">🐾 Mascotas</span>}
-                                      {it.esPropia && <span className="chip">✍️ Tuya</span>}
-                                      {it.fuenteEtiqueta && <span className="chip">🌍 {it.fuenteEtiqueta}</span>}
-                                    </div>
-
-                                    {it.direccion && <p className="mt-2 text-xs text-neutral-500">📍 {it.direccion}</p>}
-
-                                    {it.consejo && <p className="mt-2 text-xs text-neutral-500">💡 {it.consejo}</p>}
-
-                                    {/* Sin conocer la gastronomía local no se sabe qué pedir: se
-                                        reutiliza el mismo dato de souvenirs gastronómicos por país
-                                        en vez de inventar un menú. */}
-                                    {it.categoria === "restaurante" && !it.esSitioReal && it.pais && queProbarDe(it.pais).length > 0 && (
-                                      <div className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2">
-                                        <p className="text-xs font-medium text-amber-800">🍴 Si no sabes qué pedir, prueba:</p>
-                                        <ul className="mt-1 space-y-0.5 text-xs text-amber-700">
-                                          {queProbarDe(it.pais).map((s) => (
-                                            <li key={s.id}>
-                                              <span className="font-medium">{s.nombre}</span> — {s.descripcion}
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-
-                                    <div className="mt-2.5 flex flex-wrap gap-2">
-                                      {it.mapaUrl && (
-                                        <a href={it.mapaUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-marino-500">
-                                          📍 {it.fuenteEtiqueta ? "Mapa" : "Ver opciones reales en el mapa"}
-                                        </a>
-                                      )}
-                                      {it.webUrl && (
-                                        <a href={it.webUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg bg-marino-50 border border-marino-200 text-marino-700 hover:bg-marino-100">
-                                          {it.webEsDirecta ? "🔗 Sitio web" : "🔎 Buscar en Google"}
-                                        </a>
-                                      )}
-                                      {estado === "disponible" && (
-                                        <button onClick={() => setEstado(it, "planificada")} className="btn-primary px-3 py-1.5 text-xs">
-                                          + Añadir al itinerario
-                                        </button>
-                                      )}
-                                      {(estado === "planificada" || estado === "reservada") && (
-                                        <>
-                                          {estado === "planificada" && (
-                                            <button onClick={() => setEstado(it, "reservada")} className="btn-secondary px-3 py-1.5 text-xs">
-                                              Reservada
-                                            </button>
-                                          )}
-                                          <button onClick={() => setEstado(it, "realizada")} className="btn-secondary px-3 py-1.5 text-xs">
-                                            Ya la hicimos
-                                          </button>
-                                          <button onClick={() => setEstado(it, null)} className="px-2 py-1.5 text-xs text-neutral-400 hover:text-red-600">
-                                            Quitar
-                                          </button>
-                                        </>
-                                      )}
-                                      {estado === "realizada" && (
-                                        <button onClick={() => setEstado(it, "planificada")} className="px-2 py-1.5 text-xs text-neutral-400 hover:text-neutral-900">
-                                          Deshacer
-                                        </button>
-                                      )}
-                                    </div>
-                                  </li>
-                                );
+                                return <TarjetaActividad key={it.id} it={it} estado={estado} onCambiarEstado={(e) => setEstado(it, e)} />;
                               })}
                             </ul>
                           )}
