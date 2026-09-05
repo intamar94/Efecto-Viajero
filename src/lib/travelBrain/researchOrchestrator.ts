@@ -55,7 +55,7 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   const normalizedUnresolved = unique(unresolved.concat(departmentExecution.reports.flatMap((report) => report.unresolved)));
   const pendingCount = plan.tasks.filter((task) => !results.some((result) => result.task.id === task.id)).length;
   const capabilityAudit = auditCapabilities(plan.tasks, results, departmentExecution.reports);
-  const supervisorUpdate = buildOrchestratorUpdate(results, plan.tasks, normalizedUnresolved, departmentExecution.reports, departmentExecution.neuralCycles.length, capabilityAudit);
+  const supervisorUpdate = buildOrchestratorUpdate(results, plan.tasks, normalizedUnresolved, departmentExecution.reports, departmentExecution.neuralCycles.length, capabilityAudit, departmentExecution.neuralCycles);
   return {
     locations, unresolved: normalizedUnresolved, countryCode, plan, results, ranked, draft,
     availableDomains: departmentExecution.availableDomains, unavailableDomains: departmentExecution.unavailableDomains, mode: ctx.planningMode, pendingCount,
