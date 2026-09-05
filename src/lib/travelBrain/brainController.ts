@@ -11,8 +11,8 @@ import { buildMarketingDesignBrief } from "./marketingDesignNeuron";
 import { buildDesignSystemBrief } from "./designSystemNeuron";
 import { buildCreativeDepartmentPlan } from "./creativeDepartment";
 import { auditCreativeAgents } from "./creativeAuditEngine";
-import { collectCreativeAuditSources } from "./creativeAuditSource";
 import { attachCreativeAuditToPlan } from "./creativeAuditBridge";
+import { collectCreativeAuditSources } from "./creativeAuditSource";
 import type { AccesibilidadViaje, ModoPlanificacion, PresupuestoViaje } from "@/lib/types";
 
 export interface BrainInput {
@@ -78,14 +78,13 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
   const decision: BrainDecision = decideNextAction(context, actionState.pending, results, conflictResolutions);
   const optimization = optimizePlanningState(context, actionState.pending);
   const blockers = buildBlockers(analysis);
-  const initial = updateBrainState(brain, {
+  let state = updateBrainState(brain, {
     phase: phaseFor(decision.action, blockers, !decision.action && !analysis.unresolved.length && !analysis.workingMemory.conflicts.length),
     results, facts: analysis.workingMemory.facts, evidence, conflicts: analysis.workingMemory.conflicts,
     decisions: analysis.workingMemory.decisions, pendingActions: actionState.pending, completedActions: actionState.completed,
     blockers, decision, optimization, cycles: analysis.neuralCycles.length, completeness, confidence,
   });
 
-  let state = initial;
   const controlCycles = [] as BrainState["controlCycles"];
   for (let cycle = 1; cycle <= MAX_CONTROL_CYCLES; cycle++) {
     const currentDecision = state.decision ?? decideNextAction(context, state.pendingActions, state.results, conflictResolutions);
@@ -115,10 +114,12 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
   const finalState = updateBrainState(state, { changeSets: [...state.changeSets, changeSet] });
   const marketingDesign = buildMarketingDesignBrief(finalState);
   const designSystem = buildDesignSystemBrief(finalState);
-  const auditState = updateBrainState(finalState, { marketingDesign, designSystem });
-  const creativeAudit = auditCreativeAgents({ state: auditState, sourceFiles: collectCreativeAuditSources() });
-  const stateWithAudit = updateBrainState(auditState, { creativeAudit });
-  const creativeDepartment = attachCreativeAuditToPlan(buildCreativeDepartmentPlan(stateWithAudit), creativeAudit);
+  const baseCreativeState = updateBrainState(finalState, { marketingDesign, designSystem });
+  const creativeAudit = auditCreativeAgents({ state: baseCreativeState, sourceFiles: collectCreativeAuditSources() });
+  const creativeDepartment = attachCreativeAuditToPlan(
+    buildCreativeDepartmentPlan(updateBrainState(baseCreativeState, { creativeAudit })),
+    creativeAudit,
+  );
   return updateBrainState(finalState, { marketingDesign, designSystem, creativeAudit, creativeDepartment });
 }
 
