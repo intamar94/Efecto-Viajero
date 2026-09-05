@@ -3,6 +3,7 @@ export * from "./tripDeconstructor";
 export * from "./tripContext";
 export * from "./explorerIntelligence";
 export * from "./researchOrchestrator";
+export * from "./reverseEngineeringOrchestrator";
 export * from "./providerRegistry";
 export * from "./capabilityRequirements";
 export * from "./capabilityAudit";
