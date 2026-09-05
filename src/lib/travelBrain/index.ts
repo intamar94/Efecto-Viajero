@@ -4,6 +4,7 @@ export * from "./tripContext";
 export * from "./explorerIntelligence";
 export * from "./researchOrchestrator";
 export * from "./reverseEngineeringOrchestrator";
+export * from "./agentContracts";
 export * from "./agentRuntime";
 export * from "./providerRegistry";
 export * from "./capabilityRequirements";
