@@ -1,51 +1,22 @@
 import type { BrainState } from "./brainState";
 import type { MarketingDesignBrief, UXCodeChange } from "./marketingDesignNeuron";
-import { DESIGN_AGENTS, DESIGN_LAYERS, type CreativeAgentSpec as DesignAgentSpec, type CreativeAgentId, type DesignLayer } from "./designSystemNeuron";
+import type { CreativeAgentId, DesignLayer, CreativeAgentSpec as DesignAgentSpec } from "./designSystemNeuron";
 
 export type CreativeLayer = DesignLayer;
-export type CreativeAgentId = DesignAgentId;
+export interface CreativeAgentSpec { id: CreativeAgentId; name: string; specialty: string; layers: CreativeLayer[]; responsibilities: string[]; canModify: string[]; }
+export interface CreativeInstruction { id: string; agentId: CreativeAgentId; layer: CreativeLayer; priority: UXCodeChange["priority"]; title: string; reason: string; files: string[]; operations: string[]; libraries: string[]; commands: string[]; acceptanceCriteria: string[]; userOutcome: string; }
+export interface CreativeDepartmentPlan { agents: CreativeAgentSpec[]; instructions: CreativeInstruction[]; auditSurfaces: string[]; designPrinciples: string[]; colorPsychology: { rule: string; rationale: string }[]; status: "ready" | "partial" | "blocked"; }
 
-export interface CreativeAgentSpec {
-  id: CreativeAgentId;
-  name: string;
-  specialty: string;
-  layers: CreativeLayer[];
-  responsibilities: string[];
-  canModify: string[];
+function canonicalAgents(state: BrainState): CreativeAgentSpec[] {
+  return (state.designSystem?.agents ?? []).map((agent: DesignAgentSpec) => ({
+    id: agent.id,
+    name: agent.id.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
+    specialty: agent.responsibility,
+    layers: [],
+    responsibilities: [agent.responsibility],
+    canModify: agent.outputs,
+  }));
 }
-
-export interface CreativeInstruction {
-  id: string;
-  agentId: CreativeAgentId;
-  layer: CreativeLayer;
-  priority: UXCodeChange["priority"];
-  title: string;
-  reason: string;
-  files: string[];
-  operations: string[];
-  libraries: string[];
-  commands: string[];
-  acceptanceCriteria: string[];
-  userOutcome: string;
-}
-
-export interface CreativeDepartmentPlan {
-  agents: CreativeAgentSpec[];
-  instructions: CreativeInstruction[];
-  auditSurfaces: string[];
-  designPrinciples: string[];
-  colorPsychology: { rule: string; rationale: string }[];
-  status: "ready" | "partial" | "blocked";
-}
-
-const AGENTS: CreativeAgentSpec[] = DESIGN_AGENTS.map((agent: DesignAgentSpec) => ({
-  id: agent.id,
-  name: agent.id.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
-  specialty: agent.responsibility,
-  layers: DESIGN_LAYERS.filter((layer) => agent.outputs.includes(layer) || agent.inputs.includes(layer)) as CreativeLayer[],
-  responsibilities: [agent.responsibility],
-  canModify: agent.outputs,
-}));
 
 function inferLayer(change: UXCodeChange): CreativeLayer {
   if (change.area === "marketing") return "brand";
@@ -56,36 +27,11 @@ function inferLayer(change: UXCodeChange): CreativeLayer {
   if (change.area === "performance") return "performance";
   return "content";
 }
-
-function owner(layer: CreativeLayer): CreativeAgentId {
-  const map: Record<CreativeLayer, CreativeAgentId> = {
-    brand: "creative-director", psychology: "color-psychology", content: "copy-strategist", interaction: "interaction-designer",
-    visual: "visual-designer", component: "design-system-engineer", responsive: "responsive-designer", accessibility: "accessibility-designer",
-    motion: "motion-designer", performance: "performance-designer", implementation: "design-system-engineer",
-  };
-  return map[layer];
-}
-
-function commandsFor(layer: CreativeLayer): string[] { return layer === "performance" ? ["npm run lint", "npm run build"] : ["npm run lint"]; }
-
-function toInstruction(change: UXCodeChange): CreativeInstruction {
-  const layer = inferLayer(change);
-  return { id: `creative:${change.id}`, agentId: owner(layer), layer, priority: change.priority, title: change.title, reason: change.why, files: change.files, operations: change.changes, libraries: ["React", "Next.js", "Tailwind/CSS", "componentes existentes"], commands: commandsFor(layer), acceptanceCriteria: change.acceptanceCriteria, userOutcome: change.userOutcome };
-}
+function owner(layer: CreativeLayer): CreativeAgentId { return ({ brand: "creative-director", psychology: "color-psychology", content: "copy-strategist", interaction: "interaction-designer", visual: "visual-designer", component: "design-system-engineer", responsive: "responsive-designer", accessibility: "accessibility-designer", motion: "motion-designer", performance: "performance-designer", implementation: "design-system-engineer" } as Record<CreativeLayer, CreativeAgentId>)[layer]; }
+function toInstruction(change: UXCodeChange): CreativeInstruction { const layer = inferLayer(change); return { id: `creative:${change.id}`, agentId: owner(layer), layer, priority: change.priority, title: change.title, reason: change.why, files: change.files, operations: change.changes, libraries: ["React", "Next.js", "Tailwind/CSS", "componentes existentes"], commands: layer === "performance" ? ["npm run lint", "npm run build"] : ["npm run lint"], acceptanceCriteria: change.acceptanceCriteria, userOutcome: change.userOutcome }; }
 
 export function buildCreativeDepartmentPlan(state: BrainState): CreativeDepartmentPlan {
   const brief: MarketingDesignBrief | undefined = state.marketingDesign;
   const instructions = (brief?.changes ?? []).map(toInstruction);
-  return {
-    agents: AGENTS,
-    instructions,
-    auditSurfaces: ["src/app/", "src/components/", "src/app/globals.css"],
-    designPrinciples: ["contexto → estado → decisión → acción", "una acción primaria por superficie", "la complejidad del cerebro no invade la experiencia del viajero", "ninguna afirmación supera la capacidad realmente disponible", "degradación elegante ante datos/proveedores faltantes"],
-    colorPsychology: [
-      { rule: "Acción primaria: máxima saliencia sólo para la acción que mueve el viaje.", rationale: "Reduce competencia visual." },
-      { rule: "Verificado: sólo con evidencia validada.", rationale: "Evita falsas señales de confianza." },
-      { rule: "Pendiente/bloqueo: texto e icono además del color.", rationale: "No depende de percepción cromática." },
-    ],
-    status: state.blockers.length || state.conflicts.length ? "partial" : instructions.length ? "ready" : "blocked",
-  };
+  return { agents: canonicalAgents(state), instructions, auditSurfaces: ["src/app/", "src/components/", "src/app/globals.css"], designPrinciples: ["contexto → estado → decisión → acción", "una acción primaria por superficie", "la complejidad del cerebro no invade la experiencia del viajero", "ninguna afirmación supera la capacidad realmente disponible", "degradación elegante ante datos/proveedores faltantes"], colorPsychology: [{ rule: "Acción primaria: máxima saliencia sólo para la acción que mueve el viaje.", rationale: "Reduce competencia visual." }, { rule: "Verificado: sólo con evidencia validada.", rationale: "Evita falsas señales de confianza." }, { rule: "Pendiente/bloqueo: texto e icono además del color.", rationale: "No depende de percepción cromática." }], status: state.blockers.length || state.conflicts.length ? "partial" : instructions.length ? "ready" : "blocked" };
 }
