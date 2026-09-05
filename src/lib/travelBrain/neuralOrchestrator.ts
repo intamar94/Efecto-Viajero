@@ -41,7 +41,7 @@ export function buildNeuralCycle(requirements: DataRequirement[], results: Agent
     const result = resultByReq.get(requirement.id);
     if (!result) { fired.push(requirement.id); signals.push({ requirementId: requirement.id, source: "scheduler", kind: "activation", strength: priority(requirement.priority), reason: "Requisito pendiente listo para investigación." }); continue; }
     if (result.status === "ready" && result.validation.valid) signals.push({ requirementId: requirement.id, source: result.agentId, kind: "learning", strength: 1, reason: "Salida validada; señal propagable." });
-    else { inhibited.push(requirement.id); signals.push({ requirementId: result.agentId, source: result.agentId, kind: result.status === "error" ? "error" : "inhibition", strength: 1 - priority(requirement.priority) + .25, reason: (result.error ?? result.validation.issues.join("; ")) || "Salida insuficiente." }); }
+    else { inhibited.push(requirement.id); signals.push({ requirementId: requirement.id, source: result.agentId, kind: result.status === "error" ? "error" : "inhibition", strength: 1 - priority(requirement.priority) + .25, reason: (result.error ?? result.validation.issues.join("; ")) || "Salida insuficiente." }); }
   }
   return { cycle, fired, inhibited, signals, followUps: deriveNeuralFollowUps(requirements, results) };
 }
