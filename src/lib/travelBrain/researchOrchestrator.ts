@@ -57,11 +57,13 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   const capabilityAudit = auditCapabilities(plan.tasks, results, departmentExecution.reports);
   const supervisorUpdate = buildOrchestratorUpdate(results, plan.tasks, normalizedUnresolved, departmentExecution.reports, departmentExecution.neuralCycles.length, capabilityAudit, departmentExecution.neuralCycles);
   return {
+    context: ctx,
     locations, unresolved: normalizedUnresolved, countryCode, plan, results, ranked, draft,
     availableDomains: departmentExecution.availableDomains, unavailableDomains: departmentExecution.unavailableDomains, mode: ctx.planningMode, pendingCount,
     orchestration: { selected: plan.selectedDomains, skipped: plan.skippedDomains, reasons: plan.selectionReasons, explicitSignals: [...deriveOrchestrationSignals(ctx).explicit], inferredSignals: [...deriveOrchestrationSignals(ctx).inferred] },
     reverseEngineering,
     neuralCycles: departmentExecution.neuralCycles,
+    workingMemory: departmentExecution.workingMemory,
     phases: { understand: results.filter((r) => r.task.phase === "understand").map((r) => r.task.domain), prepare: results.filter((r) => r.task.phase === "prepare").map((r) => r.task.domain), plan: results.filter((r) => r.task.phase === "plan").map((r) => r.task.domain), live: results.filter((r) => r.task.phase === "live").map((r) => r.task.domain), memory: results.filter((r) => r.task.phase === "memory").map((r) => r.task.domain) },
     explorer, departmentReports: departmentExecution.reports, capabilityAudit, supervisorUpdate,
   };
