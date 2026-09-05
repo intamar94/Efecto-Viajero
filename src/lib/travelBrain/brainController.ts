@@ -7,6 +7,7 @@ import { resolveWorkingMemoryConflicts, type ConflictClaim } from "./conflictRes
 import { decideNextAction, type BrainDecision } from "./decisionEngine";
 import { buildChangeSet } from "./changeSet";
 import { optimizePlanningState } from "./optimizer";
+import { buildMarketingDesignBrief } from "./marketingDesignNeuron";
 import type { AccesibilidadViaje, ModoPlanificacion, PresupuestoViaje } from "@/lib/types";
 
 export interface BrainInput {
@@ -72,16 +73,14 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
   const conflictResolutions = resolveWorkingMemoryConflicts(analysis.workingMemory.conflicts, claims);
   const decision: BrainDecision = decideNextAction(context, actionState.pending, results, conflictResolutions);
   const optimization = optimizePlanningState(context, actionState.pending);
+  const blockers = buildBlockers(analysis);
   const initial = updateBrainState(brain, {
-    phase: phaseFor(decision.action, buildBlockers(analysis), !decision.action && !analysis.unresolved.length && !analysis.workingMemory.conflicts.length),
+    phase: phaseFor(decision.action, blockers, !decision.action && !analysis.unresolved.length && !analysis.workingMemory.conflicts.length),
     results, facts: analysis.workingMemory.facts, evidence, conflicts: analysis.workingMemory.conflicts,
     decisions: analysis.workingMemory.decisions, pendingActions: actionState.pending, completedActions: actionState.completed,
-    blockers: buildBlockers(analysis), decision, optimization, cycles: analysis.neuralCycles.length, completeness, confidence,
+    blockers, decision, optimization, cycles: analysis.neuralCycles.length, completeness, confidence,
   });
 
-  // BrainController now owns an explicit bounded control loop over the materialized state.
-  // It does not pretend that an unavailable external provider was executed: actions that
-  // require new research remain pending until the execution layer can actually run them.
   let state = initial;
   const controlCycles = [] as BrainState["controlCycles"];
   for (let cycle = 1; cycle <= MAX_CONTROL_CYCLES; cycle++) {
@@ -91,15 +90,11 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
       state = updateBrainState(state, { phase: "complete", terminationReason: "converged", controlCycles });
       break;
     }
-
     const action = currentDecision.action;
     const directlySatisfied = state.results.some((result) => result.status === "ready" && result.validation.valid && result.dataType === action.target);
     const outcome = directlySatisfied ? "completed" : "waiting";
-    const reason = directlySatisfied
-      ? `La acción ${action.type} quedó satisfecha por un resultado validado.`
-      : `La acción ${action.type} requiere ejecución adicional; el controlador no inventa una ejecución externa.`;
+    const reason = directlySatisfied ? `La acción ${action.type} quedó satisfecha por un resultado validado.` : `La acción ${action.type} requiere ejecución adicional; el controlador no inventa una ejecución externa.`;
     controlCycles.push({ cycle, phase: phaseFor(action, state.blockers, false), decisionId: currentDecision.id, selectedActionId: action.id, selectedActionType: action.type, selectedTarget: action.target, outcome, reason, createdAt: new Date().toISOString() });
-
     if (directlySatisfied) {
       const completedAction = { ...action, status: "completed" as const };
       const pendingActions = state.pendingActions.filter((item) => item.id !== action.id);
@@ -108,13 +103,13 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
       state = updateBrainState(state, { phase: phaseFor(nextDecision.action, state.blockers, !nextDecision.action), pendingActions, completedActions, decision: nextDecision, controlCycles });
       continue;
     }
-
     state = updateBrainState(state, { phase: phaseFor(action, state.blockers, false), terminationReason: "max-cycles", controlCycles });
     break;
   }
 
   const changeSet = buildChangeSet(undefined, state, "Estado inicial materializado y recorrido por BrainController.");
-  return updateBrainState(state, { changeSets: [...state.changeSets, changeSet], controlCycles });
+  const finalState = updateBrainState(state, { changeSets: [...state.changeSets, changeSet] });
+  return updateBrainState(finalState, { marketingDesign: buildMarketingDesignBrief(finalState) });
 }
 
 export async function runBrain(input: BrainInput): Promise<BrainRun> {
