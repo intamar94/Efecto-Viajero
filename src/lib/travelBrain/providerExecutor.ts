@@ -31,17 +31,34 @@ export interface AgentProviderInput {
   dependencySignals?: ProviderSignal[];
 }
 
+const noDestinationDomains = new Set(["currency", "budget", "expenses", "offline"]);
+
 /** Lowest-level provider execution. Upstream validated signals are explicit provider input. */
 export async function executeTask(task: ResearchTask, context: CanonicalTripContext, locations: ResolvedDestination[], input: AgentProviderInput = {}): Promise<ResearchResult[]> {
-  if (!locations.length && task.domain !== "currency") return [{ task, status: "unavailable", data: { reason: "Falta un destino resuelto." } }];
-  if (task.domain === "currency") {
-    if (!locations.length) return [{ task, status: "unavailable", data: { reason: "Falta un destino para consultar la conversión." } }];
-    const result = await executeDomainProvider(task.domain, { destination: locations[0], start: context.dates.start, end: context.dates.end, currency: context.budget.moneda, ...input });
-    return [{ task, status: result.status, data: { destination: locations[0], result: result.data }, evidence: result.evidence, error: result.error }];
+  if (!locations.length && !noDestinationDomains.has(task.domain)) return [{ task, status: "unavailable", data: { reason: "Falta un destino resuelto." } }];
+  const targets = locations.length ? locations : [{ name: "trip", displayName: "Viaje completo", countryCode: "", latitude: 0, longitude: 0 } as ResolvedDestination];
+  const baseInput = {
+    start: context.dates.start,
+    end: context.dates.end,
+    currency: context.budget.moneda,
+    budgetAmount: context.budget.cantidad,
+    budgetType: context.budget.tipo,
+    travelerCounts: {
+      adults: context.travelers.adultos ?? 0,
+      children: context.travelers.ninos ?? 0,
+      babies: context.travelers.bebes ?? 0,
+      seniors: context.travelers.personasMayores ?? 0,
+      pets: context.travelers.mascotas ?? 0,
+    },
+    ...input,
+  };
+  if (task.domain === "currency" || noDestinationDomains.has(task.domain)) {
+    const result = await executeDomainProvider(task.domain, { destination: targets[0], ...baseInput });
+    return [{ task, status: result.status, data: { destination: targets[0], result: result.data }, evidence: result.evidence, error: result.error }];
   }
-  const executions = await Promise.all(locations.map(async (target, index) => {
-    const origin = task.domain === "transport" && index > 0 ? { latitude: locations[index - 1].latitude, longitude: locations[index - 1].longitude } : undefined;
-    const result = await executeDomainProvider(task.domain, { destination: target, origin, start: context.dates.start, end: context.dates.end, currency: context.budget.moneda, ...input });
+  const executions = await Promise.all(targets.map(async (target, index) => {
+    const origin = task.domain === "transport" && index > 0 ? { latitude: targets[index - 1].latitude, longitude: targets[index - 1].longitude } : undefined;
+    const result = await executeDomainProvider(task.domain, { destination: target, origin, ...baseInput });
     return { target, result };
   }));
   return executions.map(({ target, result }) => ({ task, status: result.status, data: { destination: target, result: result.data }, evidence: result.evidence, error: result.error }));
