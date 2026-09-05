@@ -1,4 +1,5 @@
 import type { PersonaViajero, Viaje } from "./types";
+import { generarId } from "./id";
 
 export const VIAJEROS_EJEMPLO: PersonaViajero[] = [
   {
@@ -102,6 +103,247 @@ export const VIAJE_EJEMPLO: Viaje = {
   participantes: [],
   votaciones: [],
   recuerdos: [],
+  itinerario: {
+    version: 1,
+    preferencias: {
+      ritmo: "normal",
+      permitirDescansos: true,
+      permitirMadrugadas: false,
+      horaLlegada: "09:00",
+      horaSalida: "21:00",
+    },
+    dias: [
+      {
+        dia: 1,
+        fecha: "2024-09-20",
+        etapa: "Bogotá",
+        descansoTotal: false,
+        actividades: [
+          {
+            actividadId: "act-bog-1-1",
+            horaInicio: "14:00",
+            horaFin: "17:00",
+            notas: "Llegada y acomodación",
+            confirmada: true,
+          },
+          {
+            actividadId: "act-bog-1-2",
+            horaInicio: "18:00",
+            horaFin: "20:00",
+            notas: "Cena de bienvenida",
+            confirmada: true,
+          },
+        ],
+      },
+      {
+        dia: 2,
+        fecha: "2024-09-21",
+        etapa: "Bogotá",
+        descansoTotal: false,
+        actividades: [
+          {
+            actividadId: "act-bog-2-1",
+            horaInicio: "09:00",
+            horaFin: "12:00",
+            notas: "Visita La Candelaria",
+            confirmada: true,
+          },
+          {
+            actividadId: "act-bog-2-2",
+            horaInicio: "13:00",
+            horaFin: "14:00",
+            notas: "Almuerzo",
+            confirmada: false,
+          },
+          {
+            actividadId: "act-bog-2-3",
+            horaInicio: "15:00",
+            horaFin: "18:00",
+            notas: "Museo del Oro",
+            confirmada: true,
+          },
+        ],
+      },
+      {
+        dia: 3,
+        fecha: "2024-09-22",
+        etapa: "Bogotá",
+        descansoTotal: false,
+        actividades: [
+          {
+            actividadId: "act-bog-3-1",
+            horaInicio: "08:00",
+            horaFin: "11:00",
+            notas: "Visita Monserrate",
+            confirmada: true,
+          },
+          {
+            actividadId: "act-bog-3-2",
+            horaInicio: "12:00",
+            horaFin: "21:00",
+            notas: "Tarde libre en el centro",
+            confirmada: false,
+          },
+        ],
+      },
+      {
+        dia: 4,
+        fecha: "2024-09-23",
+        etapa: "Medellín",
+        descansoTotal: true,
+        notas: "Viaje a Medellín, día de descanso",
+        actividades: [],
+      },
+      {
+        dia: 5,
+        fecha: "2024-09-24",
+        etapa: "Medellín",
+        descansoTotal: false,
+        actividades: [
+          {
+            actividadId: "act-med-1-1",
+            horaInicio: "10:00",
+            horaFin: "13:00",
+            notas: "Tours Comuna 13",
+            confirmada: true,
+          },
+          {
+            actividadId: "act-med-1-2",
+            horaInicio: "14:00",
+            horaFin: "17:00",
+            notas: "Paseo en cable",
+            confirmada: false,
+          },
+          {
+            actividadId: "act-med-1-3",
+            horaInicio: "18:00",
+            horaFin: "20:00",
+            notas: "Cena tradicional",
+            confirmada: true,
+          },
+        ],
+      },
+      {
+        dia: 6,
+        fecha: "2024-09-25",
+        etapa: "Medellín",
+        descansoTotal: false,
+        actividades: [
+          {
+            actividadId: "act-med-2-1",
+            horaInicio: "09:00",
+            horaFin: "12:00",
+            notas: "Feria de Flores (si aplicable)",
+            confirmada: false,
+          },
+          {
+            actividadId: "act-med-2-2",
+            horaInicio: "14:00",
+            horaFin: "19:00",
+            notas: "Plaza Botero",
+            confirmada: true,
+          },
+        ],
+      },
+      {
+        dia: 7,
+        fecha: "2024-09-26",
+        etapa: "Medellín",
+        descansoTotal: true,
+        notas: "Viaje a Cartagena, descanso",
+        actividades: [],
+      },
+      {
+        dia: 8,
+        fecha: "2024-09-27",
+        etapa: "Cartagena",
+        descansoTotal: false,
+        actividades: [
+          {
+            actividadId: "act-car-1-1",
+            horaInicio: "15:00",
+            horaFin: "18:00",
+            notas: "Llegada y paseo por la muralla",
+            confirmada: true,
+          },
+          {
+            actividadId: "act-car-1-2",
+            horaInicio: "19:00",
+            horaFin: "21:00",
+            notas: "Cena frente al mar",
+            confirmada: true,
+          },
+        ],
+      },
+      {
+        dia: 9,
+        fecha: "2024-09-28",
+        etapa: "Cartagena",
+        descansoTotal: false,
+        actividades: [
+          {
+            actividadId: "act-car-2-1",
+            horaInicio: "09:00",
+            horaFin: "12:00",
+            notas: "City tour Cartagena",
+            confirmada: true,
+          },
+          {
+            actividadId: "act-car-2-2",
+            horaInicio: "13:00",
+            horaFin: "17:00",
+            notas: "Islas del Rosario",
+            confirmada: true,
+          },
+        ],
+      },
+      {
+        dia: 10,
+        fecha: "2024-09-29",
+        etapa: "Cartagena",
+        descansoTotal: false,
+        actividades: [
+          {
+            actividadId: "act-car-3-1",
+            horaInicio: "10:00",
+            horaFin: "13:00",
+            notas: "Playa libre",
+            confirmada: false,
+          },
+          {
+            actividadId: "act-car-3-2",
+            horaInicio: "15:00",
+            horaFin: "21:00",
+            notas: "Shopping y compras de souvenirs",
+            confirmada: false,
+          },
+        ],
+      },
+      {
+        dia: 11,
+        fecha: "2024-09-30",
+        etapa: "Cartagena",
+        descansoTotal: true,
+        notas: "Último día libre antes de volver",
+        actividades: [],
+      },
+      {
+        dia: 12,
+        fecha: "2024-10-01",
+        etapa: "Cartagena",
+        descansoTotal: false,
+        actividades: [
+          {
+            actividadId: "act-car-4-1",
+            horaInicio: "16:00",
+            horaFin: "18:00",
+            notas: "Ida al aeropuerto",
+            confirmada: true,
+          },
+        ],
+      },
+    ],
+  },
   investigacion: {
     generadoEn: new Date().toISOString(),
     sitios: {

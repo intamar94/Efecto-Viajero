@@ -482,92 +482,14 @@ export default function ActividadesPage() {
           </p>
         )}
 
-        {sitiosPorLugar.length > 0 && (
-          <>
-            <div className="mt-8 mb-4">
-              <h2 className="font-medium">Sitios reales cerca</h2>
-              <p className="text-xs text-neutral-500">Lugares descubiertos en la zona según OpenStreetMap.</p>
-            </div>
-            {sitiosPorLugar.map((grupo) => (
-              <div key={grupo.lugar} className="mb-6">
-                <h3 className="mb-3 font-medium text-sm text-neutral-900">📍 {grupo.lugar}</h3>
-                {grupo.porCategoria.map((categ) => (
-                  <div key={categ.categoria} className="mb-4">
-                    <p className="mb-2 text-xs font-medium text-neutral-700">
-                      {ETIQUETA_CATEGORIA_SITIO[categ.categoria].icono} {ETIQUETA_CATEGORIA_SITIO[categ.categoria].etiqueta}
-                    </p>
-                    <div className="space-y-2">
-                      {categ.sitios.map((sitio, idx) => (
-                        <div key={idx} className="card p-3 bg-neutral-50 border-l-4 border-marino-300">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex-1">
-                              <p className="font-medium text-sm text-neutral-900">{sitio.nombre}</p>
-                              {sitio.detalle && <p className="text-xs text-neutral-600">{sitio.detalle}</p>}
-                            </div>
-                            {sitio.precioAprox && (
-                              <span className="text-xs bg-coral-100 text-coral-700 px-2 py-1 rounded shrink-0">
-                                {sitio.precioAprox}
-                              </span>
-                            )}
-                          </div>
-
-                          {(sitio.horarioApertura || sitio.horarioCierre) && (
-                            <p className="text-xs text-neutral-600 mb-2">
-                              🕐 {sitio.horarioApertura || "?"} - {sitio.horarioCierre || "?"}
-                            </p>
-                          )}
-
-                          <div className="flex gap-2">
-                            {sitio.boleteria && (
-                              <a
-                                href={sitio.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs font-medium text-marino-600 hover:text-marino-700 underline"
-                              >
-                                Entrada en {sitio.boleteria}
-                              </a>
-                            )}
-                            {sitio.url && !sitio.boleteria && (
-                              <a
-                                href={sitio.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs font-medium text-marino-600 hover:text-marino-700 underline"
-                              >
-                                Más →
-                              </a>
-                            )}
-                            {sitio.lat && sitio.lon && (
-                              <a
-                                href={`https://www.google.com/maps?q=${sitio.lat},${sitio.lon}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs font-medium text-neutral-500 hover:text-neutral-700 underline"
-                              >
-                                Mapa
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </>
-        )}
-
         {destino && (
-          <>
-            <div className="mt-8" />
+          <div className="mt-8">
             <EventosEstacionalesDestino
               pais={destino.pais}
               mesInicio={salida ? salida.getMonth() + 1 : undefined}
               mesFin={regreso ? regreso.getMonth() + 1 : undefined}
             />
-          </>
+          </div>
         )}
       </div>
     </main>
