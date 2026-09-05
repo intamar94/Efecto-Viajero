@@ -4,7 +4,6 @@ import { decideNextAction, type BrainDecision } from "./decisionEngine";
 import { executeAgents } from "./agentRuntime";
 import type { AgentResult } from "./agentRuntime";
 import type { ResolvedDestination } from "./destinationResolver";
-import type { WorkingMemory } from "./workingMemory";
 
 export type ActionExecutionStatus = "executed" | "waiting" | "blocked" | "failed";
 
@@ -32,21 +31,23 @@ export interface BrainActionExecutor {
 
 export interface BrainExecutionDependencies {
   locations: ResolvedDestination[];
-  memory?: WorkingMemory;
+}
+
+function requirementsForAction(state: BrainState, action: BrainAction) {
+  const dependencyIds = new Set(action.dependsOn);
+  const byId = state.requirements.filter((requirement) => dependencyIds.has(requirement.id));
+  if (byId.length) return byId;
+  return state.requirements.filter((requirement) => requirement.id === action.target || requirement.dataType === action.target);
 }
 
 export function createBrainActionExecutor(dependencies: BrainExecutionDependencies): BrainActionExecutor {
   return {
     async execute(state, action) {
       const now = new Date().toISOString();
-      const requirements = state.requirements.filter((requirement) =>
-        requirement.id === action.target || requirement.dataType === action.target,
-      );
-      const agents = state.agents.filter((agent) =>
-        requirements.some((requirement) => requirement.agentId === agent.id),
-      );
+      const requirements = requirementsForAction(state, action);
+      const agents = state.agents.filter((agent) => requirements.some((requirement) => requirement.agentId === agent.id));
 
-      if (!requirements.length) {
+      if (!requirements.length || !agents.length) {
         return {
           cycle: state.controlCycles.length + 1,
           action,
@@ -55,7 +56,7 @@ export function createBrainActionExecutor(dependencies: BrainExecutionDependenci
             actionType: action.type,
             target: action.target,
             status: "waiting",
-            reason: "La acción no tiene todavía un requisito ejecutable asociado.",
+            reason: "La acción no tiene todavía un requisito y agente ejecutables asociados.",
             resultIds: [],
             createdAt: now,
           },
@@ -64,7 +65,7 @@ export function createBrainActionExecutor(dependencies: BrainExecutionDependenci
       }
 
       try {
-        const results = await executeAgents(requirements, agents, state.context, dependencies.locations, [], dependencies.memory);
+        const results = await executeAgents(requirements, agents, state.context, dependencies.locations);
         const ready = results.filter((result) => result.status === "ready" && result.validation.valid);
         const failed = results.filter((result) => result.status === "error");
         return {
@@ -110,10 +111,7 @@ export function selectExecutableAction(state: BrainState): BrainAction | null {
 }
 
 export function isActionSatisfied(action: BrainAction, results: AgentResult[]): boolean {
-  return results.some((result) =>
-    result.status === "ready" && result.validation.valid &&
-    (result.requirementId === action.target || result.dataType === action.target),
-  );
+  return results.some((result) => result.status === "ready" && result.validation.valid && (result.requirementId === action.target || result.dataType === action.target));
 }
 
 export function recalculateDecision(state: BrainState): BrainDecision {
