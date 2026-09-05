@@ -3,6 +3,8 @@ import type { BrainAction } from "./brainActions";
 import { decideNextAction, type BrainDecision } from "./decisionEngine";
 import { executeAgents } from "./agentRuntime";
 import type { AgentResult } from "./agentRuntime";
+import type { ResolvedDestination } from "./destinationResolver";
+import type { WorkingMemory } from "./workingMemory";
 
 export type ActionExecutionStatus = "executed" | "waiting" | "blocked" | "failed";
 
@@ -28,12 +30,12 @@ export interface BrainActionExecutor {
   execute(state: BrainState, action: BrainAction): Promise<BrainExecutionCycle>;
 }
 
-/**
- * Central execution boundary. It deliberately delegates data-producing work
- * to the existing agent runtime instead of allowing individual departments
- * to implement their own loops.
- */
-export function createBrainActionExecutor(): BrainActionExecutor {
+export interface BrainExecutionDependencies {
+  locations: ResolvedDestination[];
+  memory?: WorkingMemory;
+}
+
+export function createBrainActionExecutor(dependencies: BrainExecutionDependencies): BrainActionExecutor {
   return {
     async execute(state, action) {
       const now = new Date().toISOString();
@@ -45,47 +47,59 @@ export function createBrainActionExecutor(): BrainActionExecutor {
       );
 
       if (!requirements.length) {
-        const execution: ActionExecution = {
-          actionId: action.id,
-          actionType: action.type,
-          target: action.target,
-          status: "waiting",
-          reason: "La acción no tiene todavía un requisito ejecutable asociado.",
-          resultIds: [],
-          createdAt: now,
+        return {
+          cycle: state.controlCycles.length + 1,
+          action,
+          execution: {
+            actionId: action.id,
+            actionType: action.type,
+            target: action.target,
+            status: "waiting",
+            reason: "La acción no tiene todavía un requisito ejecutable asociado.",
+            resultIds: [],
+            createdAt: now,
+          },
+          results: [],
         };
-        return { cycle: state.controlCycles.length + 1, action, execution, results: [] };
       }
 
       try {
-        const results = await executeAgents(requirements, agents, state.context, state.facts);
+        const results = await executeAgents(requirements, agents, state.context, dependencies.locations, [], dependencies.memory);
         const ready = results.filter((result) => result.status === "ready" && result.validation.valid);
         const failed = results.filter((result) => result.status === "error");
-        const execution: ActionExecution = {
-          actionId: action.id,
-          actionType: action.type,
-          target: action.target,
-          status: ready.length ? "executed" : failed.length ? "failed" : "waiting",
-          reason: ready.length
-            ? `La ejecución produjo ${ready.length} resultado(s) validado(s).`
-            : failed.length
-              ? `La ejecución produjo ${failed.length} error(es); el cerebro debe recuperarse.`
-              : "La ejecución terminó sin un resultado validado.",
-          resultIds: results.map((result) => result.requirementId),
-          createdAt: now,
+        return {
+          cycle: state.controlCycles.length + 1,
+          action,
+          execution: {
+            actionId: action.id,
+            actionType: action.type,
+            target: action.target,
+            status: ready.length ? "executed" : failed.length ? "failed" : "waiting",
+            reason: ready.length
+              ? `La ejecución produjo ${ready.length} resultado(s) validado(s).`
+              : failed.length
+                ? `La ejecución produjo ${failed.length} error(es); el cerebro debe recuperarse.`
+                : "La ejecución terminó sin un resultado validado.",
+            resultIds: results.map((result) => result.requirementId),
+            createdAt: now,
+          },
+          results,
         };
-        return { cycle: state.controlCycles.length + 1, action, execution, results };
       } catch (error) {
-        const execution: ActionExecution = {
-          actionId: action.id,
-          actionType: action.type,
-          target: action.target,
-          status: "failed",
-          reason: error instanceof Error ? error.message : "Error desconocido durante la ejecución.",
-          resultIds: [],
-          createdAt: now,
+        return {
+          cycle: state.controlCycles.length + 1,
+          action,
+          execution: {
+            actionId: action.id,
+            actionType: action.type,
+            target: action.target,
+            status: "failed",
+            reason: error instanceof Error ? error.message : "Error desconocido durante la ejecución.",
+            resultIds: [],
+            createdAt: now,
+          },
+          results: [],
         };
-        return { cycle: state.controlCycles.length + 1, action, execution, results: [] };
       }
     },
   };
