@@ -300,25 +300,47 @@ export default function ActividadesPage() {
                 <div className="space-y-3">
                   {porCategoria.map(({ categoria, sitios }) => (
                     <div key={categoria} className="card">
-                      <p className="mb-2 text-sm font-medium">
+                      <p className="mb-3 text-sm font-medium">
                         {ETIQUETA_CATEGORIA_SITIO[categoria].icono} {ETIQUETA_CATEGORIA_SITIO[categoria].etiqueta}
                       </p>
-                      <ul className="flex flex-wrap gap-1.5">
+                      <ul className="space-y-2">
                         {sitios.map((s) => (
-                          <li key={`${s.nombre}-${s.lat}-${s.lon}`}>
-                            {s.lat && s.lon ? (
-                              <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="chip hover:border-marino-500 hover:text-marino-800"
-                              >
-                                {s.nombre}
-                                {s.detalle && <span className="text-neutral-400"> · {s.detalle}</span>}
-                              </a>
-                            ) : (
-                              <span className="chip">{s.nombre}</span>
+                          <li key={`${s.nombre}-${s.lat}-${s.lon}`} className="rounded-lg border border-neutral-200 bg-white p-3">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <p className="font-medium text-neutral-900">{s.nombre}</p>
+                              {s.precioAprox && <span className="shrink-0 text-xs bg-neutral-100 text-neutral-600 px-2 py-1 rounded">{s.precioAprox}</span>}
+                            </div>
+
+                            {s.detalle && <p className="text-xs text-neutral-600 mb-2">{s.detalle}</p>}
+
+                            {(s.horarioApertura || s.horarioCierre) && (
+                              <p className="text-xs text-neutral-600 mb-2">
+                                🕐 {s.horarioApertura || "Abre"} {s.horarioCierre ? ` - ${s.horarioCierre}` : ""}
+                              </p>
                             )}
+
+                            <div className="flex flex-wrap gap-2">
+                              {s.lat && s.lon && (
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-marino-500 hover:text-marino-800 transition"
+                                >
+                                  📍 Mapa
+                                </a>
+                              )}
+                              {s.url && (
+                                <a
+                                  href={s.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs px-2.5 py-1.5 rounded-lg bg-marino-50 border border-marino-200 text-marino-700 hover:bg-marino-100 transition"
+                                >
+                                  {s.boleteria ? `🎫 ${s.boleteria}` : "🔗 Sitio web"}
+                                </a>
+                              )}
+                            </div>
                           </li>
                         ))}
                       </ul>

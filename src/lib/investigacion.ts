@@ -18,6 +18,11 @@ export interface SitioReal {
   detalle?: string;
   lat?: number;
   lon?: number;
+  url?: string;
+  precioAprox?: string;
+  horarioApertura?: string;
+  horarioCierre?: string;
+  boleteria?: string;
 }
 
 export interface DiaClima {
