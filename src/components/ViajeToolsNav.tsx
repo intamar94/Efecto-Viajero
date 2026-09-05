@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const HERRAMIENTAS = [
   { href: "", icono: "🏠", titulo: "Resumen" },
   { href: "ruta", icono: "🧭", titulo: "Ruta" },
+  { href: "itinerario", icono: "📅", titulo: "Itinerario" },
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
   { href: "actividades", icono: "🎒", titulo: "Actividades" },

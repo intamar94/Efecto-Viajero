@@ -212,6 +212,7 @@ export interface Viaje {
   // clima, moneda) ya recortado. Sin guardarlo, esa investigación se
   // perdía al salir de /planificar y había que volver a pedirla.
   investigacion?: Investigacion;
+  itinerario?: Itinerario;
 }
 
 export type EstadoRequisito = "verde" | "amarillo" | "rojo";
@@ -228,6 +229,42 @@ export interface ResultadoRequisito {
 }
 
 export interface TransporteLocal { medios: string[]; comoSePaga: string; apps?: string; aviso?: string; }
+
+export type RitmoPreferencia = "tranquilo" | "normal" | "intenso";
+
+export interface ActividadEnHorario {
+  actividadId: string;
+  horaInicio: string;
+  horaFin: string;
+  notas?: string;
+  confirmada: boolean;
+}
+
+export interface DiaItinerario {
+  fecha: string;
+  dia: number;
+  etapa?: string;
+  actividades: ActividadEnHorario[];
+  descansoTotal: boolean;
+  notas?: string;
+}
+
+export interface PreferenciaItinerario {
+  ritmo: RitmoPreferencia;
+  permitirDescansos: boolean;
+  permitirMadrugadas: boolean;
+  horaLlegada?: string;
+  horaSalida?: string;
+  generada?: boolean;
+  timestamp?: string;
+}
+
+export interface Itinerario {
+  dias: DiaItinerario[];
+  preferencias: PreferenciaItinerario;
+  generadoEn?: string;
+  version: number;
+}
 
 export interface Destino {
   id: string;
