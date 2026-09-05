@@ -7,6 +7,7 @@ export * from "./reverseEngineeringOrchestrator";
 export * from "./agentContracts";
 export * from "./agentRuntime";
 export * from "./neuralOrchestrator";
+export * from "./workingMemory";
 export * from "./providerRegistry";
 export * from "./capabilityRequirements";
 export * from "./capabilityAudit";
