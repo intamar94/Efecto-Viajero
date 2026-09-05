@@ -8,6 +8,8 @@ import { decideNextAction, type BrainDecision } from "./decisionEngine";
 import { buildChangeSet } from "./changeSet";
 import { optimizePlanningState } from "./optimizer";
 import { buildMarketingDesignBrief } from "./marketingDesignNeuron";
+import { buildDesignSystemBrief } from "./designSystemNeuron";
+import { buildCreativeDepartmentPlan } from "./creativeDepartment";
 import type { AccesibilidadViaje, ModoPlanificacion, PresupuestoViaje } from "@/lib/types";
 
 export interface BrainInput {
@@ -62,7 +64,6 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
   const results = analysis.departmentReports.flatMap((report) => report.agentResults);
   const evidence = results.flatMap((result) => result.evidence ?? []);
   const completed = requirements.filter((requirement) => results.some((result) => result.requirementId === requirement.id));
-  const validated = results.filter((result) => result.status === "ready" && result.validation.valid);
   const completeness = requirements.length ? completed.length / requirements.length : 1;
   const confidence = results.length ? results.reduce((sum, result) => sum + (result.confidence === "high" ? 1 : result.confidence === "medium" ? .7 : .4), 0) / results.length : 0;
   const brain = createBrainState({ runId: `brain:${Date.now()}`, context, requirements, agents });
@@ -109,7 +110,10 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
 
   const changeSet = buildChangeSet(undefined, state, "Estado inicial materializado y recorrido por BrainController.");
   const finalState = updateBrainState(state, { changeSets: [...state.changeSets, changeSet] });
-  return updateBrainState(finalState, { marketingDesign: buildMarketingDesignBrief(finalState) });
+  const marketingDesign = buildMarketingDesignBrief(finalState);
+  const designSystem = buildDesignSystemBrief(finalState);
+  const creativeDepartment = buildCreativeDepartmentPlan(updateBrainState(finalState, { marketingDesign, designSystem }));
+  return updateBrainState(finalState, { marketingDesign, designSystem, creativeDepartment } as Partial<BrainState>);
 }
 
 export async function runBrain(input: BrainInput): Promise<BrainRun> {
