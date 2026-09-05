@@ -28,4 +28,5 @@ export * from "./changeSet";
 export * from "./optimizer";
 export * from "./persistentMemory";
 export * from "./marketingDesignNeuron";
+export * from "./designSystemNeuron";
 export * from "./brainController";
