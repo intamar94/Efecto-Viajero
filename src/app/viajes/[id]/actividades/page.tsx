@@ -115,6 +115,9 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1.5">
+        <span className="chip">
+          {ETIQUETA_CATEGORIA[it.categoria].icono} {ETIQUETA_CATEGORIA[it.categoria].etiqueta}
+        </span>
         {it.duracionHoras > 0 && <span className="chip">⏱️ {it.duracionHoras}h</span>}
         {it.notaPrecio ? (
           <span className="chip">💵 {it.notaPrecio}</span>
@@ -203,7 +206,6 @@ export default function ActividadesPage() {
 
   const [adaptacion, setAdaptacion] = useState<"lluvia" | "cansancio" | null>(null);
   const [etapasAbiertas, setEtapasAbiertas] = useState<Set<string>>(new Set());
-  const [categoriasAbiertas, setCategoriasAbiertas] = useState<Set<string>>(new Set());
   const [formEtapaId, setFormEtapaId] = useState<string | null>(null);
   const [nombreNueva, setNombreNueva] = useState("");
   const [horasNueva, setHorasNueva] = useState("");
@@ -404,7 +406,16 @@ export default function ActividadesPage() {
         etapaNombre: etapa.nombre,
       }));
 
-    return [...propiasDeEtapa, ...deSitiosReales, ...deWikivoyage, ...delCatalogo];
+    // El mismo lugar real puede aparecer en más de una fuente (tu propia
+    // nota, un sitio de OpenStreetMap, un listing de Wikivoyage, o la idea
+    // genérica del catálogo): se prioriza la fuente más fiable — lo que tú
+    // añadiste, luego investigación real, luego la idea orientativa — y no
+    // se repite la misma tarjeta con el mismo nombre varias veces.
+    const nombresYaMostrados = new Set(propiasDeEtapa.map((it) => slug(it.nombre)));
+    const sinDuplicar = (lista: Item[]) =>
+      lista.filter((it) => !nombresYaMostrados.has(slug(it.nombre)) && nombresYaMostrados.add(slug(it.nombre)));
+
+    return [...propiasDeEtapa, ...sinDuplicar(deSitiosReales), ...sinDuplicar(deWikivoyage), ...sinDuplicar(delCatalogo)];
   }
 
   function setEstado(item: Item, estado: EstadoActividad | null) {
@@ -459,15 +470,6 @@ export default function ActividadesPage() {
     });
   }
 
-  function toggleCategoria(key: string) {
-    setCategoriasAbiertas((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
-
   function anadirPropia(e: React.FormEvent, etapa: Etapa) {
     e.preventDefault();
     if (!viaje || !nombreNueva.trim()) return;
@@ -506,7 +508,6 @@ export default function ActividadesPage() {
   // Catálogo combinado de todas las etapas, para "algo ha cambiado", que
   // no necesita saber de qué ciudad es cada cosa.
   const catalogoCompleto: Item[] = etapas.flatMap((e) => itemsDeEtapa(e));
-  const yaEnItinerario = new Set(viaje.actividades.filter((a) => a.estado !== "disponible" && a.estado !== "descartada").map((a) => a.actividadId));
 
   // Está lloviendo: buscamos automáticamente alternativas de interior, sin
   // que la persona tenga que pedirlo. Estamos cansados: en vez de sugerir
@@ -606,11 +607,6 @@ export default function ActividadesPage() {
             ).length;
             const abierta = etapasAbiertas.has(etapa.id) || etapas.length === 1;
 
-            const porCategoria = ORDEN_CATEGORIAS.map((cat) => ({
-              categoria: cat,
-              items: items.filter((it) => it.categoria === cat),
-            })).filter((g) => g.items.length > 0);
-
             // Lo que la persona describió al crear el viaje ("restaurantes
             // típicos, naturaleza, museos de historia...") ya dice qué le
             // interesa: se usa como punto de partida en cada ciudad, sin
@@ -631,6 +627,12 @@ export default function ActividadesPage() {
             const resultadosBusqueda = categoriasBuscadas
               ? categoriasBuscadas.flatMap((cat) => items.filter((it) => it.categoria === cat))
               : [];
+
+            // Sin menú de categorías que abrir y cerrar: se muestra la
+            // lista directa, ya sea filtrada por la búsqueda o completa.
+            const listaMostrada = [...(categoriasBuscadas !== null ? resultadosBusqueda : items)].sort(
+              (a, b) => ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria)
+            );
 
             function buscarPorIntencion(e: React.FormEvent) {
               e.preventDefault();
@@ -710,23 +712,10 @@ export default function ActividadesPage() {
                               &quot;museos&quot;, &quot;caminar&quot; o &quot;vida nocturna&quot;.
                             </p>
                           ) : (
-                            <>
-                              <p className="mb-2 text-xs text-neutral-500">
-                                {haySugerenciaDelViaje ? "✨ Basado en lo que describiste al crear el viaje: " : "Detectamos: "}
-                                {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta).join(", ")}
-                              </p>
-                              {resultadosBusqueda.length === 0 ? (
-                                <p className="text-sm text-neutral-400">Todavía no tenemos nada así investigado en {etapa.nombre}.</p>
-                              ) : (
-                                <ul className="space-y-2">
-                                  {resultadosBusqueda.map((it) => {
-                                    const entrada = viaje.actividades.find((a) => a.actividadId === it.id);
-                                    const estado = entrada?.estado ?? "disponible";
-                                    return <TarjetaActividad key={it.id} it={it} estado={estado} onCambiarEstado={(e) => setEstado(it, e)} />;
-                                  })}
-                                </ul>
-                              )}
-                            </>
+                            <p className="text-xs text-neutral-500">
+                              {haySugerenciaDelViaje ? "✨ Basado en lo que describiste al crear el viaje: " : "Detectamos: "}
+                              {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta).join(", ")}
+                            </p>
                           )}
                         </div>
                       )}
@@ -739,41 +728,21 @@ export default function ActividadesPage() {
                       </p>
                     )}
 
-                    {porCategoria.length === 0 && (
-                      <p className="text-sm text-neutral-400">Añade algo tuyo abajo para empezar en {etapa.nombre}.</p>
+                    {listaMostrada.length === 0 ? (
+                      <p className="text-sm text-neutral-400">
+                        {categoriasBuscadas !== null
+                          ? `Todavía no tenemos nada así investigado en ${etapa.nombre}.`
+                          : `Añade algo tuyo abajo para empezar en ${etapa.nombre}.`}
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {listaMostrada.map((it) => {
+                          const entrada = viaje.actividades.find((a) => a.actividadId === it.id);
+                          const estado = entrada?.estado ?? "disponible";
+                          return <TarjetaActividad key={it.id} it={it} estado={estado} onCambiarEstado={(e) => setEstado(it, e)} />;
+                        })}
+                      </ul>
                     )}
-
-                    {porCategoria.map(({ categoria, items: itemsCategoria }) => {
-                      const key = `${etapa.id}:${categoria}`;
-                      const catAbierta = categoriasAbiertas.has(key);
-                      const enCategoria = itemsCategoria.filter((it) => yaEnItinerario.has(it.id)).length;
-                      return (
-                        <div key={key} className="rounded-xl border border-neutral-100">
-                          <button
-                            onClick={() => toggleCategoria(key)}
-                            className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
-                          >
-                            <span className="text-sm font-medium text-neutral-800">
-                              {ETIQUETA_CATEGORIA[categoria].icono} {ETIQUETA_CATEGORIA[categoria].etiqueta}
-                              <span className="ml-1.5 text-xs font-normal text-neutral-400">
-                                ({enCategoria}/{itemsCategoria.length})
-                              </span>
-                            </span>
-                            <span className="text-neutral-400">{catAbierta ? "−" : "+"}</span>
-                          </button>
-
-                          {catAbierta && (
-                            <ul className="space-y-2 border-t border-neutral-100 p-3 pt-2">
-                              {itemsCategoria.map((it) => {
-                                const entrada = viaje.actividades.find((a) => a.actividadId === it.id);
-                                const estado = entrada?.estado ?? "disponible";
-                                return <TarjetaActividad key={it.id} it={it} estado={estado} onCambiarEstado={(e) => setEstado(it, e)} />;
-                              })}
-                            </ul>
-                          )}
-                        </div>
-                      );
-                    })}
 
                     {formEtapaId === etapa.id ? (
                       <form onSubmit={(e) => anadirPropia(e, etapa)} className="rounded-xl border border-dashed border-neutral-300 p-3 space-y-2.5">

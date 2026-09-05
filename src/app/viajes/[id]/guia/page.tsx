@@ -73,7 +73,7 @@ export default function ModoGuiaPage() {
         for (const p of puntosConCoordenadas(viaje, etapa)) {
           if (nombresYaVistos.has(p.id)) continue;
           nombresYaVistos.add(p.id);
-          const resumen = await obtenerResumenLugar(p.nombre);
+          const resumen = await obtenerResumenLugar(p.nombre, 140);
           if (cancelado) return;
           setResumenesSitio((prev) => ({ ...prev, [p.id]: resumen ?? "sin_datos" }));
         }
