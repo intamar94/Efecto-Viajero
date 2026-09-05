@@ -25,4 +25,5 @@ export * from "./brainActions";
 export * from "./conflictResolver";
 export * from "./decisionEngine";
 export * from "./changeSet";
+export * from "./optimizer";
 export * from "./brainController";
