@@ -1,8 +1,10 @@
 import type { ResearchDomain, ResearchResult, ResearchTask } from "./researchOrchestrator";
 import type { DepartmentReport } from "./departments";
 import type { CapabilityAudit } from "./capabilityAudit";
+import type { NeuralCycle } from "./neuralOrchestrator";
 
 export type SupervisorPriority = "critical" | "high" | "normal";
+export type SupervisorDecisionKind = "continue" | "retry" | "crosscheck" | "request-capability" | "wait";
 
 export interface SupervisorRecommendation {
   id: string;
@@ -11,6 +13,26 @@ export interface SupervisorRecommendation {
   problem: string;
   requestedChange: string;
   reason: string;
+}
+
+export interface SupervisorDecision {
+  id: string;
+  kind: SupervisorDecisionKind;
+  priority: SupervisorPriority;
+  requirementId?: string;
+  domain?: ResearchDomain;
+  action: string;
+  reason: string;
+  sourceSignals: string[];
+}
+
+export interface SupervisorMemory {
+  cycle: number;
+  learned: string[];
+  inhibited: string[];
+  activeFollowUps: string[];
+  unresolvedCount: number;
+  readiness: "ready" | "degraded" | "blocked";
 }
 
 export interface OrchestratorUpdate {
@@ -24,15 +46,17 @@ export interface OrchestratorUpdate {
   conflicts: string[];
   departmentReports: DepartmentReport[];
   capabilityAudit: CapabilityAudit;
+  neuralCycles: NeuralCycle[];
+  memory: SupervisorMemory;
+  decisions: SupervisorDecision[];
   recommendations: SupervisorRecommendation[];
 }
 
 /**
- * Creates the machine-readable handoff from Travel Brain to the external
- * supervisor (the architect/AI reviewing the system). The supervisor does
- * not execute providers: it reviews progress, gaps, conflicts, capability
- * access and recovery needs, then returns implementation direction for the
- * next cycle.
+ * Operational supervisor handoff. Neural signals are treated as state:
+ * learning signals strengthen completed paths, inhibition/error signals create
+ * targeted recovery or cross-check decisions, and follow-ups become the
+ * explicit agenda for the next orchestration cycle.
  */
 export function buildOrchestratorUpdate(
   results: ResearchResult[],
@@ -41,6 +65,7 @@ export function buildOrchestratorUpdate(
   departmentReports: DepartmentReport[] = [],
   cycle = 1,
   capabilityAudit?: CapabilityAudit,
+  neuralCycles: NeuralCycle[] = [],
 ): OrchestratorUpdate {
   const byDomain = new Map<ResearchDomain, ResearchResult[]>();
   for (const result of results) {
@@ -64,8 +89,30 @@ export function buildOrchestratorUpdate(
 
   const conflicts = departmentReports.flatMap((report) => report.conflicts.map((conflict) => `${report.domain}: ${conflict}`));
   const recommendations: SupervisorRecommendation[] = [];
+  const decisions: SupervisorDecision[] = [];
+  const latestNeural = neuralCycles.at(-1);
+
+  // The supervisor's short-term memory is derived from all neural cycles, not
+  // just the final department aggregate. This preserves what the atomic layer
+  // actually learned or rejected during execution.
+  const learned = neuralCycles.flatMap((c) => c.signals
+    .filter((s) => s.kind === "learning")
+    .map((s) => `${s.requirementId}: ${s.reason}`));
+  const inhibited = neuralCycles.flatMap((c) => c.signals
+    .filter((s) => s.kind === "inhibition" || s.kind === "error")
+    .map((s) => `${s.requirementId}: ${s.reason}`));
+  const activeFollowUps = neuralCycles.flatMap((c) => c.followUps.map((f) => f.id));
 
   for (const domain of errorDomains) {
+    decisions.push({
+      id: `decision:recover:${domain}`,
+      kind: "retry",
+      priority: "high",
+      domain,
+      action: `Reintentar únicamente las misiones fallidas de ${domain}, conservando las salidas válidas.`,
+      reason: "El error es localizable por dominio; no es necesario reiniciar el viaje completo.",
+      sourceSignals: neuralCycles.flatMap((c) => c.signals.filter((s) => s.kind === "error").map((s) => s.requirementId)),
+    });
     recommendations.push({
       id: `recover:${domain}`,
       priority: "high",
@@ -77,6 +124,15 @@ export function buildOrchestratorUpdate(
   }
 
   for (const domain of partialDomains) {
+    decisions.push({
+      id: `decision:review:${domain}`,
+      kind: "crosscheck",
+      priority: "high",
+      domain,
+      action: `Investigar solo los subresultados incompletos de ${domain} y cruzarlos con la evidencia existente.`,
+      reason: "Una salida parcial debe producir una misión dirigida, no una reconstrucción completa.",
+      sourceSignals: neuralCycles.flatMap((c) => c.signals.filter((s) => s.kind === "inhibition").map((s) => s.requirementId)),
+    });
     recommendations.push({
       id: `review:${domain}`,
       priority: "high",
@@ -89,6 +145,15 @@ export function buildOrchestratorUpdate(
 
   for (const task of tasks) {
     if (!byDomain.has(task.domain)) {
+      decisions.push({
+        id: `decision:missing:${task.domain}`,
+        kind: "continue",
+        priority: task.priority === "critical" ? "critical" : "normal",
+        domain: task.domain,
+        action: `Evaluar la tarea ${task.domain} antes de cerrar el estado del viaje.`,
+        reason: "Una tarea planificada sin resultado no equivale a una capacidad disponible.",
+        sourceSignals: [],
+      });
       recommendations.push({
         id: `missing:${task.domain}`,
         priority: task.priority === "critical" ? "critical" : "normal",
@@ -102,6 +167,15 @@ export function buildOrchestratorUpdate(
 
   if (capabilityAudit) {
     for (const request of capabilityAudit.accessRequests) {
+      decisions.push({
+        id: `decision:access:${request.domain}:${request.capability}`,
+        kind: "request-capability",
+        priority: request.priority === "critical" ? "critical" : request.priority === "high" ? "high" : "normal",
+        domain: request.domain,
+        action: request.requestedFromCeo,
+        reason: `La capacidad requiere ${request.accessKind}; candidatos: ${request.providerCandidates.join(", ")}.`,
+        sourceSignals: [],
+      });
       recommendations.push({
         id: `access:${request.domain}:${request.capability}`,
         priority: request.priority === "critical" ? "critical" : request.priority === "high" ? "high" : "normal",
@@ -113,7 +187,30 @@ export function buildOrchestratorUpdate(
     }
   }
 
+  if (latestNeural?.followUps.length) {
+    for (const followUp of latestNeural.followUps) {
+      decisions.push({
+        id: `decision:followup:${followUp.id}`,
+        kind: "continue",
+        priority: followUp.priority,
+        requirementId: followUp.id,
+        domain: followUp.domain,
+        action: followUp.question,
+        reason: followUp.reason,
+        sourceSignals: [followUp.parentRequirementId],
+      });
+    }
+  }
+
   if (unresolved.length) {
+    decisions.push({
+      id: "decision:unresolved",
+      kind: "wait",
+      priority: "critical",
+      action: "No cerrar decisiones que dependan de datos no resueltos; mantenerlos como bloqueos explícitos.",
+      reason: "La incertidumbre debe propagarse como estado, no convertirse en una suposición.",
+      sourceSignals: [],
+    });
     recommendations.push({
       id: "context:unresolved",
       priority: "critical",
@@ -124,6 +221,14 @@ export function buildOrchestratorUpdate(
   }
 
   if (conflicts.length) {
+    decisions.push({
+      id: "decision:crosscheck:conflicts",
+      kind: "crosscheck",
+      priority: "critical",
+      action: "Activar verificación cruzada antes de permitir que una contradicción llegue al plan final.",
+      reason: "Las piezas deben encajar mediante evidencia, no por agregación ciega.",
+      sourceSignals: [],
+    });
     recommendations.push({
       id: "crosscheck:conflicts",
       priority: "critical",
@@ -144,6 +249,10 @@ export function buildOrchestratorUpdate(
     items: [],
   } satisfies CapabilityAudit;
 
+  const readiness: SupervisorMemory["readiness"] =
+    unresolved.length || conflicts.length || errorDomains.length ? "blocked" :
+    partialDomains.length || unavailableDomains.length || decisions.some((d) => d.kind === "request-capability") ? "degraded" : "ready";
+
   return {
     generatedAt: new Date().toISOString(),
     cycle,
@@ -155,6 +264,16 @@ export function buildOrchestratorUpdate(
     conflicts,
     departmentReports,
     capabilityAudit: audit,
+    neuralCycles,
+    memory: {
+      cycle,
+      learned: [...new Set(learned)],
+      inhibited: [...new Set(inhibited)],
+      activeFollowUps: [...new Set(activeFollowUps)],
+      unresolvedCount: unresolved.length,
+      readiness,
+    },
+    decisions,
     recommendations,
   };
 }
