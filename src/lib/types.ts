@@ -174,6 +174,9 @@ export interface SouvenirDestino {
   descripcion: string;
   datoCurioso: string;
   avisoEquipaje?: string;
+  historia?: string;
+  ingredientes?: string[];
+  dondéComprar?: string;
 }
 
 export interface Votacion { id: string; pregunta: string; opciones: string[]; votos: Record<string, string>; }

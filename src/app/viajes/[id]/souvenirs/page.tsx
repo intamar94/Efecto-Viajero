@@ -59,12 +59,36 @@ export default function SouvenirsPage() {
             <ul className="space-y-3">
               {souvenirsDe(pais.nombre).map((s) => (
                 <li key={s.id} className="tip">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3 mb-2">
                     <p className="font-medium text-neutral-900">{s.nombre}</p>
                     <p className="shrink-0 rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-neutral-600">{s.precioAprox}</p>
                   </div>
-                  <p className="mt-1 text-sm text-neutral-600">{s.descripcion}</p>
+
+                  <p className="text-sm text-neutral-600">{s.descripcion}</p>
+
+                  {s.historia && (
+                    <div className="mt-2 text-xs text-neutral-600">
+                      <p className="font-medium text-neutral-700">📖 Historia:</p>
+                      <p>{s.historia}</p>
+                    </div>
+                  )}
+
+                  {s.ingredientes && s.ingredientes.length > 0 && (
+                    <div className="mt-2 text-xs text-neutral-600">
+                      <p className="font-medium text-neutral-700">🧂 Ingredientes:</p>
+                      <p>{s.ingredientes.join(", ")}</p>
+                    </div>
+                  )}
+
+                  {s.dondéComprar && (
+                    <div className="mt-2 text-xs text-neutral-600">
+                      <p className="font-medium text-neutral-700">🛒 Dónde comprar:</p>
+                      <p>{s.dondéComprar}</p>
+                    </div>
+                  )}
+
                   <p className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs text-neutral-600">💡 {s.datoCurioso}</p>
+
                   {s.avisoEquipaje && <p className="mt-2 rounded-xl bg-white/80 px-3 py-2 text-xs text-coral-700">✈️ {s.avisoEquipaje}</p>}
                 </li>
               ))}
