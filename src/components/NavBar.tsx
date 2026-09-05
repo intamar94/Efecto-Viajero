@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useData } from "@/lib/store";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { logout } from "@/lib/supabase/auth-client";
+import { limpiarEjemploBase } from "@/lib/ejemploBase";
 
 const ENLACES = [{ href: "/viajes", icono: "🗺️", titulo: "Mis viajes", corto: "Viajes" }] as const;
 
@@ -23,6 +24,13 @@ export function NavBar() {
     } catch (err) {
       console.error("Error logging out:", err);
     }
+  }
+
+  function handleRestablecerEjemplo() {
+    setMenuOpen(false);
+    if (!confirm("Esto borra los viajes y viajeros guardados en este navegador y deja solo el viaje de ejemplo. ¿Continuar?")) return;
+    limpiarEjemploBase();
+    window.location.href = "/viajes";
   }
 
   return (
@@ -75,6 +83,12 @@ export function NavBar() {
                 >
                   🧑‍🤝‍🧑 Viajeros
                 </Link>
+                <button
+                  onClick={handleRestablecerEjemplo}
+                  className="block w-full border-t border-neutral-100 px-4 py-2 text-left text-sm text-neutral-500 hover:bg-neutral-50"
+                >
+                  🔄 Restablecer al ejemplo
+                </button>
                 {!authLoading && user ? (
                   <>
                     <Link

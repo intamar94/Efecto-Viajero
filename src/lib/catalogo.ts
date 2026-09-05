@@ -1,5 +1,25 @@
 import type { ActividadDestino, Destino, OpcionAlojamiento, SouvenirDestino } from "./types";
 
+// El catálogo es orientativo (no sabemos el sitio exacto, su horario real
+// ni su web oficial), así que en vez de inventarlos se da un enlace real
+// de búsqueda: el usuario llega a información verdadera en un clic.
+export function urlBuscarActividad(nombre: string, ciudad: string): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(`${nombre} en ${ciudad}`)}`;
+}
+
+export function urlMapsActividad(nombre: string, ciudad: string): string {
+  return `https://www.google.com/maps/search/${encodeURIComponent(`${nombre} en ${ciudad}`)}`;
+}
+
+// Qué comer o beber si no conoces la gastronomía local: reutiliza el
+// mismo dato ya curado de souvenirs (que ya distingue comida/bebida típica
+// por país) en vez de inventar una lista de platos aparte.
+export function queProbarDe(pais: string): SouvenirDestino[] {
+  return souvenirsDe(pais)
+    .filter((s) => /café|vino|cerveza|whisky|té\b|aguardiente|gastronóm|licor/i.test(`${s.nombre} ${s.descripcion}`))
+    .slice(0, 2);
+}
+
 // Catálogo de demostración: se genera a partir de los atributos del
 // destino en vez de mantener listas manuales por país. No sustituye una
 // integración real con proveedores (eso es B20).

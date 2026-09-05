@@ -7,7 +7,7 @@ import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { EventosEstacionalesDestino } from "@/components/EventosEstacionalesDestino";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
-import { actividadesDe } from "@/lib/catalogo";
+import { actividadesDe, urlBuscarActividad, urlMapsActividad, queProbarDe } from "@/lib/catalogo";
 import { destinoParaCatalogo, destinoPrincipal, etapasDe } from "@/lib/viaje";
 import type { CategoriaSitio, SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
@@ -66,6 +66,7 @@ type Item = ActividadDestino & {
   esSitioReal?: boolean;
   etapaId: string;
   etapaNombre: string;
+  pais?: string;
   notaPrecio?: string;
   horario?: string;
   mapaUrl?: string;
@@ -132,6 +133,11 @@ export default function ActividadesPage() {
       esPropia: false,
       etapaId: etapa.id,
       etapaNombre: etapa.nombre,
+      pais: destinoEtapa.pais,
+      // No sabemos el sitio exacto, su horario real ni su web oficial: en
+      // vez de inventarlos, un enlace de búsqueda real a un clic.
+      mapaUrl: urlMapsActividad(a.nombre, etapa.nombre),
+      webUrl: urlBuscarActividad(a.nombre, etapa.nombre),
     }));
 
     const sitiosDeEtapa = (viaje!.investigacion?.sitios?.[etapa.nombre] ?? []) as SitioReal[];
@@ -508,15 +514,31 @@ export default function ActividadesPage() {
 
                                     {it.consejo && <p className="mt-2 text-xs text-neutral-500">💡 {it.consejo}</p>}
 
+                                    {/* Sin conocer la gastronomía local no se sabe qué pedir: se
+                                        reutiliza el mismo dato de souvenirs gastronómicos por país
+                                        en vez de inventar un menú. */}
+                                    {it.categoria === "restaurante" && !it.esSitioReal && it.pais && queProbarDe(it.pais).length > 0 && (
+                                      <div className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2">
+                                        <p className="text-xs font-medium text-amber-800">🍴 Si no sabes qué pedir, prueba:</p>
+                                        <ul className="mt-1 space-y-0.5 text-xs text-amber-700">
+                                          {queProbarDe(it.pais).map((s) => (
+                                            <li key={s.id}>
+                                              <span className="font-medium">{s.nombre}</span> — {s.descripcion}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+
                                     <div className="mt-2.5 flex flex-wrap gap-2">
                                       {it.mapaUrl && (
                                         <a href={it.mapaUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-marino-500">
-                                          📍 Mapa
+                                          📍 {it.esSitioReal ? "Mapa" : "Ver opciones reales en el mapa"}
                                         </a>
                                       )}
                                       {it.webUrl && (
                                         <a href={it.webUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg bg-marino-50 border border-marino-200 text-marino-700 hover:bg-marino-100">
-                                          🔗 Sitio web
+                                          {it.esSitioReal ? "🔗 Sitio web" : "🔎 Buscar en Google"}
                                         </a>
                                       )}
                                       {estado === "disponible" && (
