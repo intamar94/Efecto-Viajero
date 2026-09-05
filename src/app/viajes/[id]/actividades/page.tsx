@@ -188,11 +188,11 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
 
 export default function ActividadesPage() {
   const params = useParams<{ id: string }>();
-  const { obtenerViaje, actualizarViaje, viajeros } = useData();
+  const { obtenerViaje, actualizarViaje } = useData();
   const viaje = obtenerViaje(params.id);
   const destino = viaje ? destinoPrincipal(viaje) : undefined;
 
-  const [adaptacion, setAdaptacion] = useState<"lluvia" | "cansancio" | "transporte_perdido" | null>(null);
+  const [adaptacion, setAdaptacion] = useState<"lluvia" | "cansancio" | null>(null);
   const [etapasAbiertas, setEtapasAbiertas] = useState<Set<string>>(new Set());
   const [categoriasAbiertas, setCategoriasAbiertas] = useState<Set<string>>(new Set());
   const [formEtapaId, setFormEtapaId] = useState<string | null>(null);
@@ -203,8 +203,11 @@ export default function ActividadesPage() {
   const [entornoNueva, setEntornoNueva] = useState<"exterior" | "interior" | "mixto">("exterior");
   const [mascotaNueva, setMascotaNueva] = useState(false);
   const [estadoWikivoyage, setEstadoWikivoyage] = useState<Record<string, "cargando" | "sin_datos" | "listo">>({});
-  const [textoIntencion, setTextoIntencion] = useState("");
-  const [categoriasBuscadas, setCategoriasBuscadas] = useState<CategoriaActividad[] | null>(null);
+  // Por ciudad: cada etapa tiene su propia búsqueda de intención, ya que
+  // "quiero comida típica" en Cartagena no debería mostrar resultados de
+  // Bogotá.
+  const [textosIntencion, setTextosIntencion] = useState<Record<string, string>>({});
+  const [categoriasBuscadasPorEtapa, setCategoriasBuscadasPorEtapa] = useState<Record<string, CategoriaActividad[] | null>>({});
 
   // Investigación bajo demanda: al abrir Actividades, se busca la guía
   // Wikivoyage de cada ciudad que aún no la tenga guardada. Una sola vez
@@ -464,15 +467,8 @@ export default function ActividadesPage() {
     setFormEtapaId(null);
   }
 
-  const hoy = new Date();
   const salida = viaje.fechaSalida ? new Date(viaje.fechaSalida) : undefined;
   const regreso = viaje.fechaRegreso ? new Date(viaje.fechaRegreso) : undefined;
-  const enCurso = !!salida && !!regreso && hoy >= salida && hoy <= regreso;
-
-  const proximoTramo = [...viaje.transporte]
-    .filter((t) => t.horaSalida)
-    .sort((a, b) => (a.horaSalida ?? "").localeCompare(b.horaSalida ?? ""))
-    .find((t) => new Date(t.horaSalida!) >= hoy);
   const actividadesPendientes = viaje.actividades.filter((a) => a.estado === "planificada" || a.estado === "reservada").length;
 
   // Catálogo combinado de todas las etapas, para "algo ha cambiado", que
@@ -480,21 +476,24 @@ export default function ActividadesPage() {
   const catalogoCompleto: Item[] = etapas.flatMap((e) => itemsDeEtapa(e));
   const yaEnItinerario = new Set(viaje.actividades.filter((a) => a.estado !== "disponible" && a.estado !== "descartada").map((a) => a.actividadId));
 
-  const resultadosBusqueda = categoriasBuscadas
-    ? categoriasBuscadas.flatMap((cat) => catalogoCompleto.filter((it) => it.categoria === cat))
-    : [];
+  // Está lloviendo: buscamos automáticamente alternativas de interior, sin
+  // que la persona tenga que pedirlo. Estamos cansados: en vez de sugerir
+  // más planes, mostramos un cuadro para cancelar lo ya planificado.
+  const sugerenciasAdaptacion =
+    adaptacion === "lluvia" ? catalogoCompleto.filter((a) => a.entorno === "interior" || a.entorno === "mixto").slice(0, 3) : [];
 
-  function buscarPorIntencion(e: React.FormEvent) {
-    e.preventDefault();
-    setCategoriasBuscadas(interpretarIntencion(textoIntencion));
+  const actividadesEnCurso = viaje.actividades.filter((a) => a.estado === "planificada" || a.estado === "reservada");
+
+  function nombreDeActividad(a: (typeof actividadesEnCurso)[number]): string {
+    return catalogoCompleto.find((it) => it.id === a.actividadId)?.nombre ?? a.propia?.nombre ?? "Actividad";
   }
 
-  const sugerenciasAdaptacion = (() => {
-    if (adaptacion === "lluvia") return catalogoCompleto.filter((a) => a.entorno === "interior" || a.entorno === "mixto").slice(0, 3);
-    if (adaptacion === "cansancio")
-      return catalogoCompleto.filter((a) => a.apta.includes("tranquilo") || (a.duracionHoras > 0 && a.duracionHoras <= 1.5)).slice(0, 3);
-    return [];
-  })();
+  function cancelarActividad(actividadId: string) {
+    if (!viaje) return;
+    actualizarViaje(viaje.id, {
+      actividades: viaje.actividades.map((a) => (a.actividadId === actividadId ? { ...a, estado: "descartada" } : a)),
+    });
+  }
 
   return (
     <main className="flex-1 px-5 py-8">
@@ -507,41 +506,12 @@ export default function ActividadesPage() {
         />
 
         <section className="card mb-6">
-          <h2 className="mb-3 font-medium">Ahora</h2>
-          {!enCurso ? (
-            <p className="text-sm text-neutral-500">
-              {salida && hoy < salida
-                ? `Este viaje empieza el ${viaje.fechaSalida}.`
-                : salida
-                  ? "Este viaje ya ha terminado."
-                  : "Todavía no tienes fechas confirmadas para este viaje."}
-            </p>
-          ) : (
-            <div className="space-y-2 text-sm">
-              <p>
-                📍 Estás en <strong>{viaje.destino}</strong>
-              </p>
-              {proximoTramo ? (
-                <p>
-                  🚆 Próximo transporte: {proximoTramo.origen} → {proximoTramo.destino} ({proximoTramo.horaSalida?.replace("T", " ")})
-                </p>
-              ) : (
-                <p className="text-neutral-400">Sin próximos transportes programados.</p>
-              )}
-              <p>🎒 {actividadesPendientes} actividad(es) pendientes.</p>
-              <p className="text-neutral-500">🧑‍🤝‍🧑 {viajeros.filter((v) => viaje.viajerosIds.includes(v.id)).length} viajero(s) en este viaje.</p>
-            </div>
-          )}
-        </section>
-
-        <section className="card mb-6">
           <h2 className="mb-3 font-medium">Algo ha cambiado</h2>
           <div className="flex flex-wrap gap-2">
             {(
               [
                 ["lluvia", "🌧️ Está lloviendo"],
                 ["cansancio", "😴 Estamos cansados"],
-                ["transporte_perdido", "🚫 Perdimos el transporte"],
               ] as const
             ).map(([valor, etiqueta]) => (
               <button
@@ -556,20 +526,9 @@ export default function ActividadesPage() {
             ))}
           </div>
 
-          {adaptacion === "transporte_perdido" && (
-            <div className="mt-3 rounded-xl bg-neutral-50 px-3 py-3 text-sm">
-              <p className="mb-2 text-neutral-600">Alternativas orientativas (comprueba horarios reales in situ):</p>
-              <ul className="space-y-1">
-                <li>1. Siguiente tramo del mismo tipo, ~30 min después</li>
-                <li>2. Autobús alternativo, si existe en la zona</li>
-                <li>3. Taxi/transfer + conexión con el resto del plan</li>
-              </ul>
-            </div>
-          )}
-
-          {(adaptacion === "lluvia" || adaptacion === "cansancio") && (
+          {adaptacion === "lluvia" && (
             <ul className="mt-3 space-y-2">
-              {sugerenciasAdaptacion.length === 0 && <li className="text-sm text-neutral-400">No hay alternativas claras en tu lista.</li>}
+              {sugerenciasAdaptacion.length === 0 && <li className="text-sm text-neutral-400">No hay alternativas de interior claras en tu lista.</li>}
               {sugerenciasAdaptacion.map((a) => (
                 <li key={a.id} className="rounded-xl bg-neutral-50 px-3 py-2 text-sm">
                   <span className="font-medium">{a.nombre}</span>
@@ -578,70 +537,25 @@ export default function ActividadesPage() {
               ))}
             </ul>
           )}
-        </section>
 
-        <section className="card mb-6">
-          <h2 className="mb-1 font-medium">¿Qué te gustaría hacer?</h2>
-          <p className="mb-3 text-xs text-neutral-500">
-            Escribe con tus palabras y buscamos en todo tu viaje lo que coincida — restaurantes típicos, naturaleza,
-            museos de historia, rutas para caminar, ferias, miradores… No es un menú fijo, es lo que tú pidas.
-          </p>
-          <form onSubmit={buscarPorIntencion} className="space-y-2">
-            <textarea
-              className="input text-sm"
-              rows={2}
-              placeholder="Ej: quiero probar la comida típica, conocer la ciudad caminando y saber sobre su historia"
-              value={textoIntencion}
-              onChange={(e) => setTextoIntencion(e.target.value)}
-            />
-            <div className="flex gap-2">
-              <button type="submit" className="btn-primary flex-1 text-sm">
-                🔎 Buscar en mi viaje
-              </button>
-              {categoriasBuscadas !== null && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCategoriasBuscadas(null);
-                    setTextoIntencion("");
-                  }}
-                  className="btn-secondary text-sm"
-                >
-                  Limpiar
-                </button>
-              )}
-            </div>
-          </form>
-
-          {categoriasBuscadas !== null && (
-            <div className="mt-4 border-t border-neutral-100 pt-4">
-              {categoriasBuscadas.length === 0 ? (
-                <p className="text-sm text-neutral-400">
-                  No detectamos categorías conocidas en tu búsqueda. Prueba mencionando cosas como "restaurantes",
-                  "naturaleza", "museos", "caminar" o "vida nocturna".
-                </p>
+          {adaptacion === "cansancio" && (
+            <div className="mt-3 rounded-xl bg-neutral-50 px-3 py-3 text-sm">
+              <p className="mb-2 text-neutral-600">Cancela lo que no vas a poder hacer — queda como descartada, no se borra:</p>
+              {actividadesEnCurso.length === 0 ? (
+                <p className="text-neutral-400">No tienes actividades planificadas o reservadas todavía.</p>
               ) : (
-                <>
-                  <p className="mb-3 text-xs text-neutral-500">
-                    Detectamos: {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta).join(", ")}
-                  </p>
-                  {resultadosBusqueda.length === 0 ? (
-                    <p className="text-sm text-neutral-400">Todavía no tenemos nada así investigado en tu viaje.</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {resultadosBusqueda.map((it) => {
-                        const entrada = viaje.actividades.find((a) => a.actividadId === it.id);
-                        const estado = entrada?.estado ?? "disponible";
-                        return (
-                          <li key={it.id}>
-                            <p className="mb-1 text-xs font-medium text-marino-700">📍 {it.etapaNombre}</p>
-                            <TarjetaActividad it={it} estado={estado} onCambiarEstado={(e) => setEstado(it, e)} />
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </>
+                <ul className="space-y-1.5">
+                  {actividadesEnCurso.map((a) => (
+                    <li key={a.actividadId} className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5">
+                      <span>
+                        {nombreDeActividad(a)} <span className="text-xs text-neutral-400">— {a.etapaNombre}</span>
+                      </span>
+                      <button onClick={() => cancelarActividad(a.actividadId)} className="shrink-0 text-xs text-red-500 hover:text-red-700">
+                        Cancelar
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           )}
@@ -665,6 +579,17 @@ export default function ActividadesPage() {
               items: items.filter((it) => it.categoria === cat),
             })).filter((g) => g.items.length > 0);
 
+            const textoIntencion = textosIntencion[etapa.id] ?? "";
+            const categoriasBuscadas = categoriasBuscadasPorEtapa[etapa.id] ?? null;
+            const resultadosBusqueda = categoriasBuscadas
+              ? categoriasBuscadas.flatMap((cat) => items.filter((it) => it.categoria === cat))
+              : [];
+
+            function buscarPorIntencion(e: React.FormEvent) {
+              e.preventDefault();
+              setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: interpretarIntencion(textoIntencion) }));
+            }
+
             return (
               <div key={etapa.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
                 <button
@@ -684,6 +609,67 @@ export default function ActividadesPage() {
 
                 {abierta && (
                   <div className="space-y-3 p-4">
+                    <div className="rounded-xl border border-dashed border-marino-200 bg-marino-50/50 p-3">
+                      <p className="mb-1 text-sm font-medium text-marino-900">✨ ¿Qué te gustaría hacer en {etapa.nombre}?</p>
+                      <p className="mb-2 text-xs text-neutral-500">
+                        Describe en pocas palabras qué buscas: comida típica, museos, naturaleza, rutas para caminar, ferias, vida nocturna…
+                      </p>
+                      <form onSubmit={buscarPorIntencion} className="space-y-2">
+                        <textarea
+                          className="input text-sm"
+                          rows={2}
+                          placeholder="Ej: comida típica, museos de historia, caminar por miradores"
+                          value={textoIntencion}
+                          onChange={(e) => setTextosIntencion((prev) => ({ ...prev, [etapa.id]: e.target.value }))}
+                        />
+                        <div className="flex gap-2">
+                          <button type="submit" className="btn-primary text-sm px-3 py-1.5">
+                            🔎 Buscar
+                          </button>
+                          {categoriasBuscadas !== null && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: null }));
+                                setTextosIntencion((prev) => ({ ...prev, [etapa.id]: "" }));
+                              }}
+                              className="btn-secondary text-sm px-3 py-1.5"
+                            >
+                              Limpiar
+                            </button>
+                          )}
+                        </div>
+                      </form>
+
+                      {categoriasBuscadas !== null && (
+                        <div className="mt-3 border-t border-marino-100 pt-3">
+                          {categoriasBuscadas.length === 0 ? (
+                            <p className="text-sm text-neutral-400">
+                              No detectamos categorías conocidas. Prueba con &quot;restaurantes&quot;, &quot;naturaleza&quot;,
+                              &quot;museos&quot;, &quot;caminar&quot; o &quot;vida nocturna&quot;.
+                            </p>
+                          ) : (
+                            <>
+                              <p className="mb-2 text-xs text-neutral-500">
+                                Detectamos: {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta).join(", ")}
+                              </p>
+                              {resultadosBusqueda.length === 0 ? (
+                                <p className="text-sm text-neutral-400">Todavía no tenemos nada así investigado en {etapa.nombre}.</p>
+                              ) : (
+                                <ul className="space-y-2">
+                                  {resultadosBusqueda.map((it) => {
+                                    const entrada = viaje.actividades.find((a) => a.actividadId === it.id);
+                                    const estado = entrada?.estado ?? "disponible";
+                                    return <TarjetaActividad key={it.id} it={it} estado={estado} onCambiarEstado={(e) => setEstado(it, e)} />;
+                                  })}
+                                </ul>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     {estadoWikivoyage[etapa.nombre] === "sin_datos" && (
                       <p className="text-xs text-neutral-400">
                         📖 No encontramos una guía Wikivoyage con datos extraíbles para {etapa.nombre}. El catálogo
