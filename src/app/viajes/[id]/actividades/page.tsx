@@ -122,22 +122,49 @@ export default function ActividadesPage() {
   const [categoriaNueva, setCategoriaNueva] = useState<CategoriaActividad>("otro");
   const [entornoNueva, setEntornoNueva] = useState<"exterior" | "interior" | "mixto">("exterior");
   const [mascotaNueva, setMascotaNueva] = useState(false);
+  const [estadoWikivoyage, setEstadoWikivoyage] = useState<Record<string, "cargando" | "sin_datos" | "listo">>({});
 
   // Investigación bajo demanda: al abrir Actividades, se busca la guía
   // Wikivoyage de cada ciudad que aún no la tenga guardada. Una sola vez
   // por ciudad — luego queda en el propio viaje y funciona sin conexión.
   // Va antes del "if (!viaje)" porque los hooks no pueden depender de una
   // condición: en la primera carga viaje aún no está hidratado.
+  //
+  // El estado de carga se muestra en pantalla (no solo en consola): antes,
+  // si Wikivoyage no encontraba nada para una ciudad, la sección se quedaba
+  // en silencio y parecía que la app no había cambiado nada.
   useEffect(() => {
     if (!viaje) return;
     let cancelado = false;
     (async () => {
+      // Acumulador local: si se lee `viaje.wikivoyage` desde el cierre del
+      // efecto en cada vuelta, ese valor queda congelado en lo que había
+      // ANTES de que arrancara el bucle. En un circuito de varias ciudades,
+      // cada `actualizarViaje` pisaba entero el objeto con esa foto vieja y
+      // borraba lo que la ciudad anterior acababa de guardar en la misma
+      // pasada — al terminar solo sobrevivía la última ciudad procesada.
+      let acumulado: NonNullable<typeof viaje.wikivoyage> = { ...viaje.wikivoyage };
       for (const etapa of etapasDe(viaje)) {
-        if (viaje.wikivoyage?.[etapa.nombre]) continue;
-        const guia = await obtenerGuiaWikivoyage(etapa.nombre);
-        if (cancelado) return;
-        if (guia) {
-          actualizarViaje(viaje.id, { wikivoyage: { ...viaje.wikivoyage, [etapa.nombre]: guia } });
+        if (acumulado[etapa.nombre]) {
+          setEstadoWikivoyage((prev) => ({ ...prev, [etapa.nombre]: "listo" }));
+          continue;
+        }
+        setEstadoWikivoyage((prev) => ({ ...prev, [etapa.nombre]: "cargando" }));
+        try {
+          const guia = await obtenerGuiaWikivoyage(etapa.nombre);
+          if (cancelado) return;
+          if (guia) {
+            acumulado = { ...acumulado, [etapa.nombre]: guia };
+            actualizarViaje(viaje.id, { wikivoyage: acumulado });
+            setEstadoWikivoyage((prev) => ({ ...prev, [etapa.nombre]: "listo" }));
+          } else {
+            setEstadoWikivoyage((prev) => ({ ...prev, [etapa.nombre]: "sin_datos" }));
+          }
+        } catch (err) {
+          // Una ciudad con datos raros no debe tirar abajo el resto: se
+          // marca sin datos y se sigue con la siguiente etapa.
+          console.warn(`Wikivoyage: error inesperado procesando "${etapa.nombre}"`, err);
+          if (!cancelado) setEstadoWikivoyage((prev) => ({ ...prev, [etapa.nombre]: "sin_datos" }));
         }
       }
     })();
@@ -526,6 +553,7 @@ export default function ActividadesPage() {
                     {medalla(enItinerarioDeEtapa) && <span className="text-lg">{medalla(enItinerarioDeEtapa)}</span>}
                   </span>
                   <span className="flex items-center gap-2 text-xs text-marino-700">
+                    {estadoWikivoyage[etapa.nombre] === "cargando" && <span className="animate-pulse">📖 Investigando…</span>}
                     {enItinerarioDeEtapa} en tu itinerario
                     <span className="text-marino-400">{abierta ? "−" : "+"}</span>
                   </span>
@@ -533,6 +561,13 @@ export default function ActividadesPage() {
 
                 {abierta && (
                   <div className="space-y-3 p-4">
+                    {estadoWikivoyage[etapa.nombre] === "sin_datos" && (
+                      <p className="text-xs text-neutral-400">
+                        📖 No encontramos una guía Wikivoyage con datos extraíbles para {etapa.nombre}. El catálogo
+                        orientativo y los sitios de OpenStreetMap de abajo siguen disponibles igual.
+                      </p>
+                    )}
+
                     {porCategoria.length === 0 && (
                       <p className="text-sm text-neutral-400">Añade algo tuyo abajo para empezar en {etapa.nombre}.</p>
                     )}

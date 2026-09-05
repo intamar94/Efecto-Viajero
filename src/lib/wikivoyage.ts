@@ -70,7 +70,7 @@ function parsearParametros(bloque: string): Record<string, string> {
   return params;
 }
 
-function extraerListings(wikitext: string): WikivoyageListing[] {
+function extraerListingsDePlantillas(wikitext: string): WikivoyageListing[] {
   const listings: WikivoyageListing[] = [];
   const regex = /\{\{\s*(see|do|buy|eat|drink|sleep)\s*\|([\s\S]*?)\}\}/gi;
   let m: RegExpExecArray | null;
@@ -94,15 +94,64 @@ function extraerListings(wikitext: string): WikivoyageListing[] {
   return listings;
 }
 
+const SECCION_A_TIPO: Record<string, TipoListingWikivoyage> = {
+  see: "see",
+  ver: "see",
+  do: "do",
+  hacer: "do",
+  buy: "buy",
+  comprar: "buy",
+  eat: "eat",
+  comer: "eat",
+  drink: "drink",
+  beber: "drink",
+};
+
+function nombreDeContenido(texto: string): string {
+  const corto = texto.split(/[.;:]/)[0].trim();
+  if (corto.length > 0 && corto.length <= 60) return corto;
+  return texto.length > 40 ? `${texto.slice(0, 40).trim()}…` : texto;
+}
+
+// No todos los artículos usan plantillas {{see|do|...}}: muchos, sobre
+// todo de ciudades más pequeñas, solo tienen texto en viñetas bajo el
+// encabezado de la sección. Sin esto, esos artículos se descartaban
+// enteros aunque tuvieran contenido real y útil.
+function extraerListingsDeViñetas(wikitext: string): WikivoyageListing[] {
+  const listings: WikivoyageListing[] = [];
+  let tipoActual: TipoListingWikivoyage | null = null;
+  for (const linea of wikitext.split("\n")) {
+    const encabezado = linea.match(/^==+\s*([^=]+?)\s*==+\s*$/);
+    if (encabezado) {
+      tipoActual = SECCION_A_TIPO[encabezado[1].trim().toLowerCase()] ?? null;
+      continue;
+    }
+    if (!tipoActual) continue;
+    const item = linea.match(/^\*+\s*(.+)$/);
+    if (!item || /^\{\{/.test(item[1].trim())) continue;
+    const texto = limpiarWikitext(item[1]);
+    if (texto) listings.push({ tipo: tipoActual, nombre: nombreDeContenido(texto), contenido: texto });
+  }
+  return listings;
+}
+
+function extraerListings(wikitext: string): WikivoyageListing[] {
+  return [...extraerListingsDePlantillas(wikitext), ...extraerListingsDeViñetas(wikitext)];
+}
+
 async function buscarArticulo(ciudad: string, idioma: "es" | "en"): Promise<string | null> {
   const url = `https://${idioma}.wikivoyage.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(ciudad)}&format=json&origin=*&srlimit=1`;
   try {
     const res = await fetch(url);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`Wikivoyage (${idioma}): búsqueda de "${ciudad}" respondió ${res.status}`);
+      return null;
+    }
     const data = await res.json();
     const titulo = data?.query?.search?.[0]?.title;
     return typeof titulo === "string" ? titulo : null;
-  } catch {
+  } catch (err) {
+    console.warn(`Wikivoyage (${idioma}): fallo al buscar "${ciudad}"`, err);
     return null;
   }
 }
@@ -111,11 +160,15 @@ async function obtenerWikitext(titulo: string, idioma: "es" | "en"): Promise<str
   const url = `https://${idioma}.wikivoyage.org/w/api.php?action=parse&page=${encodeURIComponent(titulo)}&prop=wikitext&format=json&origin=*`;
   try {
     const res = await fetch(url);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`Wikivoyage (${idioma}): parse de "${titulo}" respondió ${res.status}`);
+      return null;
+    }
     const data = await res.json();
     const texto = data?.parse?.wikitext?.["*"];
     return typeof texto === "string" ? texto : null;
-  } catch {
+  } catch (err) {
+    console.warn(`Wikivoyage (${idioma}): fallo al leer "${titulo}"`, err);
     return null;
   }
 }
@@ -130,7 +183,10 @@ export async function obtenerGuiaWikivoyage(ciudad: string): Promise<WikivoyageR
     const wikitext = await obtenerWikitext(titulo, idioma);
     if (!wikitext) continue;
     const listings = extraerListings(wikitext);
-    if (listings.length === 0) continue;
+    if (listings.length === 0) {
+      console.warn(`Wikivoyage (${idioma}): "${titulo}" no trajo listings extraíbles`);
+      continue;
+    }
     return {
       articulo: titulo,
       idioma,
