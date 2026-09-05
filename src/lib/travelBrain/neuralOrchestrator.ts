@@ -1,0 +1,136 @@
+import type { CanonicalTripContext } from "./tripContext";
+import type { ResolvedDestination } from "./destinationResolver";
+import type { DataRequirement, AgentSpec } from "./reverseEngineeringOrchestrator";
+import type { AgentResult } from "./agentRuntime";
+
+/**
+ * Neural-style control layer: requirements behave like neurons. A neuron
+ * receives signals from prerequisites, fires only when its inputs are ready,
+ * emits a validated signal, and strengthens/weakens follow-up priorities from
+ * the result. This is an engineering analogy, not a claim of biological
+ * equivalence to a brain.
+ */
+export interface NeuralSignal {
+  requirementId: string;
+  source: string;
+  kind: "activation" | "inhibition" | "error" | "learning";
+  strength: number;
+  reason: string;
+}
+
+export interface NeuralFollowUp {
+  id: string;
+  parentRequirementId: string;
+  domain: DataRequirement["domain"];
+  dataType: string;
+  question: string;
+  priority: DataRequirement["priority"];
+  dependsOn: string[];
+  reason: string;
+}
+
+export interface NeuralCycle {
+  cycle: number;
+  fired: string[];
+  inhibited: string[];
+  signals: NeuralSignal[];
+  followUps: NeuralFollowUp[];
+}
+
+function priority(p: DataRequirement["priority"]): number {
+  return p === "critical" ? 1 : p === "high" ? .8 : p === "normal" ? .5 : .25;
+}
+
+/** Turns incomplete/invalid agent outputs into precise new requirements. */
+export function deriveNeuralFollowUps(requirements: DataRequirement[], results: AgentResult[]): NeuralFollowUp[] {
+  const byId = new Map(requirements.map(r => [r.id, r]));
+  const followUps: NeuralFollowUp[] = [];
+  for (const result of results) {
+    const parent = byId.get(result.requirementId);
+    if (!parent) continue;
+    const missing = [...new Set([...result.validation.missing, ...(result.validation.issues.length ? ["validation"] : [])])];
+    if (!missing.length && result.status !== "error") continue;
+    for (const missingItem of missing) {
+      const dataType = `${parent.dataType}:followup:${missingItem}`;
+      followUps.push({
+        id: `followup:${parent.id}:${missingItem}`,
+        parentRequirementId: parent.id,
+        domain: parent.domain,
+        dataType,
+        question: `Resolver específicamente ${missingItem} necesario para validar ${parent.dataType}.`,
+        priority: priority(parent.priority) >= .8 ? "high" : "normal",
+        dependsOn: [parent.id],
+        reason: result.error ?? result.validation.issues.join("; ") ?? "Resultado incompleto",
+      });
+    }
+  }
+  return followUps;
+}
+
+/** Produces the next neural cycle from the current activation state. */
+export function buildNeuralCycle(
+  requirements: DataRequirement[],
+  results: AgentResult[],
+  cycle: number,
+): NeuralCycle {
+  const resultByReq = new Map(results.map(r => [r.requirementId, r]));
+  const signals: NeuralSignal[] = [];
+  const fired: string[] = [];
+  const inhibited: string[] = [];
+  for (const requirement of requirements) {
+    const result = resultByReq.get(requirement.id);
+    if (!result) {
+      fired.push(requirement.id);
+      signals.push({ requirementId: requirement.id, source: "scheduler", kind: "activation", strength: priority(requirement.priority), reason: "Requisito pendiente listo para investigación." });
+      continue;
+    }
+    if (result.status === "ready" && result.validation.valid) {
+      signals.push({ requirementId: requirement.id, source: result.agentId, kind: "learning", strength: 1, reason: "Salida validada; señal propagable." });
+    } else {
+      inhibited.push(requirement.id);
+      signals.push({ requirementId: requirement.id, source: result.agentId, kind: result.status === "error" ? "error" : "inhibition", strength: 1 - priority(requirement.priority) + .25, reason: result.error ?? result.validation.issues.join("; ") || "Salida insuficiente." });
+    }
+  }
+  return { cycle, fired, inhibited, signals, followUps: deriveNeuralFollowUps(requirements, results) };
+}
+
+export function materializeFollowUpRequirements(followUps: NeuralFollowUp[], existing: DataRequirement[], agents: AgentSpec[]): { requirements: DataRequirement[]; agents: AgentSpec[] } {
+  const existingIds = new Set(existing.map(r => r.id));
+  const newRequirements: DataRequirement[] = [];
+  const newAgents: AgentSpec[] = [];
+  for (const f of followUps) {
+    if (existingIds.has(f.id)) continue;
+    const requirement: DataRequirement = { id: f.id, domain: f.domain, dataType: f.dataType, question: f.question, purpose: `Cerrar el hueco detectado por el ciclo neural.`, priority: f.priority, dependsOn: f.dependsOn, agentId: `agent:${f.id}`, status: "planned" };
+    newRequirements.push(requirement);
+    newAgents.push({ id: requirement.agentId, name: `${f.domain}.${f.dataType}`, domain: f.domain, input: ["TripContext", "validated_signals", "dependency_results", "previous_evidence"], output: [f.dataType, "evidence", "validation", "confidence", "freshness"], requirementIds: [f.id], mode: "research" });
+    existingIds.add(f.id);
+  }
+  return { requirements: [...existing, ...newRequirements], agents: [...agents, ...newAgents] };
+}
+
+export async function runNeuralOrchestration(
+  requirements: DataRequirement[],
+  agents: AgentSpec[],
+  context: CanonicalTripContext,
+  locations: ResolvedDestination[],
+  execute: (requirements: DataRequirement[], agents: AgentSpec[], context: CanonicalTripContext, locations: ResolvedDestination[]) => Promise<AgentResult[]>,
+  maxCycles = 3,
+): Promise<{ results: AgentResult[]; cycles: NeuralCycle[] }> {
+  let currentRequirements = [...requirements];
+  let currentAgents = [...agents];
+  const allResults = new Map<string, AgentResult>();
+  const cycles: NeuralCycle[] = [];
+  for (let cycle = 1; cycle <= maxCycles; cycle++) {
+    const pending = currentRequirements.filter(r => !allResults.has(r.id));
+    if (!pending.length) break;
+    const results = await execute(pending, currentAgents.filter(a => pending.some(r => r.agentId === a.id)), context, locations);
+    results.forEach(r => allResults.set(r.requirementId, r));
+    const neural = buildNeuralCycle(currentRequirements, results, cycle);
+    cycles.push(neural);
+    const materialized = materializeFollowUpRequirements(neural.followUps, currentRequirements, currentAgents);
+    currentRequirements = materialized.requirements;
+    currentAgents = materialized.agents;
+    if (!neural.followUps.length) break;
+  }
+  return { results: [...allResults.values()], cycles };
+}
