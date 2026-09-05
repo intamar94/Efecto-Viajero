@@ -38,22 +38,10 @@ export interface BrainRun {
 function buildBlockers(analysis: Awaited<ReturnType<typeof analyzeTrip>>): BrainBlocker[] {
   const blockers: BrainBlocker[] = [];
   for (const unresolved of analysis.unresolved) {
-    blockers.push({
-      id: `unresolved:${unresolved}`,
-      type: "missing-data",
-      target: unresolved,
-      reason: unresolved,
-      severity: "high",
-    });
+    blockers.push({ id: `unresolved:${unresolved}`, type: "missing-data", target: unresolved, reason: unresolved, severity: "high" });
   }
   for (const domain of analysis.unavailableDomains) {
-    blockers.push({
-      id: `provider:${domain}`,
-      type: "provider",
-      target: domain,
-      reason: `La capacidad ${domain} no está disponible en esta ejecución.`,
-      severity: "high",
-    });
+    blockers.push({ id: `provider:${domain}`, type: "provider", target: domain, reason: `La capacidad ${domain} no está disponible en esta ejecución.`, severity: "high" });
   }
   return blockers;
 }
@@ -66,7 +54,9 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
   const completed = requirements.filter((requirement) => results.some((result) => result.requirementId === requirement.id));
   const validated = results.filter((result) => result.status === "ready" && result.validation.valid);
   const completeness = requirements.length ? completed.length / requirements.length : 1;
-  const confidence = results.length ? results.reduce((sum, result) => sum + result.confidence === "high" ? 1 : result.confidence === "medium" ? .7 : .4, 0) / results.length : 0;
+  const confidence = results.length
+    ? results.reduce((sum, result) => sum + (result.confidence === "high" ? 1 : result.confidence === "medium" ? .7 : .4), 0) / results.length
+    : 0;
   const brain = createBrainState({ runId: `brain:${Date.now()}`, context, requirements, agents });
   return updateBrainState(brain, {
     phase: analysis.unresolved.length || analysis.unavailableDomains.length ? "blocked" : validated.length === results.length ? "complete" : "validating",
@@ -85,7 +75,6 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
 export async function runBrain(input: BrainInput): Promise<BrainRun> {
   const text = input.text.trim();
   if (!text) throw new Error("Falta la descripción del viaje.");
-
   const context = buildCanonicalTripContext({
     text,
     fechaSalida: input.fechaSalida,
@@ -109,10 +98,8 @@ export async function runBrain(input: BrainInput): Promise<BrainRun> {
     constraints: input.constraints,
     destinations: input.destinations,
   });
-
   const deconstructed = deconstructTripText(text);
   const analysis = await analyzeTrip(text, context);
   const brain = buildBrainState(context, analysis);
-
   return { context, deconstructed, analysis, brain };
 }
