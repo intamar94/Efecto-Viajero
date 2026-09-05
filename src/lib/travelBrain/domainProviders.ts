@@ -1,6 +1,15 @@
 import type { EvidenceRef, ResearchDomain } from "./researchOrchestrator";
 import type { ResolvedDestination } from "./destinationResolver";
 
+export interface ProviderSignal {
+  requirementId: string;
+  dataType: string;
+  data?: unknown;
+  evidence?: EvidenceRef[];
+  confidence: "high" | "medium" | "low";
+  freshness: "live" | "recent" | "dated" | "unknown";
+}
+
 export interface DomainProviderContext {
   domain: ResearchDomain;
   destination: ResolvedDestination;
@@ -9,6 +18,10 @@ export interface DomainProviderContext {
   currency?: string;
   query?: string;
   origin?: { latitude: number; longitude: number };
+  requirementId?: string;
+  dataType?: string;
+  question?: string;
+  dependencySignals?: ProviderSignal[];
 }
 
 export interface DomainProviderResult {
@@ -48,115 +61,56 @@ const OVERPASS_ENDPOINTS = [
 
 const osmPoi: Adapter = async ({ destination, domain, query }) => {
   const filters = query ? [query] : poi[domain] ?? poi.experiences;
-  const clauses = filters
-    .map((filter) => `nwr[${filter}](around:8000,${destination.latitude},${destination.longitude});`)
-    .join("");
+  const clauses = filters.map((filter) => `nwr[${filter}](around:8000,${destination.latitude},${destination.longitude});`).join("");
   const body = `[out:json][timeout:15];(${clauses});out center tags 40;`;
   let lastError: unknown;
-
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
-      const data = await getJson(
-        endpoint,
-        "OpenStreetMap Overpass",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            Accept: "application/json",
-            "User-Agent": "Efecto-Viajero/1.0",
-          },
-          body: new URLSearchParams({ data: body }).toString(),
-        },
-      );
+      const data = await getJson(endpoint, "OpenStreetMap Overpass", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" },
+        body: new URLSearchParams({ data: body }).toString(),
+      });
       return { domain, status: "ready", data, evidence: [evidence("OpenStreetMap Overpass")] };
-    } catch (error) {
-      lastError = error;
-    }
+    } catch (error) { lastError = error; }
   }
-
   throw lastError instanceof Error ? lastError : new Error("OpenStreetMap Overpass: provider unavailable");
 };
 
 const weather: Adapter = async ({ destination, start, end }) => {
   const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude", String(destination.latitude));
-  url.searchParams.set("longitude", String(destination.longitude));
+  url.searchParams.set("latitude", String(destination.latitude)); url.searchParams.set("longitude", String(destination.longitude));
   url.searchParams.set("current", "temperature_2m,precipitation,weather_code,wind_speed_10m");
-  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code");
-  url.searchParams.set("timezone", "auto");
-  if (start) url.searchParams.set("start_date", start);
-  if (end) url.searchParams.set("end_date", end);
+  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code"); url.searchParams.set("timezone", "auto");
+  if (start) url.searchParams.set("start_date", start); if (end) url.searchParams.set("end_date", end);
   const data = await getJson(url.toString(), "Open-Meteo Forecast");
   return { domain: "weather", status: "ready", data, evidence: [evidence("Open-Meteo Forecast", "high")] };
 };
 
 const map: Adapter = async ({ destination }) => {
-  const data = await getJson(
-    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${destination.latitude}&lon=${destination.longitude}`,
-    "OpenStreetMap Nominatim",
-    { headers: { "User-Agent": "Efecto-Viajero/1.0" } },
-  );
+  const data = await getJson(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${destination.latitude}&lon=${destination.longitude}`, "OpenStreetMap Nominatim", { headers: { "User-Agent": "Efecto-Viajero/1.0" } });
   return { domain: "map", status: "ready", data, evidence: [evidence("OpenStreetMap Nominatim")] };
 };
 
-const route: Adapter = async ({ destination, origin }) => {
-  if (!origin) {
-    return {
-      domain: "transport",
-      status: "unavailable",
-      data: { reason: "Se necesita origen y destino para calcular una ruta." },
-    };
-  }
+const route: Adapter = async ({ destination, origin, dependencySignals }) => {
+  const upstream = dependencySignals?.map((signal) => ({ requirementId: signal.requirementId, dataType: signal.dataType, data: signal.data })) ?? [];
+  if (!origin) return { domain: "transport", status: "unavailable", data: { reason: "Se necesita origen y destino para calcular una ruta.", upstream } };
   const coords = `${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}`;
-  const data = await getJson(
-    `https://router.project-osrm.org/route/v1/driving/${coords}?overview=false&steps=true`,
-    "OSRM",
-  );
-  return { domain: "transport", status: "ready", data, evidence: [evidence("OSRM")] };
+  const data = await getJson(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=false&steps=true`, "OSRM");
+  return { domain: "transport", status: "ready", data: { route: data, upstream }, evidence: [evidence("OSRM")] };
 };
 
-const currency: Adapter = async ({ currency: base, destination }) => {
-  if (!base) {
-    return {
-      domain: "currency",
-      status: "unavailable",
-      data: { reason: "No se indicó moneda base." },
-    };
-  }
-  const data = await getJson(
-    `https://api.frankfurter.app/latest?from=${encodeURIComponent(base)}`,
-    "Frankfurter",
-  );
-  return { domain: "currency", status: "ready", data: { destination, ...data }, evidence: [evidence("Frankfurter")] };
+const currency: Adapter = async ({ currency: base, destination, dependencySignals }) => {
+  if (!base) return { domain: "currency", status: "unavailable", data: { reason: "No se indicó moneda base.", upstream: dependencySignals } };
+  const data = await getJson(`https://api.frankfurter.app/latest?from=${encodeURIComponent(base)}`, "Frankfurter");
+  return { domain: "currency", status: "ready", data: { destination, rates: data, upstream: dependencySignals }, evidence: [evidence("Frankfurter")] };
 };
 
-const adapters: Partial<Record<ResearchDomain, Adapter>> = {
-  experiences: osmPoi,
-  culture: osmPoi,
-  gastronomy: osmPoi,
-  nature: osmPoi,
-  weather,
-  map,
-  transport: route,
-  currency,
-};
+const adapters: Partial<Record<ResearchDomain, Adapter>> = { experiences: osmPoi, culture: osmPoi, gastronomy: osmPoi, nature: osmPoi, weather, map, transport: route, currency };
 
-export async function executeDomainProvider(
-  domain: ResearchDomain,
-  context: Omit<DomainProviderContext, "domain">,
-): Promise<DomainProviderResult> {
+export async function executeDomainProvider(domain: ResearchDomain, context: Omit<DomainProviderContext, "domain">): Promise<DomainProviderResult> {
   const adapter = adapters[domain];
-  if (!adapter) {
-    return {
-      domain,
-      status: "unavailable",
-      data: { reason: "Este dominio requiere un conector especializado antes de poder ofrecer datos factuales." },
-    };
-  }
-  try {
-    return await adapter({ ...context, domain });
-  } catch (error) {
-    return { domain, status: "error", error: error instanceof Error ? error.message : "Provider error" };
-  }
+  if (!adapter) return { domain, status: "unavailable", data: { reason: "Este dominio requiere un conector especializado antes de poder ofrecer datos factuales." } };
+  try { return await adapter({ ...context, domain }); }
+  catch (error) { return { domain, status: "error", error: error instanceof Error ? error.message : "Provider error" }; }
 }
