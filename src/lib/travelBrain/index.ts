@@ -20,3 +20,5 @@ export * from "./compatibility";
 export * from "../documentIntelligence";
 export * from "./presentation";
 export * from "./tripBuilder";
+export * from "./brainState";
+export * from "./brainController";
