@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { formatearRangoFechas } from "@/lib/formatoFecha";
 import type { Viaje, Viajero } from "@/lib/types";
 
 interface CalendarioVijesProps {
@@ -99,7 +100,7 @@ export function CalendarioViajes({ viajes, viajeros }: CalendarioVijesProps) {
                     <p className="font-semibold">{viaje.destino}</p>
                     <p className="text-xs opacity-75">
                       {viaje.fechaSalida && viaje.fechaRegreso
-                        ? `${viaje.fechaSalida} → ${viaje.fechaRegreso}`
+                        ? formatearRangoFechas(viaje.fechaSalida, viaje.fechaRegreso)
                         : "Sin fechas"}
                     </p>
                   </div>

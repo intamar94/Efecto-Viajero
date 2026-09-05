@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Cabecera } from "@/components/Cabecera";
 import { CalendarioViajes } from "@/components/CalendarioViajes";
 import { useData } from "@/lib/store";
+import { formatearRangoFechas } from "@/lib/formatoFecha";
 
 type Vista = "lista" | "calendario";
 
@@ -65,7 +66,7 @@ export default function ViajesPage() {
                       <p className="font-medium">{viaje.destino}</p>
                       <p className="text-sm text-neutral-500">
                         {viaje.fechaSalida && viaje.fechaRegreso
-                          ? `${viaje.fechaSalida} → ${viaje.fechaRegreso}`
+                          ? formatearRangoFechas(viaje.fechaSalida, viaje.fechaRegreso)
                           : viaje.contexto.duracionDias
                             ? `~${viaje.contexto.duracionDias} días · sin fechas`
                             : "Sin fechas"}

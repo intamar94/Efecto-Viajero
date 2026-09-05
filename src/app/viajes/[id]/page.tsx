@@ -15,9 +15,11 @@ import { resumenViaje } from "@/lib/travelBrain";
 import { MODOS } from "@/lib/modos";
 import { NOMBRE_DOMINIO } from "@/lib/investigacion";
 import { invitar as compartirViaje } from "@/lib/viajes/compartidos";
+import { formatearRangoFechas } from "@/lib/formatoFecha";
 import type { ContextoViaje, EstadoRequisito, Viaje } from "@/lib/types";
 
 const SECCIONES = [
+  { href: "itinerario", icono: "📅", titulo: "Itinerario" },
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
   { href: "actividades", icono: "🎒", titulo: "Actividades" },
@@ -25,6 +27,7 @@ const SECCIONES = [
   { href: "souvenirs", icono: "🎁", titulo: "Qué comprar" },
   { href: "compartido", icono: "👥", titulo: "Compartido" },
   { href: "recuerdos", icono: "📸", titulo: "Recuerdos" },
+  { href: "resolver", icono: "🆘", titulo: "Resolver SOS" },
 ] as const;
 
 const NIVEL_ESTILO: Record<string, string> = {
@@ -34,7 +37,7 @@ const NIVEL_ESTILO: Record<string, string> = {
 };
 
 function subtituloFechas(viaje: Viaje): string {
-  if (viaje.fechaSalida && viaje.fechaRegreso) return `${viaje.fechaSalida} → ${viaje.fechaRegreso}`;
+  if (viaje.fechaSalida && viaje.fechaRegreso) return formatearRangoFechas(viaje.fechaSalida, viaje.fechaRegreso);
   if (viaje.fechaSalida) return `Desde ${viaje.fechaSalida}`;
   if (viaje.contexto.duracionDias) return `~${viaje.contexto.duracionDias} días · fechas por confirmar`;
   return "Fechas por confirmar";
@@ -97,6 +100,7 @@ export default function ViajeDetallePage() {
   const auditoria = viaje.investigacion?.auditoria;
 
   const estadoTexto: Record<(typeof SECCIONES)[number]["href"], string> = {
+    itinerario: viaje.itinerario ? `${viaje.itinerario.dias.length} días` : "Por generar",
     transporte: viaje.transporte.length > 0 ? `${viaje.transporte.length} tramo(s)` : "Sin definir",
     alojamiento: alojamientoElegido ? alojamientoElegido.nombre : "Sin elegir",
     actividades:
@@ -107,6 +111,7 @@ export default function ViajeDetallePage() {
     souvenirs: "Consejos de compras",
     compartido: viaje.participantes.length > 0 ? `${viaje.participantes.length} participante(s)` : "Solo tú",
     recuerdos: viaje.recuerdos.length > 0 ? `${viaje.recuerdos.length} momento(s)` : "Sin momentos aún",
+    resolver: "Emergencias y contactos",
   };
 
   function toggleViajeroEnViaje(id: string) {
@@ -488,18 +493,21 @@ export default function ViajeDetallePage() {
           </section>
         )}
 
-        <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {SECCIONES.map((s) => (
-            <Link
-              key={s.href}
-              href={`/viajes/${viaje.id}/${s.href}`}
-              className="rounded-2xl border border-neutral-200 bg-white p-4 hover:border-neutral-900"
-            >
-              <p className="text-2xl">{s.icono}</p>
-              <p className="mt-1 text-sm font-medium">{s.titulo}</p>
-              <p className="text-xs text-neutral-500">{estadoTexto[s.href]}</p>
-            </Link>
-          ))}
+        <section className="mb-6">
+          <h2 className="mb-4 font-medium">Elementos del viaje</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {SECCIONES.map((s) => (
+              <Link
+                key={s.href}
+                href={`/viajes/${viaje.id}/${s.href}`}
+                className="group rounded-2xl border border-neutral-200 bg-white px-4 py-5 transition hover:border-marino-500 hover:bg-marino-50"
+              >
+                <p className="text-3xl mb-2">{s.icono}</p>
+                <p className="text-sm font-medium text-neutral-900 group-hover:text-marino-900">{s.titulo}</p>
+                <p className="mt-1.5 text-xs text-neutral-500 group-hover:text-marino-700">{estadoTexto[s.href]}</p>
+              </Link>
+            ))}
+          </div>
         </section>
 
         <button onClick={borrarViaje} className="text-sm text-red-600 hover:text-red-800">
