@@ -1,6 +1,4 @@
 -- Persistent snapshots for the travel brain.
--- The application injects the persistence adapter; this table stores structured
--- brain state rather than chat transcripts.
 create table if not exists public.brain_snapshots (
   id uuid primary key default uuid_generate_v4(),
   run_id text not null unique,
@@ -13,17 +11,12 @@ create table if not exists public.brain_snapshots (
 
 alter table public.brain_snapshots enable row level security;
 
-create policy "Users can read their own brain snapshots" on public.brain_snapshots
-  for select using (auth.uid() = user_id or user_id is null);
-
-create policy "Users can insert their own brain snapshots" on public.brain_snapshots
-  for insert with check (auth.uid() = user_id or user_id is null);
-
-create policy "Users can update their own brain snapshots" on public.brain_snapshots
-  for update using (auth.uid() = user_id or user_id is null);
-
-create policy "Users can delete their own brain snapshots" on public.brain_snapshots
-  for delete using (auth.uid() = user_id or user_id is null);
+-- Browser clients cannot read anonymous snapshots. The server adapter uses the
+-- service role and therefore bypasses RLS without exposing that key to clients.
+create policy "Users can read their own brain snapshots" on public.brain_snapshots for select using (auth.uid() = user_id);
+create policy "Users can insert their own brain snapshots" on public.brain_snapshots for insert with check (auth.uid() = user_id);
+create policy "Users can update their own brain snapshots" on public.brain_snapshots for update using (auth.uid() = user_id);
+create policy "Users can delete their own brain snapshots" on public.brain_snapshots for delete using (auth.uid() = user_id);
 
 create index if not exists brain_snapshots_viaje_id_idx on public.brain_snapshots(viaje_id);
 create index if not exists brain_snapshots_user_id_idx on public.brain_snapshots(user_id);
