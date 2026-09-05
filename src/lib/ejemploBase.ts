@@ -1,6 +1,12 @@
 import type { PersonaViajero, Viaje } from "./types";
 import { generarId } from "./id";
 
+function offsetFecha(dias: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().split("T")[0];
+}
+
 export const VIAJEROS_EJEMPLO: PersonaViajero[] = [
   {
     id: "v1",
@@ -38,8 +44,8 @@ export const VIAJE_EJEMPLO: Viaje = {
     { id: "e3", nombre: "Cartagena", paisCodigo: "CO", destinoId: "cartagena", dias: 4 },
   ],
   viajerosIds: ["v1", "v2"],
-  fechaSalida: "2024-09-20",
-  fechaRegreso: "2024-10-04",
+  fechaSalida: offsetFecha(15),
+  fechaRegreso: offsetFecha(27),
   modoPlanificacion: "completo",
   contexto: {
     numAdultos: 2,
@@ -115,7 +121,7 @@ export const VIAJE_EJEMPLO: Viaje = {
     dias: [
       {
         dia: 1,
-        fecha: "2024-09-20",
+        fecha: offsetFecha(15),
         etapa: "Bogotá",
         descansoTotal: false,
         actividades: [
@@ -137,7 +143,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 2,
-        fecha: "2024-09-21",
+        fecha: offsetFecha(16),
         etapa: "Bogotá",
         descansoTotal: false,
         actividades: [
@@ -166,7 +172,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 3,
-        fecha: "2024-09-22",
+        fecha: offsetFecha(17),
         etapa: "Bogotá",
         descansoTotal: false,
         actividades: [
@@ -188,7 +194,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 4,
-        fecha: "2024-09-23",
+        fecha: offsetFecha(18),
         etapa: "Medellín",
         descansoTotal: true,
         notas: "Viaje a Medellín, día de descanso",
@@ -196,7 +202,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 5,
-        fecha: "2024-09-24",
+        fecha: offsetFecha(19),
         etapa: "Medellín",
         descansoTotal: false,
         actividades: [
@@ -225,7 +231,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 6,
-        fecha: "2024-09-25",
+        fecha: offsetFecha(20),
         etapa: "Medellín",
         descansoTotal: false,
         actividades: [
@@ -247,7 +253,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 7,
-        fecha: "2024-09-26",
+        fecha: offsetFecha(21),
         etapa: "Medellín",
         descansoTotal: true,
         notas: "Viaje a Cartagena, descanso",
@@ -255,7 +261,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 8,
-        fecha: "2024-09-27",
+        fecha: offsetFecha(22),
         etapa: "Cartagena",
         descansoTotal: false,
         actividades: [
@@ -277,7 +283,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 9,
-        fecha: "2024-09-28",
+        fecha: offsetFecha(23),
         etapa: "Cartagena",
         descansoTotal: false,
         actividades: [
@@ -299,7 +305,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 10,
-        fecha: "2024-09-29",
+        fecha: offsetFecha(24),
         etapa: "Cartagena",
         descansoTotal: false,
         actividades: [
@@ -321,7 +327,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 11,
-        fecha: "2024-09-30",
+        fecha: offsetFecha(25),
         etapa: "Cartagena",
         descansoTotal: true,
         notas: "Último día libre antes de volver",
@@ -329,7 +335,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       },
       {
         dia: 12,
-        fecha: "2024-10-01",
+        fecha: offsetFecha(26),
         etapa: "Cartagena",
         descansoTotal: false,
         actividades: [
@@ -378,18 +384,18 @@ export const VIAJE_EJEMPLO: Viaje = {
         lugar: "Bogotá",
         actualC: 14,
         dias: [
-          { fecha: "2024-09-21", minC: 10, maxC: 15, probabilidadLluvia: 80 },
-          { fecha: "2024-09-22", minC: 10, maxC: 14, probabilidadLluvia: 60 },
-          { fecha: "2024-09-23", minC: 11, maxC: 16, probabilidadLluvia: 30 },
+          { fecha: offsetFecha(16), minC: 10, maxC: 15, probabilidadLluvia: 80 },
+          { fecha: offsetFecha(17), minC: 10, maxC: 14, probabilidadLluvia: 60 },
+          { fecha: offsetFecha(18), minC: 11, maxC: 16, probabilidadLluvia: 30 },
         ],
       },
       {
         lugar: "Medellín",
         actualC: 24,
         dias: [
-          { fecha: "2024-09-24", minC: 18, maxC: 26, probabilidadLluvia: 40 },
-          { fecha: "2024-09-25", minC: 19, maxC: 27, probabilidadLluvia: 20 },
-          { fecha: "2024-09-26", minC: 18, maxC: 25, probabilidadLluvia: 70 },
+          { fecha: offsetFecha(19), minC: 18, maxC: 26, probabilidadLluvia: 40 },
+          { fecha: offsetFecha(20), minC: 19, maxC: 27, probabilidadLluvia: 20 },
+          { fecha: offsetFecha(21), minC: 18, maxC: 25, probabilidadLluvia: 70 },
         ],
       },
     ],
