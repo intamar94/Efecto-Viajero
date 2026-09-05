@@ -119,12 +119,12 @@ export default function ResolverPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
+        <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
           titulo="Necesito ayuda"
           subtitulo="Pasos orientativos. En una urgencia real, llama primero al número de emergencias."
           volverA={`/viajes/${viaje.id}`}
         />
-        <ViajeToolsNav viajeId={viaje.id} />
 
         {paises.length === 0 ? (
           <section className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-5">

@@ -132,12 +132,12 @@ export default function VaultPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
+        <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
           titulo="Travel Vault"
           subtitulo="Sube el documento y se archiva solo en su tema."
           volverA={`/viajes/${viaje.id}`}
         />
-        <ViajeToolsNav viajeId={viaje.id} />
 
         <section className="tip mb-6">
           <h2 className="mb-1 font-medium text-neutral-900">Subir un documento</h2>

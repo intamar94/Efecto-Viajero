@@ -85,9 +85,30 @@ export const VIAJE_EJEMPLO: Viaje = {
     },
   ],
   actividades: [
-    { actividadId: "monserrate", estado: "planificada" },
-    { actividadId: "coffee-tour", estado: "planificada" },
-    { actividadId: "ciudad-amurallada", estado: "planificada" },
+    {
+      actividadId: "act-bogota-monserrate",
+      estado: "planificada",
+      etapaId: "e1",
+      etapaNombre: "Bogotá",
+      categoria: "naturaleza",
+      propia: { nombre: "Monserrate", duracionHoras: 3, costeEstimado: 5, entorno: "exterior", admiteMascotas: false },
+    },
+    {
+      actividadId: "act-bogota-coffee-tour",
+      estado: "planificada",
+      etapaId: "e1",
+      etapaNombre: "Bogotá",
+      categoria: "restaurante",
+      propia: { nombre: "Coffee tour", duracionHoras: 2, costeEstimado: 15, entorno: "interior", admiteMascotas: false },
+    },
+    {
+      actividadId: "act-cartagena-amurallada",
+      estado: "planificada",
+      etapaId: "e3",
+      etapaNombre: "Cartagena",
+      categoria: "museo",
+      propia: { nombre: "Ciudad Amurallada", duracionHoras: 2.5, costeEstimado: 0, entorno: "exterior", admiteMascotas: false },
+    },
   ],
   alojamientoId: "hotel-cartagena-deluxe",
   documentos: [

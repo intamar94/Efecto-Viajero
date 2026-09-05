@@ -127,27 +127,54 @@ export interface OpcionAlojamiento {
 
 export type EstadoActividad = "disponible" | "planificada" | "reservada" | "realizada" | "descartada";
 
+export type CategoriaActividad =
+  | "museo"
+  | "parque"
+  | "restaurante"
+  | "cine_teatro"
+  | "discoteca"
+  | "compras"
+  | "naturaleza"
+  | "playa"
+  | "pueblos"
+  | "otro";
+
 export interface ActividadDestino {
   id: string;
   nombre: string;
   tipo: string;
+  categoria: CategoriaActividad;
   duracionHoras: number;
   costeEstimado: number;
   apta: string[];
   entorno: "exterior" | "interior" | "mixto";
   admiteMascotas: boolean;
   descripcion: string;
+  horarioHabitual?: string;
+  consejo?: string;
 }
 
 export interface ActividadViaje {
   actividadId: string;
   estado: EstadoActividad;
+  // A qué etapa/ciudad del viaje pertenece. Sin esto, el itinerario no
+  // puede saber en qué día encaja: en un circuito, una actividad de
+  // Cartagena no puede caer en un día en Bogotá.
+  etapaId?: string;
+  etapaNombre?: string;
+  categoria?: CategoriaActividad;
   propia?: {
     nombre: string;
     duracionHoras?: number;
     costeEstimado?: number;
+    // Cuando la actividad viene de un sitio real (OpenStreetMap) en vez de
+    // un formulario a mano: su precio y horario originales, tal cual se
+    // conocen, en vez de forzarlos a un número que no tenemos.
+    notaPrecio?: string;
+    horario?: string;
     entorno?: "exterior" | "interior" | "mixto";
     admiteMascotas?: boolean;
+    esSitioReal?: boolean;
   };
 }
 

@@ -24,12 +24,12 @@ export default function ItinerarioPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
+        <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
           titulo="Itinerario"
           subtitulo="Día a día con horarios"
           volverA={`/viajes/${viaje.id}`}
         />
-        <ViajeToolsNav viajeId={viaje.id} />
         <div className="mt-6">
           <VistaItinerario viaje={viaje} onActualizar={(cambios) => actualizarViaje(viaje.id, cambios)} />
         </div>

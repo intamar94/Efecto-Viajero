@@ -38,12 +38,12 @@ export default function RutaPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
+        <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
           titulo={circuito ? "Tu ruta" : "Tu destino"}
           subtitulo={circuito ? "Paradas en orden, con lo que cambia en cada frontera." : "Lo básico del sitio, en una sola hoja."}
           volverA={`/viajes/${viaje.id}`}
         />
-        <ViajeToolsNav viajeId={viaje.id} />
 
         {/* Esto es la hoja de papel que antes había que armar a mano en
             foros y llevar encima: se imprime tal cual y funciona sin

@@ -37,8 +37,8 @@ export default function AlojamientoPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
-        <Cabecera titulo="Alojamiento" subtitulo={`Dónde dormir en ${etapa.nombre}.`} volverA={`/viajes/${viaje.id}`} />
         <ViajeToolsNav viajeId={viaje.id} />
+        <Cabecera titulo="Alojamiento" subtitulo={`Dónde dormir en ${etapa.nombre}.`} volverA={`/viajes/${viaje.id}`} />
 
         {etapas.length > 1 && (
           <div className="mb-4 -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">

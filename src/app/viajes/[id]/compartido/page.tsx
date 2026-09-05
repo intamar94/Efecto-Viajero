@@ -67,12 +67,12 @@ export default function CompartidoPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
+        <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
           titulo="Compartido"
           subtitulo="Participantes y decisiones en grupo, en este dispositivo. Compartir el mismo viaje entre varios móviles necesita cuenta y backend — no está construido en esta versión."
           volverA={`/viajes/${viaje.id}`}
         />
-        <ViajeToolsNav viajeId={viaje.id} />
 
         <section className="card mb-6">
           <h2 className="mb-3 font-medium">Participantes</h2>

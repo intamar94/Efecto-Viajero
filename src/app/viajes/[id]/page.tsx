@@ -27,6 +27,7 @@ const SECCIONES = [
   { href: "compartido", icono: "👥", titulo: "Compartido" },
   { href: "recuerdos", icono: "📸", titulo: "Recuerdos" },
   { href: "resolver", icono: "🆘", titulo: "Resolver SOS" },
+  { href: "imprimir", icono: "🖨️", titulo: "Imprimir / PDF" },
 ] as const;
 
 const NIVEL_ESTILO: Record<string, string> = {
@@ -109,6 +110,7 @@ export default function ViajeDetallePage() {
     compartido: viaje.participantes.length > 0 ? `${viaje.participantes.length} participante(s)` : "Solo tú",
     recuerdos: viaje.recuerdos.length > 0 ? `${viaje.recuerdos.length} momento(s)` : "Sin momentos aún",
     resolver: "Emergencias y contactos",
+    imprimir: "Itinerario + reservas en un PDF",
   };
 
   function toggleViajeroEnViaje(id: string) {

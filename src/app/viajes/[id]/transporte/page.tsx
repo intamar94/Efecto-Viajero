@@ -96,8 +96,8 @@ export default function TransportePage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
-        <Cabecera titulo="Transporte" subtitulo="Cómo llegar y cómo moverte una vez allí." volverA={`/viajes/${viaje.id}`} />
         <ViajeToolsNav viajeId={viaje.id} />
+        <Cabecera titulo="Transporte" subtitulo="Cómo llegar y cómo moverte una vez allí." volverA={`/viajes/${viaje.id}`} />
 
         <section className="card mb-6">
           <h2 className="mb-1 font-medium">Cómo llegar</h2>

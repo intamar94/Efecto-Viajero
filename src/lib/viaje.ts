@@ -29,6 +29,33 @@ export function destinoDeEtapa(etapa: Etapa): Destino | undefined {
   return buscarDestinoPorId(etapa.destinoId) ?? buscarDestinoPorNombre(etapa.nombre);
 }
 
+// El catálogo curado (DESTINOS) solo cubre ~11 países completos: una
+// etapa como "Bogotá" o "Cartagena" nunca hace match ahí, aunque el país
+// (Colombia) sí esté. Sin esto, cualquier circuito de ciudades dentro de
+// un país curado se queda con el catálogo de actividades vacío en todas
+// sus etapas. Se sintetiza un Destino mínimo con lo que sí se sabe de
+// verdad (el país y su bandera de clima/tags), nunca datos inventados de
+// la ciudad en sí.
+export function destinoParaCatalogo(etapa: Etapa): Destino {
+  const real = destinoDeEtapa(etapa);
+  if (real) return real;
+
+  const pais = paisDeEtapa(etapa);
+  return {
+    id: `sintetico-${etapa.id}`,
+    nombre: etapa.nombre,
+    pais: pais?.nombre ?? etapa.nombre,
+    paisCodigo: pais?.codigo ?? "",
+    descripcion: `Catálogo orientativo de actividades para ${etapa.nombre}.`,
+    tags: ["ciudad", "gastronomia", "cultura"],
+    ritmo: ["tranquilo", "medio", "intenso"],
+    presupuestoDiaEstimado: { bajo: 40, medio: 70, alto: 130 },
+    mascotaFriendly: false,
+    distanciaConduccionCorta: false,
+    climaCalido: false,
+  };
+}
+
 export function paisDeEtapa(etapa: Etapa): Pais | undefined {
   return buscarPaisPorCodigo(etapa.paisCodigo ?? destinoDeEtapa(etapa)?.paisCodigo);
 }

@@ -14,6 +14,7 @@ const HERRAMIENTAS = [
   { href: "compartido", icono: "👥", titulo: "Compartido" },
   { href: "recuerdos", icono: "📸", titulo: "Recuerdos" },
   { href: "resolver", icono: "🆘", titulo: "Resolver SOS" },
+  { href: "imprimir", icono: "🖨️", titulo: "Imprimir / PDF" },
 ] as const;
 
 // Un desplegable en vez de una fila de píldoras: en móvil la fila obligaba

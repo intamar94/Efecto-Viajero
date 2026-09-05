@@ -77,8 +77,8 @@ export default function RecuerdosPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
-        <Cabecera titulo="Recuerdos" subtitulo="Tus fotos reales, ordenadas solas en una línea de tiempo." volverA={`/viajes/${viaje.id}`} />
         <ViajeToolsNav viajeId={viaje.id} />
+        <Cabecera titulo="Recuerdos" subtitulo="Tus fotos reales, ordenadas solas en una línea de tiempo." volverA={`/viajes/${viaje.id}`} />
 
         <section className="card mb-6">
           <label className="block">

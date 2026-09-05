@@ -50,8 +50,8 @@ export default function SouvenirsPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
-        <Cabecera titulo="Qué comprar" subtitulo="Qué merece la pena, cómo saber si es auténtico y qué problemas da en la maleta." volverA={`/viajes/${viaje.id}`} />
         <ViajeToolsNav viajeId={viaje.id} />
+        <Cabecera titulo="Qué comprar" subtitulo="Qué merece la pena, cómo saber si es auténtico y qué problemas da en la maleta." volverA={`/viajes/${viaje.id}`} />
 
         {paises.map((pais) => (
           <section key={pais.codigo} className="mb-6">

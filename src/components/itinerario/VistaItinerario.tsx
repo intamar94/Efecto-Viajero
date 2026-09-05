@@ -4,7 +4,9 @@ import { useState } from "react";
 import { PreferenciaItinerarioForm } from "./PreferenciaItinerarioForm";
 import { EditorItinerarioDia } from "./EditorItinerarioDia";
 import { GeneradorItinerario } from "@/lib/generador-itinerario";
-import type { Viaje, Itinerario, DiaItinerario, PreferenciaItinerario } from "@/lib/types";
+import { actividadesDe } from "@/lib/catalogo";
+import { destinoParaCatalogo, etapasDe } from "@/lib/viaje";
+import type { ActividadDestino, Viaje, Itinerario, DiaItinerario, PreferenciaItinerario } from "@/lib/types";
 
 interface Props {
   viaje: Viaje;
@@ -19,12 +21,22 @@ export function VistaItinerario({ viaje, onActualizar }: Props) {
   const handleGenerarItinerario = async (prefs: PreferenciaItinerario) => {
     setCargando(true);
     try {
-      const actividadesMap = new Map();
+      // Duraciones reales del catálogo por ciudad (museos, restaurantes,
+      // etc.), no un placeholder fijo de 2h para todo: así el itinerario
+      // respeta cuánto ocupa cada actividad de verdad.
+      const catalogoPorId = new Map<string, ActividadDestino>();
+      for (const etapa of etapasDe(viaje)) {
+        for (const item of actividadesDe(destinoParaCatalogo(etapa))) {
+          catalogoPorId.set(item.id, item);
+        }
+      }
+
+      const actividadesMap = new Map<string, { id: string; duracionHoras: number }>();
       for (const act of viaje.actividades) {
-        // Placeholder: en fase 2 cargar datos reales
+        const delCatalogo = catalogoPorId.get(act.actividadId);
         actividadesMap.set(act.actividadId, {
           id: act.actividadId,
-          duracionHoras: act.propia?.duracionHoras ?? 2,
+          duracionHoras: act.propia?.duracionHoras ?? delCatalogo?.duracionHoras ?? 1.5,
         });
       }
 
