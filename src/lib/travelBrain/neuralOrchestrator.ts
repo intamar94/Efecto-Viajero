@@ -7,6 +7,9 @@ import type { AgentResult } from "./agentRuntime";
 export interface NeuralSignal { requirementId: string; source: string; kind: "activation" | "inhibition" | "error" | "learning"; strength: number; reason: string; }
 export interface NeuralFollowUp { id: string; parentRequirementId: string; domain: DataRequirement["domain"]; dataType: string; question: string; priority: DataRequirement["priority"]; dependsOn: string[]; reason: string; recovery: "missing-data" | "validation" | "evidence"; }
 export interface NeuralCycle { cycle: number; fired: string[]; inhibited: string[]; signals: NeuralSignal[]; followUps: NeuralFollowUp[]; }
+
+const DEFAULT_MAX_NEURAL_CYCLES = 3;
+
 function priority(p: DataRequirement["priority"]): number { return p === "critical" ? 1 : p === "high" ? .8 : p === "normal" ? .5 : .25; }
 
 function recoveryFor(issue: string): NeuralFollowUp["recovery"] {
@@ -53,7 +56,7 @@ export function materializeFollowUpRequirements(followUps: NeuralFollowUp[], exi
   return { requirements: [...existing, ...newRequirements], agents: [...agents, ...newAgents] };
 }
 
-export async function runNeuralOrchestration(requirements: DataRequirement[], agents: AgentSpec[], context: CanonicalTripContext, locations: ResolvedDestination[], execute: (requirements: DataRequirement[], agents: AgentSpec[], context: CanonicalTripContext, locations: ResolvedDestination[]) => Promise<AgentResult[]>, maxCycles = 3): Promise<{ results: AgentResult[]; cycles: NeuralCycle[] }> {
+export async function runNeuralOrchestration(requirements: DataRequirement[], agents: AgentSpec[], context: CanonicalTripContext, locations: ResolvedDestination[], execute: (requirements: DataRequirement[], agents: AgentSpec[], context: CanonicalTripContext, locations: ResolvedDestination[]) => Promise<AgentResult[]>, maxCycles = DEFAULT_MAX_NEURAL_CYCLES): Promise<{ results: AgentResult[]; cycles: NeuralCycle[] }> {
   let currentRequirements = [...requirements]; let currentAgents = [...agents]; const allResults = new Map<string, AgentResult>(); const cycles: NeuralCycle[] = [];
   for (let cycle = 1; cycle <= maxCycles; cycle++) {
     const pending = currentRequirements.filter(r => !allResults.has(r.id)); if (!pending.length) break;
