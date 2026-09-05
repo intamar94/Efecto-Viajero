@@ -11,6 +11,8 @@ import { buildMarketingDesignBrief } from "./marketingDesignNeuron";
 import { buildDesignSystemBrief } from "./designSystemNeuron";
 import { buildCreativeDepartmentPlan } from "./creativeDepartment";
 import { auditCreativeAgents } from "./creativeAuditEngine";
+import { collectCreativeAuditSources } from "./creativeAuditSource";
+import { attachCreativeAuditToPlan } from "./creativeAuditBridge";
 import type { AccesibilidadViaje, ModoPlanificacion, PresupuestoViaje } from "@/lib/types";
 
 export interface BrainInput {
@@ -114,8 +116,9 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
   const marketingDesign = buildMarketingDesignBrief(finalState);
   const designSystem = buildDesignSystemBrief(finalState);
   const auditState = updateBrainState(finalState, { marketingDesign, designSystem });
-  const creativeAudit = auditCreativeAgents({ state: auditState });
-  const creativeDepartment = buildCreativeDepartmentPlan(updateBrainState(auditState, { creativeAudit }));
+  const creativeAudit = auditCreativeAgents({ state: auditState, sourceFiles: collectCreativeAuditSources() });
+  const stateWithAudit = updateBrainState(auditState, { creativeAudit });
+  const creativeDepartment = attachCreativeAuditToPlan(buildCreativeDepartmentPlan(stateWithAudit), creativeAudit);
   return updateBrainState(finalState, { marketingDesign, designSystem, creativeAudit, creativeDepartment });
 }
 
