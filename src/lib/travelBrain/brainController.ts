@@ -1,8 +1,8 @@
 import { deconstructTripText } from "./tripDeconstructor";
 import { buildCanonicalTripContext, type CanonicalTripContext } from "./tripContext";
 import { analyzeTrip } from "./researchOrchestrator";
-import { createBrainState, updateBrainState, type BrainBlocker, type BrainState } from "./brainState";
-import { deriveBrainActions } from "./brainActions";
+import { createBrainState, updateBrainState, type BrainBlocker, type BrainPhase, type BrainState } from "./brainState";
+import { deriveBrainActions, type BrainAction } from "./brainActions";
 import { resolveWorkingMemoryConflicts, type ConflictClaim } from "./conflictResolver";
 import { decideNextAction, type BrainDecision } from "./decisionEngine";
 import { buildChangeSet } from "./changeSet";
@@ -24,12 +24,35 @@ export interface BrainRun {
   brain: BrainState;
 }
 
+const MAX_CONTROL_CYCLES = 3;
+
 function buildBlockers(analysis: Awaited<ReturnType<typeof analyzeTrip>>): BrainBlocker[] {
   const blockers: BrainBlocker[] = [];
   for (const unresolved of analysis.unresolved) blockers.push({ id: `unresolved:${unresolved}`, type: "missing-data", target: unresolved, reason: unresolved, severity: "high" });
   for (const domain of analysis.unavailableDomains) blockers.push({ id: `provider:${domain}`, type: "provider", target: domain, reason: `La capacidad ${domain} no está disponible en esta ejecución.`, severity: "high" });
   for (const conflict of analysis.workingMemory.conflicts) blockers.push({ id: `conflict:${conflict.key}`, type: "conflict", target: conflict.key, reason: conflict.reason, severity: "high" });
   return blockers;
+}
+
+function phaseFor(action: BrainAction | null, blockers: BrainBlocker[], complete: boolean): BrainPhase {
+  if (complete) return "complete";
+  if (blockers.some((blocker) => blocker.severity === "critical")) return "blocked";
+  if (!action) return blockers.length ? "blocked" : "complete";
+  if (action.type === "resolve_conflict") return "resolving";
+  if (["research", "verify", "cross_check", "request_missing_data"].includes(action.type)) return "researching";
+  if (action.type === "recalculate") return "applying";
+  return "deciding";
+}
+
+function markValidatedActions(actions: BrainAction[], results: Awaited<ReturnType<typeof analyzeTrip>>["departmentReports"][number]["agentResults"]): { pending: BrainAction[]; completed: BrainAction[] } {
+  const validatedTargets = new Set(results.filter((result) => result.status === "ready" && result.validation.valid).map((result) => result.dataType));
+  const pending: BrainAction[] = [];
+  const completed: BrainAction[] = [];
+  for (const action of actions) {
+    if (validatedTargets.has(action.target) && action.type === "research") completed.push({ ...action, status: "completed" });
+    else pending.push(action);
+  }
+  return { pending, completed };
 }
 
 function buildBrainState(context: CanonicalTripContext, analysis: Awaited<ReturnType<typeof analyzeTrip>>): BrainState {
@@ -42,20 +65,56 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
   const completeness = requirements.length ? completed.length / requirements.length : 1;
   const confidence = results.length ? results.reduce((sum, result) => sum + (result.confidence === "high" ? 1 : result.confidence === "medium" ? .7 : .4), 0) / results.length : 0;
   const brain = createBrainState({ runId: `brain:${Date.now()}`, context, requirements, agents });
-  const actions = deriveBrainActions(requirements, results, analysis.workingMemory.conflicts);
+  const derivedActions = deriveBrainActions(requirements, results, analysis.workingMemory.conflicts);
+  const actionState = markValidatedActions(derivedActions, results);
   const claims = new Map<string, ConflictClaim>();
   for (const result of results) claims.set(result.requirementId, { requirementId: result.requirementId, value: result.data, evidence: result.evidence ?? [] });
   const conflictResolutions = resolveWorkingMemoryConflicts(analysis.workingMemory.conflicts, claims);
-  const decision: BrainDecision = decideNextAction(context, actions, results, conflictResolutions);
-  const optimization = optimizePlanningState(context, actions);
+  const decision: BrainDecision = decideNextAction(context, actionState.pending, results, conflictResolutions);
+  const optimization = optimizePlanningState(context, actionState.pending);
   const initial = updateBrainState(brain, {
-    phase: analysis.workingMemory.conflicts.length ? "resolving" : actions.length ? "deciding" : validated.length > 0 && validated.length === results.length ? "complete" : "validating",
+    phase: phaseFor(decision.action, buildBlockers(analysis), !decision.action && !analysis.unresolved.length && !analysis.workingMemory.conflicts.length),
     results, facts: analysis.workingMemory.facts, evidence, conflicts: analysis.workingMemory.conflicts,
-    decisions: analysis.workingMemory.decisions, pendingActions: actions, blockers: buildBlockers(analysis),
-    decision, optimization, cycles: analysis.neuralCycles.length, completeness, confidence,
+    decisions: analysis.workingMemory.decisions, pendingActions: actionState.pending, completedActions: actionState.completed,
+    blockers: buildBlockers(analysis), decision, optimization, cycles: analysis.neuralCycles.length, completeness, confidence,
   });
-  const changeSet = buildChangeSet(undefined, initial, "Estado inicial materializado por BrainController.");
-  return updateBrainState(initial, { changeSets: [changeSet] });
+
+  // BrainController now owns an explicit bounded control loop over the materialized state.
+  // It does not pretend that an unavailable external provider was executed: actions that
+  // require new research remain pending until the execution layer can actually run them.
+  let state = initial;
+  const controlCycles = [] as BrainState["controlCycles"];
+  for (let cycle = 1; cycle <= MAX_CONTROL_CYCLES; cycle++) {
+    const currentDecision = state.decision ?? decideNextAction(context, state.pendingActions, state.results, conflictResolutions);
+    if (!currentDecision.action) {
+      controlCycles.push({ cycle, phase: "complete", decisionId: currentDecision.id, outcome: "converged", reason: currentDecision.rationale, createdAt: new Date().toISOString() });
+      state = updateBrainState(state, { phase: "complete", terminationReason: "converged", controlCycles });
+      break;
+    }
+
+    const action = currentDecision.action;
+    const directlySatisfied = state.results.some((result) => result.status === "ready" && result.validation.valid && result.dataType === action.target);
+    const outcome = directlySatisfied ? "completed" : "waiting";
+    const reason = directlySatisfied
+      ? `La acción ${action.type} quedó satisfecha por un resultado validado.`
+      : `La acción ${action.type} requiere ejecución adicional; el controlador no inventa una ejecución externa.`;
+    controlCycles.push({ cycle, phase: phaseFor(action, state.blockers, false), decisionId: currentDecision.id, selectedActionId: action.id, selectedActionType: action.type, selectedTarget: action.target, outcome, reason, createdAt: new Date().toISOString() });
+
+    if (directlySatisfied) {
+      const completedAction = { ...action, status: "completed" as const };
+      const pendingActions = state.pendingActions.filter((item) => item.id !== action.id);
+      const completedActions = [...state.completedActions, completedAction];
+      const nextDecision = decideNextAction(context, pendingActions, state.results, conflictResolutions);
+      state = updateBrainState(state, { phase: phaseFor(nextDecision.action, state.blockers, !nextDecision.action), pendingActions, completedActions, decision: nextDecision, controlCycles });
+      continue;
+    }
+
+    state = updateBrainState(state, { phase: phaseFor(action, state.blockers, false), terminationReason: "max-cycles", controlCycles });
+    break;
+  }
+
+  const changeSet = buildChangeSet(undefined, state, "Estado inicial materializado y recorrido por BrainController.");
+  return updateBrainState(state, { changeSets: [...state.changeSets, changeSet], controlCycles });
 }
 
 export async function runBrain(input: BrainInput): Promise<BrainRun> {
