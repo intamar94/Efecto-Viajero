@@ -10,6 +10,7 @@ import { optimizePlanningState } from "./optimizer";
 import { buildMarketingDesignBrief } from "./marketingDesignNeuron";
 import { buildDesignSystemBrief } from "./designSystemNeuron";
 import { buildCreativeDepartmentPlan } from "./creativeDepartment";
+import { auditCreativeAgents } from "./creativeAuditEngine";
 import type { AccesibilidadViaje, ModoPlanificacion, PresupuestoViaje } from "@/lib/types";
 
 export interface BrainInput {
@@ -112,8 +113,10 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
   const finalState = updateBrainState(state, { changeSets: [...state.changeSets, changeSet] });
   const marketingDesign = buildMarketingDesignBrief(finalState);
   const designSystem = buildDesignSystemBrief(finalState);
-  const creativeDepartment = buildCreativeDepartmentPlan(updateBrainState(finalState, { marketingDesign, designSystem }));
-  return updateBrainState(finalState, { marketingDesign, designSystem, creativeDepartment } as Partial<BrainState>);
+  const auditState = updateBrainState(finalState, { marketingDesign, designSystem });
+  const creativeAudit = auditCreativeAgents({ state: auditState });
+  const creativeDepartment = buildCreativeDepartmentPlan(updateBrainState(auditState, { creativeAudit }));
+  return updateBrainState(finalState, { marketingDesign, designSystem, creativeAudit, creativeDepartment });
 }
 
 export async function runBrain(input: BrainInput): Promise<BrainRun> {
