@@ -10,16 +10,14 @@ import { absorbAgentResults, absorbNeuralCycle, createWorkingMemory, type Workin
 export interface DepartmentExecution { results: ResearchResult[]; reports: DepartmentReport[]; availableDomains: string[]; unavailableDomains: string[]; neuralCycles: Awaited<ReturnType<typeof runNeuralOrchestration>>["cycles"]; workingMemory: WorkingMemory; }
 function statusForAgents(items: AgentResult[]): DepartmentReport["status"] { if (!items.length) return "unavailable"; if (items.every((r) => r.status === "unavailable")) return "unavailable"; if (items.some((r) => r.status === "error")) return items.every((r) => r.status === "error") ? "error" : "partial"; if (items.some((r) => r.status === "partial")) return "partial"; return "ready"; }
 
-/** Executes department requirements. The orchestration loop belongs to BrainController/neural orchestration, not this executor. */
+/** Executes department work. Control flow and cycle decisions belong to the neural orchestration layer. */
 export async function runDepartments(plan: ResearchPlan, context: CanonicalTripContext, locations: ResolvedDestination[], reversePlan?: ReverseEngineeringPlan): Promise<DepartmentExecution> {
   const workingMemory = createWorkingMemory();
   if (!reversePlan) return { results: [], reports: [], availableDomains: [], unavailableDomains: plan.selectedDomains, neuralCycles: [], workingMemory };
 
-  let requirements = [...reversePlan.requirements];
-  let agents = [...reversePlan.agents];
   const execution = await runNeuralOrchestration(
-    requirements,
-    agents,
+    reversePlan.requirements,
+    reversePlan.agents,
     context,
     locations,
     async (pending, pendingAgents, executionContext, executionLocations) => {
@@ -28,19 +26,11 @@ export async function runDepartments(plan: ResearchPlan, context: CanonicalTripC
       return results;
     },
   );
-  const neuralCycles = execution.cycles;
-  for (const cycle of neuralCycles) absorbNeuralCycle(workingMemory, cycle);
+  for (const cycle of execution.cycles) absorbNeuralCycle(workingMemory, cycle);
+
+  const requirements = execution.requirements;
+  const agents = execution.agents;
   const agentResults = execution.results;
-
-  // Preserve the materialized graph for reporting. Neural orchestration has already
-  // executed and materialized follow-ups; reports only need the final known graph.
-  for (const cycle of neuralCycles) {
-    if (!cycle.followUps.length) continue;
-    const materialized = await import("./neuralOrchestrator").then(({ materializeFollowUpRequirements }) => materializeFollowUpRequirements(cycle.followUps, requirements, agents));
-    requirements = materialized.requirements;
-    agents = materialized.agents;
-  }
-
   const byDomain = new Map<string, AgentResult[]>();
   for (const result of agentResults) byDomain.set(result.domain, [...(byDomain.get(result.domain) ?? []), result]);
   const results: ResearchResult[] = [];
@@ -63,5 +53,5 @@ export async function runDepartments(plan: ResearchPlan, context: CanonicalTripC
     if (status === "ready" || status === "partial") available.add(task.domain);
     if (status === "unavailable") unavailable.add(task.domain);
   }
-  return { results, reports, availableDomains: [...available], unavailableDomains: [...unavailable], neuralCycles, workingMemory };
+  return { results, reports, availableDomains: [...available], unavailableDomains: [...unavailable], neuralCycles: execution.cycles, workingMemory };
 }
