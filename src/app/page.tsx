@@ -1,72 +1,29 @@
 import Link from "next/link";
 
-const OPCIONES = [
-  {
-    href: "/planificar",
-    icono: "✈️",
-    titulo: "Planificar un viaje",
-    descripcion: "Cuéntanos qué quieres hacer y lo montamos contigo.",
-    destacado: true,
-  },
-  {
-    href: "/viajes",
-    icono: "🗺️",
-    titulo: "Mis viajes",
-    descripcion: "Lo que ya tienes en marcha: plan, requisitos y estado.",
-    destacado: false,
-  },
-  {
-    href: "/viajeros",
-    icono: "🧑‍🤝‍🧑",
-    titulo: "Viajeros",
-    descripcion: "Personas y mascotas, con sus documentos siempre a mano.",
-    destacado: false,
-  },
-];
-
 export default function Home() {
   return (
     <main className="flex-1 px-5 pb-16">
-      {/* La portada tenía casi toda la pantalla vacía antes de la primera
-          opción. Ahora el degradado cálido arranca pegado a la cabecera y
-          la acción principal queda visible sin hacer scroll. */}
-      <section className="-mx-5 mb-8 bg-gradient-to-b from-marino-800 via-marino-700 to-neutral-50 px-5 pb-10 pt-10 text-center">
+      <section className="-mx-5 mb-8 bg-gradient-to-b from-marino-800 via-marino-700 to-neutral-50 px-5 pb-10 pt-12 text-center">
         <p className="mb-2 text-[0.7rem] font-medium tracking-[0.3em] text-marino-200">EFECTO VIAJERO</p>
-        <h1 className="mb-2 text-3xl font-semibold text-white sm:text-4xl">Que el viaje encaje solo</h1>
-        <p className="mx-auto max-w-md text-sm text-marino-100">
-          Describes lo que quieres hacer; nosotros nos ocupamos de los requisitos, el presupuesto y la logística.
+        <h1 className="mb-3 text-3xl font-semibold text-white sm:text-4xl">Un viaje. Todo el contexto.</h1>
+        <p className="mx-auto max-w-xl text-sm leading-6 text-marino-100">
+          Un único ejemplo para ver cómo el cerebro de Efecto Viajero recibe una petición compleja, la deconstruye, crea requisitos, delega agentes y marca qué puede verificar y qué falta.
         </p>
       </section>
 
-      <div className="mx-auto grid w-full max-w-xl gap-3">
-        {OPCIONES.map((op) => (
-          <Link
-            key={op.href}
-            href={op.href}
-            className={`group flex items-center gap-4 rounded-2xl border bg-white px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
-              op.destacado ? "border-coral-300 shadow-sm ring-1 ring-coral-100" : "border-neutral-200 shadow-sm"
-            }`}
-          >
-            <span className="text-2xl">{op.icono}</span>
-            <span className="flex-1">
-              <span className="block font-medium text-neutral-900">{op.titulo}</span>
-              <span className="block text-sm text-neutral-500">{op.descripcion}</span>
-            </span>
-            <span
-              className={`transition group-hover:translate-x-1 ${op.destacado ? "text-coral-500" : "text-neutral-300 group-hover:text-neutral-600"}`}
-            >
-              →
-            </span>
-          </Link>
-        ))}
-      </div>
-
-      <div className="mx-auto mt-8 max-w-xl">
-        <Link
-          href="/ejemplo"
-          className="text-xs text-neutral-400 hover:text-neutral-600 underline"
-        >
-          💡 Cargar ejemplo de viaje completo
+      <div className="mx-auto max-w-xl">
+        <Link href="/ejemplo" className="group block rounded-3xl border border-coral-300 bg-white p-6 text-left shadow-sm ring-1 ring-coral-100 transition hover:-translate-y-0.5 hover:shadow-lg">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-600">Ejemplo único</p>
+              <h2 className="mt-2 text-xl font-semibold text-neutral-900">Familia multigeneracional + mascota</h2>
+            </div>
+            <span className="text-2xl" aria-hidden="true">→</span>
+          </div>
+          <p className="text-sm leading-6 text-neutral-600">
+            Colombia · 14 días · 2 adultos · 2 niños · 1 bebé · 1 abuela · 1 perro · 6.000 € · actividades para todos · documentos de todos · transporte · alojamiento · comida · clima · requisitos · emergencias · presupuesto · mapa · offline.
+          </p>
+          <p className="mt-5 text-sm font-medium text-marino-700">Ejecutar el ejemplo completo</p>
         </Link>
       </div>
     </main>
