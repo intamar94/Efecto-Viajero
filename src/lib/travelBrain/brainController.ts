@@ -13,7 +13,7 @@ import { buildCreativeDepartmentPlan } from "./creativeDepartment";
 import { auditCreativeAgents } from "./creativeAuditEngine";
 import { attachCreativeAuditToPlan } from "./creativeAuditBridge";
 import { collectCreativeAuditSources } from "./creativeAuditSource";
-import { createBrainActionExecutor } from "./actionExecutor";
+import { createConflictAwareBrainActionExecutor } from "./conflictActionExecutor";
 import { buildImplementationQueue } from "./implementationWorker";
 import { verifyCreativeReport } from "./verificationWorker";
 import { absorbAgentResults } from "./workingMemory";
@@ -56,11 +56,10 @@ function markValidatedActions(actions: BrainAction[], results: AgentResult[]) {
 }
 function score(results: AgentResult[], requirements: Analysis["reverseEngineering"]["requirements"]) { return requirements.length ? requirements.filter(r => results.some(result => result.requirementId === r.id && result.validation.valid)).length / requirements.length : 1; }
 function confidence(results: AgentResult[]) { return results.length ? results.reduce((sum, result) => sum + (result.confidence === "high" ? 1 : result.confidence === "medium" ? .7 : .4), 0) / results.length : 0; }
-function hasCriticalBlockers(blockers: BrainBlocker[]) { return blockers.some(blocker => blocker.severity === "critical"); }
 function canConverge(state: BrainState, requirements: Analysis["reverseEngineering"]["requirements"]) {
   const critical = requirements.filter(requirement => requirement.priority === "critical");
   const allCriticalValid = critical.every(requirement => state.results.some(result => result.requirementId === requirement.id && result.status === "ready" && result.validation.valid));
-  return allCriticalValid && state.pendingActions.length === 0 && state.conflicts.length === 0 && !state.blockers.some(blocker => blocker.severity === "critical");
+  return allCriticalValid && state.pendingActions.length === 0 && !state.blockers.some(blocker => blocker.severity === "critical");
 }
 
 async function buildBrainState(context: CanonicalTripContext, analysis: Analysis): Promise<BrainState> {
@@ -75,7 +74,7 @@ async function buildBrainState(context: CanonicalTripContext, analysis: Analysis
   let decision = decideNextAction(context, actionState.pending, results, conflictResolutions);
   let state = updateBrainState(brain, { phase: phaseFor(decision.action, blockers, false), results, facts: analysis.workingMemory.facts, evidence: results.flatMap(r => r.evidence ?? []), conflicts: analysis.workingMemory.conflicts, decisions: analysis.workingMemory.decisions, pendingActions: actionState.pending, completedActions: actionState.completed, blockers, decision, optimization: optimizePlanningState(context, actionState.pending), cycles: analysis.neuralCycles.length, completeness: score(results, requirements), confidence: confidence(results) });
 
-  const executor = createBrainActionExecutor({ locations: analysis.locations });
+  const executor = createConflictAwareBrainActionExecutor({ locations: analysis.locations });
   const controlCycles = [...state.controlCycles];
   for (let cycle = 1; cycle <= MAX_CONTROL_CYCLES; cycle++) {
     decision = state.decision ?? decideNextAction(context, state.pendingActions, state.results, conflictResolutions);
@@ -87,13 +86,11 @@ async function buildBrainState(context: CanonicalTripContext, analysis: Analysis
       state = updateBrainState(state, { phase: converged ? "complete" : "blocked", terminationReason: converged ? "converged" : "blocked", controlCycles });
       break;
     }
-
     if (action.status === "blocked") {
       controlCycles.push({ cycle, phase: "blocked", decisionId: decision.id, selectedActionId: action.id, selectedActionType: action.type, selectedTarget: action.target, outcome: "blocked", reason: action.reason, createdAt: new Date().toISOString() });
       state = updateBrainState(state, { phase: "blocked", terminationReason: "blocked", controlCycles });
       break;
     }
-
     const execution = await executor.execute(state, action);
     const merged = new Map(state.results.map(result => [result.requirementId, result]));
     for (const result of execution.results) merged.set(result.requirementId, result);
