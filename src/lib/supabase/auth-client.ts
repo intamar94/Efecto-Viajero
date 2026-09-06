@@ -1,3 +1,4 @@
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "./client";
 
 export async function loginWithEmail(email: string, password: string) {
@@ -27,12 +28,12 @@ export async function getCurrentUser() {
   return data.user;
 }
 
-export function onAuthStateChange(callback: (user: any) => void) {
+export function onAuthStateChange(callback: (user: User | null) => void) {
   if (!supabase) {
     callback(null);
     return { data: { subscription: null } };
   }
-  return supabase.auth.onAuthStateChange((event, session) => {
+  return supabase.auth.onAuthStateChange((_event, session) => {
     callback(session?.user ?? null);
   });
 }
