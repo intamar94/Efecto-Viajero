@@ -5,14 +5,17 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Override default ignores of eslint-config-next.
+  // Browser-storage hydration in this route is intentionally stateful: the
+  // source of truth is loaded after SSR, so the effect avoids hydration drift.
+  {
+    files: ["src/app/viajes/**/ruta/page.tsx"],
+    rules: { "react-hooks/set-state-in-effect": "off" },
+  },
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Static asset vendored from pdfjs-dist, not project source.
     "public/pdf.worker.min.mjs",
   ]),
 ]);
