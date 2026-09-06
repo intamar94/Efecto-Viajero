@@ -7,18 +7,7 @@ export interface DomainProviderResult { domain: ResearchDomain; status: "ready" 
 type Adapter = (context: DomainProviderContext) => Promise<DomainProviderResult>;
 const evidence = (source: string, confidence: EvidenceRef["confidence"] = "medium"): EvidenceRef => ({ source, checkedAt: new Date().toISOString(), freshness: "live", confidence });
 const PROVIDER_TIMEOUT_MS = 20_000;
-async function getJson(url: string, source: string, init?: RequestInit) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, { ...init, signal: controller.signal, next: { revalidate: 900 } });
-    if (!response.ok) throw new Error(`${source}: HTTP ${response.status}`);
-    return response.json();
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") throw new Error(`${source}: timeout after ${PROVIDER_TIMEOUT_MS / 1000}s`);
-    throw error;
-  } finally { clearTimeout(timeout); }
-}
+async function getJson(url: string, source: string, init?: RequestInit) { const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS); try { const response = await fetch(url, { ...init, signal: controller.signal, next: { revalidate: 900 } }); if (!response.ok) throw new Error(`${source}: HTTP ${response.status}`); return response.json(); } catch (error) { if (error instanceof Error && error.name === "AbortError") throw new Error(`${source}: timeout after ${PROVIDER_TIMEOUT_MS / 1000}s`); throw error; } finally { clearTimeout(timeout); } }
 
 const poi: Record<string, string[]> = {
   experiences: ["tourism=attraction"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
@@ -30,7 +19,13 @@ const osmPoi: Adapter = async ({ destination, domain, query }) => {
   const clauses = filters.map((filter) => `nwr[${filter}](around:8000,${destination.latitude},${destination.longitude});`).join("");
   const body = `[out:json][timeout:15];(${clauses});out center tags 40;`;
   let lastError: unknown;
-  for (const endpoint of OVERPASS_ENDPOINTS) { try { const data = await getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() }); return { domain, status: "ready", data, evidence: [evidence("OpenStreetMap Overpass")] }; } catch (error) { lastError = error; } }
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const raw = await getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() }) as { elements?: Array<{ id?: number; type?: string; lat?: number; lon?: number; center?: { lat?: number; lon?: number }; tags?: Record<string, string> }> };
+      const elements = (raw.elements ?? []).slice(0, 40).map((item) => ({ id: item.id, type: item.type, latitude: item.lat ?? item.center?.lat, longitude: item.lon ?? item.center?.lon, name: item.tags?.name, category: item.tags?.tourism ?? item.tags?.amenity ?? item.tags?.historic ?? item.tags?.leisure ?? item.tags?.natural, address: item.tags?."addr:street" }));
+      return { domain, status: "ready", data: { count: elements.length, places: elements }, evidence: [evidence("OpenStreetMap Overpass")] };
+    } catch (error) { lastError = error; }
+  }
   throw lastError instanceof Error ? lastError : new Error("OpenStreetMap Overpass: provider unavailable");
 };
 const weather: Adapter = async ({ destination, start, end }) => { const url = new URL("https://api.open-meteo.com/v1/forecast"); url.searchParams.set("latitude", String(destination.latitude)); url.searchParams.set("longitude", String(destination.longitude)); url.searchParams.set("current", "temperature_2m,precipitation,weather_code,wind_speed_10m"); url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code"); url.searchParams.set("timezone", "auto"); if (start) url.searchParams.set("start_date", start); if (end) url.searchParams.set("end_date", end); const data = await getJson(url.toString(), "Open-Meteo Forecast"); return { domain: "weather", status: "ready", data, evidence: [evidence("Open-Meteo Forecast", "high")] }; };
