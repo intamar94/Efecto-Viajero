@@ -1,5 +1,5 @@
 import type { CanonicalTripContext } from "./tripContext";
-import type { AgentSpec, DataRequirement, ReverseEngineeringPlan } from "./reverseEngineeringOrchestrator";
+import type { DataRequirement, ReverseEngineeringPlan } from "./reverseEngineeringOrchestrator";
 
 function hasChildren(context: CanonicalTripContext) { return context.travelers.ninos > 0; }
 function hasBabies(context: CanonicalTripContext) { return Boolean(context.travelers.bebes); }
