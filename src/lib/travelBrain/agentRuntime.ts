@@ -14,8 +14,19 @@ export interface AgentResult {
   confidence: "high" | "medium" | "low"; freshness: "live" | "recent" | "dated" | "unknown";
   validation: { valid: boolean; issues: string[]; missing: string[] }; dependencySignals?: DependencySignal[]; error?: string;
 }
+
+function compactValue(value: unknown, depth = 0): unknown {
+  if (depth > 3) return typeof value === "string" ? value.slice(0, 300) : "[resumen]";
+  if (typeof value === "string") return value.length > 500 ? `${value.slice(0, 500)}…` : value;
+  if (Array.isArray(value)) return value.slice(0, 8).map((item) => compactValue(item, depth + 1));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 20).map(([key, item]) => [key, compactValue(item, depth + 1)]));
+  }
+  return value;
+}
+
 function dependencyReady(id: string, results: Map<string, AgentResult>) { const result = results.get(id); return Boolean(result && ["ready", "partial"].includes(result.status) && result.validation.valid); }
-function signalFrom(id: string, results: Map<string, AgentResult>): DependencySignal | undefined { const result = results.get(id); if (!result) return undefined; return { requirementId: result.requirementId, dataType: result.dataType, data: result.data, evidence: result.evidence, confidence: result.confidence, freshness: result.freshness, status: result.status }; }
+function signalFrom(id: string, results: Map<string, AgentResult>): DependencySignal | undefined { const result = results.get(id); if (!result) return undefined; return { requirementId: result.requirementId, dataType: result.dataType, data: compactValue(result.data), evidence: result.evidence, confidence: result.confidence, freshness: result.freshness, status: result.status }; }
 function blocked(agent: AgentSpec, requirement: DataRequirement, operation: AgentOperation, message: string, dependencySignals: DependencySignal[] = []): AgentResult { return { agentId: agent.id, requirementId: requirement.id, domain: requirement.domain, dataType: requirement.dataType, operation, status: "unavailable", confidence: "low", freshness: "unknown", validation: { valid: false, issues: [message], missing: requirement.dependsOn }, dependencySignals, error: message }; }
 
 export async function executeAgent(agent: AgentSpec, requirement: DataRequirement, context: CanonicalTripContext, locations: ResolvedDestination[], dependencyResults: ResearchResult[] = [], requirementResults: Map<string, AgentResult> = new Map(), memory?: WorkingMemory): Promise<AgentResult> {
@@ -24,7 +35,7 @@ export async function executeAgent(agent: AgentSpec, requirement: DataRequiremen
     if (requirement.status === "blocked") return blocked(agent, requirement, operation, "Requirement bloqueado antes de ejecución.");
     const missing = requirement.dependsOn.filter((id) => !dependencyReady(id, requirementResults));
     const dependencySignals = requirement.dependsOn.map((id) => signalFrom(id, requirementResults)).filter(Boolean) as DependencySignal[];
-    const sharedSignals = memory?.signals.filter((signal) => !requirement.dependsOn.includes(signal.requirementId)).slice(-20) ?? [];
+    const sharedSignals = memory?.signals.filter((signal) => !requirement.dependsOn.includes(signal.requirementId)).slice(-20).map((signal) => ({ ...signal, data: compactValue(signal.data) })) ?? [];
     const allSignals = [...dependencySignals, ...sharedSignals.filter((signal) => !dependencySignals.some((dep) => dep.requirementId === signal.requirementId))];
     if (missing.length) return blocked(agent, requirement, operation, `Dependencias de requisito no disponibles: ${missing.join(", ")}`, dependencySignals);
     if (operation === "unsupported") return blocked(agent, requirement, operation, `No existe todavía un ejecutor específico para ${requirement.domain}.${requirement.dataType}.`, allSignals);
