@@ -12,11 +12,19 @@ const COLOMBIA_SOURCES = {
 };
 
 const evidence = (source: string, confidence: EvidenceRef["confidence"] = "high"): EvidenceRef => ({ source, checkedAt: new Date().toISOString(), freshness: "live", confidence });
+const OFFICIAL_TIMEOUT_MS = 15_000;
 
 async function fetchText(url: string): Promise<string> {
-  const response = await fetch(url, { next: { revalidate: 3600 }, headers: { Accept: "text/html", "User-Agent": "Efecto-Viajero/1.0" } });
-  if (!response.ok) throw new Error(`Official source HTTP ${response.status}`);
-  return (await response.text()).replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), OFFICIAL_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal, next: { revalidate: 3600 }, headers: { Accept: "text/html", "User-Agent": "Efecto-Viajero/1.0" } });
+    if (!response.ok) throw new Error(`Official source HTTP ${response.status}`);
+    return (await response.text()).replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw new Error(`Official source timeout after ${OFFICIAL_TIMEOUT_MS / 1000}s`);
+    throw error;
+  } finally { clearTimeout(timeout); }
 }
 
 export async function executeOfficialSource(domain: ResearchDomain, context: OfficialSourceContext): Promise<OfficialSourceResult> {
