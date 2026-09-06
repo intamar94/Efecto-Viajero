@@ -46,8 +46,9 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   for (const item of resolved) { if (item.destination) locations.push(item.destination); if (item.unresolved || (!item.destination && item.candidate !== hint)) unresolved.push(item.candidate); }
 
   const plan = buildResearchPlan(ctx);
-  const reverseEngineering = buildReverseEngineeringPlan(ctx, plan, locations);
-  const departmentExecution = await runDepartments(plan, ctx, locations, reverseEngineering);
+  const initialReverseEngineering = buildReverseEngineeringPlan(ctx, plan, locations);
+  const departmentExecution = await runDepartments(plan, ctx, locations, initialReverseEngineering);
+  const reverseEngineering = { ...initialReverseEngineering, requirements: departmentExecution.requirements, agents: departmentExecution.agents, departments: plan.selectedDomains.map((domain) => ({ domain, objective: `Deconstruir ${domain} en datos atómicos verificables para este grupo concreto.`, requirements: departmentExecution.requirements.filter((r) => r.domain === domain), agents: departmentExecution.agents.filter((a) => a.domain === domain) })) };
   const results = departmentExecution.results;
   const ranked = scoreDestinations(ctx, locations);
   const draft = buildTripDraft(ctx, ranked);
@@ -56,15 +57,5 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   const pendingCount = plan.tasks.filter((task) => !results.some((result) => result.task.id === task.id)).length;
   const capabilityAudit = auditCapabilities(plan.tasks, results, departmentExecution.reports);
   const supervisorUpdate = buildOrchestratorUpdate(results, plan.tasks, normalizedUnresolved, departmentExecution.reports, departmentExecution.neuralCycles.length, capabilityAudit, departmentExecution.neuralCycles);
-  return {
-    context: ctx,
-    locations, unresolved: normalizedUnresolved, countryCode, plan, results, ranked, draft,
-    availableDomains: departmentExecution.availableDomains, unavailableDomains: departmentExecution.unavailableDomains, mode: ctx.planningMode, pendingCount,
-    orchestration: { selected: plan.selectedDomains, skipped: plan.skippedDomains, reasons: plan.selectionReasons, explicitSignals: [...deriveOrchestrationSignals(ctx).explicit], inferredSignals: [...deriveOrchestrationSignals(ctx).inferred] },
-    reverseEngineering,
-    neuralCycles: departmentExecution.neuralCycles,
-    workingMemory: departmentExecution.workingMemory,
-    phases: { understand: results.filter((r) => r.task.phase === "understand").map((r) => r.task.domain), prepare: results.filter((r) => r.task.phase === "prepare").map((r) => r.task.domain), plan: results.filter((r) => r.task.phase === "plan").map((r) => r.task.domain), live: results.filter((r) => r.task.phase === "live").map((r) => r.task.domain), memory: results.filter((r) => r.task.phase === "memory").map((r) => r.task.domain) },
-    explorer, departmentReports: departmentExecution.reports, capabilityAudit, supervisorUpdate,
-  };
+  return { context: ctx, locations, unresolved: normalizedUnresolved, countryCode, plan, results, ranked, draft, availableDomains: departmentExecution.availableDomains, unavailableDomains: departmentExecution.unavailableDomains, mode: ctx.planningMode, pendingCount, orchestration: { selected: plan.selectedDomains, skipped: plan.skippedDomains, reasons: plan.selectionReasons, explicitSignals: [...deriveOrchestrationSignals(ctx).explicit], inferredSignals: [...deriveOrchestrationSignals(ctx).inferred] }, reverseEngineering, neuralCycles: departmentExecution.neuralCycles, workingMemory: departmentExecution.workingMemory, phases: { understand: results.filter((r) => r.task.phase === "understand").map((r) => r.task.domain), prepare: results.filter((r) => r.task.phase === "prepare").map((r) => r.task.domain), plan: results.filter((r) => r.task.phase === "plan").map((r) => r.task.domain), live: results.filter((r) => r.task.phase === "live").map((r) => r.task.domain), memory: results.filter((r) => r.task.phase === "memory").map((r) => r.task.domain) }, explorer, departmentReports: departmentExecution.reports, capabilityAudit, supervisorUpdate };
 }
