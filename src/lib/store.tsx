@@ -1,4 +1,10 @@
 "use client";
+/*
+ * This provider intentionally hydrates browser storage inside effects: localStorage
+ * is unavailable during SSR and reading it during render would cause hydration drift.
+ * Keep these two lint exceptions scoped to this persistence boundary.
+ */
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { generarId } from "./id";
 import { supabase } from "./supabase/client";
