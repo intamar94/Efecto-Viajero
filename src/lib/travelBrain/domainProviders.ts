@@ -22,7 +22,7 @@ const osmPoi: Adapter = async ({ destination, domain, query }) => {
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
       const raw = await getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() }) as { elements?: Array<{ id?: number; type?: string; lat?: number; lon?: number; center?: { lat?: number; lon?: number }; tags?: Record<string, string> }> };
-      const elements = (raw.elements ?? []).slice(0, 40).map((item) => ({ id: item.id, type: item.type, latitude: item.lat ?? item.center?.lat, longitude: item.lon ?? item.center?.lon, name: item.tags?.name, category: item.tags?.tourism ?? item.tags?.amenity ?? item.tags?.historic ?? item.tags?.leisure ?? item.tags?.natural, address: item.tags?."addr:street" }));
+      const elements = (raw.elements ?? []).slice(0, 40).map((item) => ({ id: item.id, type: item.type, latitude: item.lat ?? item.center?.lat, longitude: item.lon ?? item.center?.lon, name: item.tags?.name, category: item.tags?.tourism ?? item.tags?.amenity ?? item.tags?.historic ?? item.tags?.leisure ?? item.tags?.natural, address: item.tags?.["addr:street"] }));
       return { domain, status: "ready", data: { count: elements.length, places: elements }, evidence: [evidence("OpenStreetMap Overpass")] };
     } catch (error) { lastError = error; }
   }
