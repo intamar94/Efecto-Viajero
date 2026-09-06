@@ -1,18 +1,27 @@
 import type { CanonicalTripContext } from "./tripContext";
 import type { ResolvedDestination } from "./destinationResolver";
+import type { DataRequirement, AgentSpec } from "./reverseEngineeringOrchestrator";
 import type { ResearchPlan, ResearchResult } from "./researchOrchestrator";
 import { createDepartment, type DepartmentReport } from "./departments";
-import type { ReverseEngineeringPlan } from "./reverseEngineeringOrchestrator";
 import { executeAgents, type AgentResult } from "./agentRuntime";
 import { runNeuralOrchestration } from "./neuralOrchestrator";
 import { absorbAgentResults, absorbNeuralCycle, createWorkingMemory, type WorkingMemory } from "./workingMemory";
 
-export interface DepartmentExecution { results: ResearchResult[]; reports: DepartmentReport[]; availableDomains: string[]; unavailableDomains: string[]; neuralCycles: Awaited<ReturnType<typeof runNeuralOrchestration>>["cycles"]; workingMemory: WorkingMemory; }
+export interface DepartmentExecution {
+  results: ResearchResult[];
+  reports: DepartmentReport[];
+  availableDomains: string[];
+  unavailableDomains: string[];
+  neuralCycles: Awaited<ReturnType<typeof runNeuralOrchestration>>["cycles"];
+  workingMemory: WorkingMemory;
+  requirements: DataRequirement[];
+  agents: AgentSpec[];
+}
 function statusForAgents(items: AgentResult[]): DepartmentReport["status"] { if (!items.length) return "unavailable"; if (items.every(r => r.status === "unavailable")) return "unavailable"; if (items.some(r => r.status === "error")) return items.every(r => r.status === "error") ? "error" : "partial"; if (items.some(r => r.status === "partial")) return "partial"; return "ready"; }
 
-export async function runDepartments(plan: ResearchPlan, context: CanonicalTripContext, locations: ResolvedDestination[], reversePlan?: ReverseEngineeringPlan): Promise<DepartmentExecution> {
+export async function runDepartments(plan: ResearchPlan, context: CanonicalTripContext, locations: ResolvedDestination[], reversePlan?: { requirements: DataRequirement[]; agents: AgentSpec[] }): Promise<DepartmentExecution> {
   const workingMemory = createWorkingMemory();
-  if (!reversePlan) return { results: [], reports: [], availableDomains: [], unavailableDomains: plan.selectedDomains, neuralCycles: [], workingMemory };
+  if (!reversePlan) return { results: [], reports: [], availableDomains: [], unavailableDomains: plan.selectedDomains, neuralCycles: [], workingMemory, requirements: [], agents: [] };
   const execution = await runNeuralOrchestration(reversePlan.requirements, reversePlan.agents, context, locations, async (pending, pendingAgents, executionContext, executionLocations) => {
     const results = await executeAgents(pending, pendingAgents, executionContext, executionLocations, [], workingMemory);
     absorbAgentResults(workingMemory, results);
@@ -41,5 +50,5 @@ export async function runDepartments(plan: ResearchPlan, context: CanonicalTripC
     if (status === "ready" || status === "partial") available.add(task.domain);
     if (status === "unavailable") unavailable.add(task.domain);
   }
-  return { results, reports, availableDomains: [...available], unavailableDomains: [...unavailable], neuralCycles: execution.cycles, workingMemory };
+  return { results, reports, availableDomains: [...available], unavailableDomains: [...unavailable], neuralCycles: execution.cycles, workingMemory, requirements: execution.requirements, agents: execution.agents };
 }
