@@ -9,6 +9,7 @@ import { buildOrchestratorUpdate } from "./supervisorProtocol";
 import { auditCapabilities } from "./capabilityAudit";
 import { deriveOrchestrationSignals, selectResearchDomains } from "./orchestrationPolicy";
 import { buildReverseEngineeringPlan } from "./reverseEngineeringOrchestrator";
+import { applyTravelerRequirementPolicy } from "./travelerRequirementPolicy";
 
 export type ResearchDomain = "destination" | "requirements" | "laws" | "emergency" | "transport" | "accommodation" | "weather" | "experiences" | "culture" | "gastronomy" | "nature" | "events" | "language" | "currency" | "map" | "budget" | "expenses" | "memory" | "offline" | "social";
 export type ResearchStatus = "queued" | "running" | "ready" | "partial" | "needs_review" | "unavailable" | "error";
@@ -46,7 +47,7 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   for (const item of resolved) { if (item.destination) locations.push(item.destination); if (item.unresolved || (!item.destination && item.candidate !== hint)) unresolved.push(item.candidate); }
 
   const plan = buildResearchPlan(ctx);
-  const initialReverseEngineering = buildReverseEngineeringPlan(ctx, plan, locations);
+  const initialReverseEngineering = applyTravelerRequirementPolicy(buildReverseEngineeringPlan(ctx, plan, locations), ctx);
   const departmentExecution = await runDepartments(plan, ctx, locations, initialReverseEngineering);
   const reverseEngineering = { ...initialReverseEngineering, requirements: departmentExecution.requirements, agents: departmentExecution.agents, departments: plan.selectedDomains.map((domain) => ({ domain, objective: `Deconstruir ${domain} en datos atómicos verificables para este grupo concreto.`, requirements: departmentExecution.requirements.filter((r) => r.domain === domain), agents: departmentExecution.agents.filter((a) => a.domain === domain) })) };
   const results = departmentExecution.results;
