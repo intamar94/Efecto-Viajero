@@ -3,30 +3,12 @@ import type { MarketingDesignBrief, UXCodeChange } from "./marketingDesignNeuron
 import type { CreativeAgentId, DesignLayer, CreativeAgentSpec as DesignAgentSpec } from "./designSystemNeuron";
 
 export type CreativeLayer = DesignLayer;
-export interface CreativeAgentSpec { id: CreativeAgentId; name: string; specialty: string; layers: CreativeLayer[]; responsibilities: string[]; canModify: string[]; }
+interface CreativeAgentSpec { id: CreativeAgentId; name: string; specialty: string; layers: CreativeLayer[]; responsibilities: string[]; canModify: string[]; }
 export interface CreativeInstruction { id: string; agentId: CreativeAgentId; layer: CreativeLayer; priority: UXCodeChange["priority"]; title: string; reason: string; files: string[]; operations: string[]; libraries: string[]; commands: string[]; acceptanceCriteria: string[]; userOutcome: string; }
 export interface CreativeDepartmentPlan { agents: CreativeAgentSpec[]; instructions: CreativeInstruction[]; auditSurfaces: string[]; designPrinciples: string[]; colorPsychology: { rule: string; rationale: string }[]; status: "ready" | "partial" | "blocked"; }
 
-function canonicalAgents(state: BrainState): CreativeAgentSpec[] {
-  return (state.designSystem?.agents ?? []).map((agent: DesignAgentSpec) => ({
-    id: agent.id,
-    name: agent.id.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
-    specialty: agent.responsibility,
-    layers: [],
-    responsibilities: [agent.responsibility],
-    canModify: agent.outputs,
-  }));
-}
-
-function inferLayer(change: UXCodeChange): CreativeLayer {
-  if (change.area === "marketing") return "brand";
-  if (change.area === "conversion") return "interaction";
-  if (change.area === "accessibility") return "accessibility";
-  if (change.area === "trust") return "psychology";
-  if (change.area === "visual") return "visual";
-  if (change.area === "performance") return "performance";
-  return "content";
-}
+function canonicalAgents(state: BrainState): CreativeAgentSpec[] { return (state.designSystem?.agents ?? []).map((agent: DesignAgentSpec) => ({ id: agent.id, name: agent.id.replaceAll("-", " ").replace(/\b\w/g, letter => letter.toUpperCase()), specialty: agent.responsibility, layers: [], responsibilities: [agent.responsibility], canModify: agent.outputs })); }
+function inferLayer(change: UXCodeChange): CreativeLayer { if (change.area === "marketing") return "brand"; if (change.area === "conversion") return "interaction"; if (change.area === "accessibility") return "accessibility"; if (change.area === "trust") return "psychology"; if (change.area === "visual") return "visual"; if (change.area === "performance") return "performance"; return "content"; }
 function owner(layer: CreativeLayer): CreativeAgentId { return ({ brand: "creative-director", psychology: "color-psychology", content: "copy-strategist", interaction: "interaction-designer", visual: "visual-designer", component: "design-system-engineer", responsive: "responsive-designer", accessibility: "accessibility-designer", motion: "motion-designer", performance: "performance-designer", implementation: "design-system-engineer" } as Record<CreativeLayer, CreativeAgentId>)[layer]; }
 function toInstruction(change: UXCodeChange): CreativeInstruction { const layer = inferLayer(change); return { id: `creative:${change.id}`, agentId: owner(layer), layer, priority: change.priority, title: change.title, reason: change.why, files: change.files, operations: change.changes, libraries: ["React", "Next.js", "Tailwind/CSS", "componentes existentes"], commands: layer === "performance" ? ["npm run lint", "npm run build"] : ["npm run lint"], acceptanceCriteria: change.acceptanceCriteria, userOutcome: change.userOutcome }; }
 
