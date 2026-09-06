@@ -6,7 +6,19 @@ export interface DomainProviderContext { domain: ResearchDomain; destination: Re
 export interface DomainProviderResult { domain: ResearchDomain; status: "ready" | "unavailable" | "error"; data?: unknown; evidence?: EvidenceRef[]; error?: string; }
 type Adapter = (context: DomainProviderContext) => Promise<DomainProviderResult>;
 const evidence = (source: string, confidence: EvidenceRef["confidence"] = "medium"): EvidenceRef => ({ source, checkedAt: new Date().toISOString(), freshness: "live", confidence });
-async function getJson(url: string, source: string, init?: RequestInit) { const response = await fetch(url, { ...init, next: { revalidate: 900 } }); if (!response.ok) throw new Error(`${source}: HTTP ${response.status}`); return response.json(); }
+const PROVIDER_TIMEOUT_MS = 20_000;
+async function getJson(url: string, source: string, init?: RequestInit) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal, next: { revalidate: 900 } });
+    if (!response.ok) throw new Error(`${source}: HTTP ${response.status}`);
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw new Error(`${source}: timeout after ${PROVIDER_TIMEOUT_MS / 1000}s`);
+    throw error;
+  } finally { clearTimeout(timeout); }
+}
 
 const poi: Record<string, string[]> = {
   experiences: ["tourism=attraction"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
