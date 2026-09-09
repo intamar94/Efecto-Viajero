@@ -1,121 +1,69 @@
 import type { CanonicalTripContext } from "./tripContext";
 import type { ResolvedDestination } from "./destinationResolver";
-import type { ResearchPlan, ResearchResult, ResearchTask } from "./researchOrchestrator";
+import type { ResearchPlan, ResearchResult } from "./researchOrchestrator";
 import { createDepartment, type DepartmentReport } from "./departments";
+import type { ReverseEngineeringPlan } from "./reverseEngineeringOrchestrator";
+import { executeAgents, type AgentResult } from "./agentRuntime";
+import { runNeuralOrchestration } from "./neuralOrchestrator";
+import { absorbAgentResults, absorbNeuralCycle, createWorkingMemory, type WorkingMemory } from "./workingMemory";
+import { registrarResultadoDominio, fiabilidadDominio } from "./departmentReliability";
 
-export interface DepartmentExecution {
-  results: ResearchResult[];
-  reports: DepartmentReport[];
-  availableDomains: string[];
-  unavailableDomains: string[];
-}
+export interface DepartmentExecution { results: ResearchResult[]; reports: DepartmentReport[]; availableDomains: string[]; unavailableDomains: string[]; neuralCycles: Awaited<ReturnType<typeof runNeuralOrchestration>>["cycles"]; workingMemory: WorkingMemory; }
+function statusForAgents(items: AgentResult[]): DepartmentReport["status"] { if (!items.length) return "unavailable"; if (items.every((r) => r.status === "unavailable")) return "unavailable"; if (items.some((r) => r.status === "error")) return items.every((r) => r.status === "error") ? "error" : "partial"; if (items.some((r) => r.status === "partial")) return "partial"; return "ready"; }
 
-function terminal(result: ResearchResult | undefined) {
-  return Boolean(result && ["ready", "partial", "needs_review", "unavailable", "error"].includes(result.status));
-}
+/** Executes department work. Control flow and cycle decisions belong to the neural orchestration layer. */
+export async function runDepartments(plan: ResearchPlan, context: CanonicalTripContext, locations: ResolvedDestination[], reversePlan?: ReverseEngineeringPlan): Promise<DepartmentExecution> {
+  const workingMemory = createWorkingMemory();
+  if (!reversePlan) return { results: [], reports: [], availableDomains: [], unavailableDomains: plan.selectedDomains, neuralCycles: [], workingMemory };
 
-function dependencyBlocked(task: ResearchTask, results: Map<string, ResearchResult>) {
-  const failed = task.dependsOn.find((dependency) => {
-    const result = results.get(dependency);
-    return result?.status === "error" || result?.status === "unavailable";
-  });
-  return failed;
-}
+  const execution = await runNeuralOrchestration(
+    reversePlan.requirements,
+    reversePlan.agents,
+    context,
+    locations,
+    async (pending, pendingAgents, executionContext, executionLocations) => {
+      const results = await executeAgents(pending, pendingAgents, executionContext, executionLocations, [], workingMemory);
+      absorbAgentResults(workingMemory, results);
+      return results;
+    },
+  );
+  for (const cycle of execution.cycles) absorbNeuralCycle(workingMemory, cycle);
 
-function blockedResult(task: ResearchTask, failedDependency: string): ResearchResult {
-  return {
-    task,
-    status: "unavailable",
-    data: { reason: `Bloqueado por dependencia no disponible: ${failedDependency}` },
-    error: `Dependencia no disponible: ${failedDependency}`,
-  };
-}
-
-/**
- * The orchestrator's execution boundary. Tasks are scheduled in topological waves:
- * independent departments run in parallel, dependent departments wait for their
- * prerequisites, and a failed prerequisite blocks only its dependent branch.
- */
-export async function runDepartments(plan: ResearchPlan, context: CanonicalTripContext, locations: ResolvedDestination[]): Promise<DepartmentExecution> {
-  const pending = new Map(plan.tasks.map((task) => [task.id, task]));
-  const results = new Map<string, ResearchResult>();
+  const requirements = execution.requirements;
+  const agents = execution.agents;
+  const agentResults = execution.results;
+  const byDomain = new Map<string, AgentResult[]>();
+  for (const result of agentResults) byDomain.set(result.domain, [...(byDomain.get(result.domain) ?? []), result]);
+  const results: ResearchResult[] = [];
   const reports: DepartmentReport[] = [];
-
-  while (pending.size) {
-    const ready = [...pending.values()].filter((task) => task.dependsOn.every((dependency) => terminal(results.get(dependency))));
-
-    if (!ready.length) {
-      for (const task of pending.values()) {
-        const report: DepartmentReport = {
-          domain: task.domain,
-          objective: `Investigar ${task.domain} dentro del contexto completo del viaje.`,
-          subtasks: [],
-          findings: [],
-          evidence: [],
-          unresolved: ["No se pudo resolver el grafo de dependencias."],
-          conflicts: [],
-          status: "error",
-          error: "Dependency graph contains a cycle or unresolved prerequisite.",
-        };
-        reports.push(report);
-        results.set(task.id, { task, status: "error", error: report.error });
-      }
-      break;
-    }
-
-    const executable: ResearchTask[] = [];
-    for (const task of ready) {
-      const failedDependency = dependencyBlocked(task, results);
-      if (failedDependency) {
-        const result = blockedResult(task, failedDependency);
-        results.set(task.id, result);
-        reports.push({
-          domain: task.domain,
-          objective: `Investigar ${task.domain} dentro del contexto completo del viaje.`,
-          subtasks: [],
-          findings: [],
-          evidence: [],
-          unresolved: [result.error ?? "Dependencia no disponible"],
-          conflicts: [],
-          status: "unavailable",
-          error: result.error,
-        });
-        pending.delete(task.id);
-      } else {
-        executable.push(task);
-      }
-    }
-
-    if (executable.length) {
-      const wave = await Promise.all(executable.map(async (task) => {
-        const department = createDepartment(task.domain);
-        const dependencyResults = task.dependsOn.flatMap((id) => {
-          const result = results.get(id);
-          return result ? [result] : [];
-        });
-        const mission = department.mission(context, task, dependencyResults);
-        const subtasks = department.organize(mission);
-        const report = await department.execute(mission, subtasks, locations);
-        const result: ResearchResult = {
-          task,
-          status: report.status,
-          data: { findings: report.findings, dependencyResults },
-          evidence: report.evidence as ResearchResult["evidence"],
-          error: report.error,
-        };
-        return { task, report, result };
-      }));
-
-      for (const item of wave) {
-        results.set(item.task.id, item.result);
-        reports.push(item.report);
-        pending.delete(item.task.id);
-      }
-    }
+  const available = new Set<string>();
+  const unavailable = new Set<string>();
+  for (const task of plan.tasks) {
+    const items = byDomain.get(task.domain) ?? [];
+    const department = createDepartment(task.domain);
+    const taskRequirements = requirements.filter((r) => r.domain === task.domain);
+    const taskAgents = agents.filter((a) => a.domain === task.domain);
+    const subtasks = taskRequirements.map((r) => ({ id: r.id, question: r.question, priority: r.priority, dataType: r.dataType, agentId: r.agentId }));
+    const status = statusForAgents(items);
+    const findings = items.flatMap((r) => r.data === undefined ? [] : Array.isArray(r.data) ? r.data : [r.data]);
+    const evidence = items.flatMap((r) => r.evidence ?? []);
+    const unresolved = items.flatMap((r) => r.error ? [r.error] : r.validation.issues);
+    const conflicts = workingMemory.conflicts.filter((c) => c.requirementIds.some((id) => taskRequirements.some((r) => r.id === id)));
+    // El delegado del departamento: si se investigó algo de verdad para
+    // este dominio (tenía requisitos que resolver), se registra si esta
+    // vuelta fue bien o mal. Un dominio que sigue fallando en ejecuciones
+    // sucesivas de este servidor queda "degradado" — no se le vuelve a
+    // insistir a ciegas la próxima vez, se avisa directamente.
+    if (taskRequirements.length) registrarResultadoDominio(task.domain, status === "ready" || status === "partial");
+    const { degradado } = fiabilidadDominio(task.domain);
+    const unresolvedConDegradado = degradado
+      ? [...unresolved, `${task.domain}: este dominio ha fallado en ejecuciones recientes de esta sesión.`]
+      : unresolved;
+    const report: DepartmentReport = { domain: task.domain, objective: department.mission(context, task).objective, subtasks, findings, evidence, unresolved: [...new Set(unresolvedConDegradado)], conflicts: conflicts.map((c) => `${c.key}: ${c.reason}`), status, agentResults: items, degradado };
+    reports.push(report);
+    results.push({ task, status, data: { findings, requirements: taskRequirements, agents: taskAgents, agentResults: items }, evidence: evidence as ResearchResult["evidence"], error: report.unresolved.length ? report.unresolved.join("; ") : undefined });
+    if (status === "ready" || status === "partial") available.add(task.domain);
+    if (status === "unavailable") unavailable.add(task.domain);
   }
-
-  const availableDomains = [...results.values()].filter((result) => result.status === "ready" || result.status === "partial").map((result) => result.task.domain);
-  const unavailableDomains = [...results.values()].filter((result) => result.status === "unavailable").map((result) => result.task.domain);
-
-  return { results: [...results.values()], reports, availableDomains, unavailableDomains };
+  return { results, reports, availableDomains: [...available], unavailableDomains: [...unavailable], neuralCycles: execution.cycles, workingMemory };
 }
