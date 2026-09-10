@@ -43,7 +43,6 @@ const ENLACES_APPS: Record<string, string> = {
   Citymapper: "https://citymapper.com/",
   "Google Maps": "https://maps.google.com/",
   "TMB App": "https://www.tmb.cat/es/barcelona/tmb-app",
-  Spotify: "https://www.spotify.com/",
 };
 
 export function urlApp(nombreConNotas: string): string {
@@ -93,7 +92,7 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
         detalles: "Se recarga en máquinas y kioscos. Válida para TransMilenio y buses urbanos.",
       },
     ],
-    apps: ["Uber", "DiDi", "Spotify"],
+    apps: ["Uber", "DiDi"],
     sitiosOficiales: ["https://www.transmilenio.gov.co", "https://www.bogota.gov.co/transporte"],
     precios: {
       viajeSencillo: "Tullave: ~$3.000 COP",
