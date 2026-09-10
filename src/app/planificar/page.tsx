@@ -32,14 +32,22 @@ const MODOS: Array<{ id: ModoPlanificacion; icon: string; title: string; text: s
   { id: "dejarse_llevar", icon: "🧭", title: "Explorar", text: "Decidir según el momento, el lugar y las circunstancias reales." },
 ];
 
-function resumen(n: NecesidadesViaje | null) {
+// Solo lo que el texto libre detecta y que de verdad se usa para crear el
+// viaje (ver crearViaje(): numAdultos y presupuestoMax detectados del texto
+// NO se guardan — mandan los campos explícitos de arriba, adultos/presupuesto
+// — así que mostrarlos aquí como si contaran era confuso: si el texto decía
+// "3 adultos" y el selector tenía 2, aparecían los dos números a la vez sin
+// decir cuál se iba a usar.
+function resumen(n: NecesidadesViaje | null, hayFechasExplicitas: boolean) {
   if (!n) return [];
   const out: string[] = [];
-  if (n.duracionDias) out.push(`${n.duracionDias} días`);
-  if (n.numAdultos) out.push(`${n.numAdultos} adultos`);
+  // Si ya hay fechas de salida/regreso explícitas, esas mandan y se
+  // muestran arriba: repetir aquí una duración distinta adivinada del
+  // texto (p. ej. "4 días" cuando las fechas cubren 12) es la misma
+  // confusión de dos números contradictorios que numAdultos/presupuestoMax.
+  if (n.duracionDias && !hayFechasExplicitas) out.push(`${n.duracionDias} días`);
   n.edadesMenores.forEach((e) => out.push(`menor de ${e} años`));
   if (n.mascota) out.push("mascota");
-  if (n.presupuestoMax) out.push(`hasta ${n.presupuestoMax} €`);
   if (n.ciudadOrigen) out.push(`desde ${n.ciudadOrigen}`);
   if (n.ritmo) out.push(`ritmo ${n.ritmo}`);
   if (n.sinConducirMucho) out.push("sin conducir mucho");
@@ -70,7 +78,7 @@ export default function PlanificarPage() {
   const [etapas, setEtapas] = useState<LugarResuelto[]>([]);
   const [nuevaParada, setNuevaParada] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const etiquetas = useMemo(() => resumen(necesidades), [necesidades]);
+  const etiquetas = useMemo(() => resumen(necesidades, Boolean(fechaSalida && fechaRegreso)), [necesidades, fechaSalida, fechaRegreso]);
 
   // El presupuesto se puede expresar por persona o por día, pero el
   // seguimiento del gasto solo entiende un total. Antes, elegir cualquiera de
@@ -80,7 +88,11 @@ export default function PlanificarPage() {
     if (importe === undefined || Number.isNaN(importe) || importe <= 0) return undefined;
     if (presupuestoTipo === "total") return importe;
     if (presupuestoTipo === "por_persona") return importe * Math.max(adultos + ninos + bebes + personasMayores, 1);
-    const dias = necesidades?.duracionDias ?? (fechaSalida && fechaRegreso ? Math.max(diasEntre(fechaSalida, fechaRegreso), 1) : undefined);
+    // Las fechas explícitas son más precisas que una duración adivinada del
+    // texto libre, así que mandan cuando ambas existen (antes era al revés:
+    // un "4 días" detectado en el texto podía pisar un rango de fechas real
+    // de 12 días y calcular mal el presupuesto total).
+    const dias = (fechaSalida && fechaRegreso ? Math.max(diasEntre(fechaSalida, fechaRegreso), 1) : undefined) ?? necesidades?.duracionDias;
     return dias !== undefined ? importe * dias : undefined;
   }, [presupuesto, presupuestoTipo, adultos, ninos, bebes, personasMayores, necesidades, fechaSalida, fechaRegreso]);
   const esCircuito = tipo === "circuito";
