@@ -9,8 +9,6 @@ import type { CategoriaRequisito, ResultadoRequisito, Viaje, Viajero } from "./t
 const FUENTE_ORIENTATIVA =
   "Estimación de Efecto Viajero (no oficial) — verificar en la fuente oficial del país de destino antes de viajar.";
 
-const PAISES_ESPACIO_SCHENGEN = new Set(["SI", "AT", "DE", "PT", "IT", "ES", "GR", "FR", "NL"]);
-
 function hoyISO() {
   return new Date().toISOString();
 }
@@ -34,10 +32,9 @@ function nuevoResultado(
   };
 }
 
-function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje, paisCodigo?: string) {
+function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje, paisCodigo?: string, enSchengen?: boolean) {
   const resultados: ResultadoRequisito[] = [];
   const edad = calcularEdad(viajero.fechaNacimiento);
-  const enSchengen = paisCodigo ? PAISES_ESPACIO_SCHENGEN.has(paisCodigo) : undefined;
 
   // Documentación de viaje (pasaporte/DNI)
   const pasaporte = viajero.documentos.find((d) => d.tipo === "pasaporte");
@@ -250,16 +247,20 @@ function evaluarMascota(viajero: import("./types").MascotaViajero, destinoMascot
 
 export function calcularRequisitos(viaje: Viaje, viajeros: Viajero[]): ResultadoRequisito[] {
   // Por país, no por destino curado: los requisitos de entrada dependen
-  // del país, así que basta con saber en cuál está la ciudad.
-  const paisCodigo = paisPrincipal(viaje)?.codigo;
-  const enSchengen = paisCodigo ? PAISES_ESPACIO_SCHENGEN.has(paisCodigo) : undefined;
+  // del país, así que basta con saber en cuál está la ciudad. El país ya
+  // trae sus bloques (paises.ts es la fuente única de qué países están en
+  // Schengen) — antes esto duplicaba esa lista aquí, incompleta y
+  // desincronizada de la real.
+  const pais = paisPrincipal(viaje);
+  const paisCodigo = pais?.codigo;
+  const enSchengen = pais ? pais.bloques?.includes("schengen") ?? false : undefined;
   const destino = destinoPrincipal(viaje);
 
   const viajerosDelViaje = viajeros.filter((v) => viaje.viajerosIds.includes(v.id));
 
   return viajerosDelViaje.flatMap((viajero) =>
     viajero.tipo === "persona"
-      ? evaluarPersona(viajero, viaje, paisCodigo)
+      ? evaluarPersona(viajero, viaje, paisCodigo, enSchengen)
       : evaluarMascota(viajero, destino?.mascotaFriendly, enSchengen)
   );
 }

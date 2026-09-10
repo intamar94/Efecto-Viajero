@@ -145,7 +145,7 @@ export const EVENTOS_POR_PAIS: Record<string, EventoEstacional[]> = {
       diasAproximados: "8-31 dic",
       tipo: "celebracion",
       descripcion: "Temporada navideña: decoraciones, villancicos, fiestas familiares. Novena de Aguinaldos (rezos tradicionales).",
-      notas: "Muchas ciudades tienen iluminaciones especiales. Bogotá tiene paseo de las luces en Eje Cafetero.",
+      notas: "Muchas ciudades tienen iluminaciones especiales; los Alumbrados de Medellín son los más famosos del país.",
     },
     {
       nombre: "Feria de Flores",
@@ -176,7 +176,7 @@ export const EVENTOS_POR_PAIS: Record<string, EventoEstacional[]> = {
       mes: 1,
       diasAproximados: "31 dic-2 ene",
       tipo: "celebracion",
-      descripcion: "Celebración escocesa de Año Nuevo (Hogmanay): fuegos artificiales, fiestas callejeras, atmosphere única.",
+      descripcion: "Celebración escocesa de Año Nuevo (Hogmanay): fuegos artificiales, fiestas callejeras, atmósfera única.",
       notas: "Edimburgo es el epicentro. Las ciudades escocesas tienen celebraciones tradicionales y festivas.",
     },
     {
@@ -187,7 +187,7 @@ export const EVENTOS_POR_PAIS: Record<string, EventoEstacional[]> = {
       diasAproximados: "mediados mayo (5 días)",
       tipo: "evento",
       descripcion: "Exposición de flores más prestigiosa del mundo. Diseños de jardines, flores raras, asistencia de realeza.",
-      notas: "Entrada es difícil de conseguir. Requiere membresía de la RHS o ser invitado. Atmosfera muy británica.",
+      notas: "Entrada es difícil de conseguir. Requiere membresía de la RHS o ser invitado. Atmósfera muy británica.",
       sitioWeb: "https://www.rhs.org.uk/shows-events/rhs-chelsea-flower-show",
     },
     {
@@ -197,7 +197,7 @@ export const EVENTOS_POR_PAIS: Record<string, EventoEstacional[]> = {
       mes: 6,
       diasAproximados: "segundo sábado de junio",
       tipo: "evento",
-      descripcion: "Desfile oficial de celebración del cumpleaños real. Uniforms militares, bandas, ceremonias.",
+      descripcion: "Desfile oficial de celebración del cumpleaños real. Uniformes militares, bandas, ceremonias.",
       notas: "Espectáculo muy británico. Se puede ver desde el Mall. Llega temprano para buen asiento.",
     },
   ],
