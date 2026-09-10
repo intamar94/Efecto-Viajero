@@ -52,13 +52,22 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   const ranked = scoreDestinations(ctx, locations);
   const draft = buildTripDraft(ctx, ranked);
   const explorer = ctx.planningMode === "dejarse_llevar" ? buildExplorerPlan({ request: ctx.rawText || rawText, context: ctx, now: { iso: new Date().toISOString() } }) : undefined;
-  const normalizedUnresolved = unique(unresolved.concat(departmentExecution.reports.flatMap((report) => report.unresolved)));
+  // "unresolved" son lugares que el propio viajero escribió y no logramos
+  // ubicar (para mostrar donde se pide confirmar el destino, p. ej. en
+  // /planificar). "departmentIssues" son fallos internos por requisito
+  // dentro de cada departamento (p. ej. "transporte no pudo resolverse
+  // porque el destino no se resolvió") — son diagnóstico técnico, útil en
+  // el detalle del cerebro (/viajes/[id]/decisiones), no algo que un
+  // viajero deba leer como si fuera un lugar por confirmar.
+  const placeUnresolved = unique(unresolved);
+  const departmentIssues = unique(departmentExecution.reports.flatMap((report) => report.unresolved));
+  const normalizedUnresolved = unique(placeUnresolved.concat(departmentIssues));
   const pendingCount = plan.tasks.filter((task) => !results.some((result) => result.task.id === task.id)).length;
   const capabilityAudit = auditCapabilities(plan.tasks, results, departmentExecution.reports);
   const supervisorUpdate = buildOrchestratorUpdate(results, plan.tasks, normalizedUnresolved, departmentExecution.reports, departmentExecution.neuralCycles.length, capabilityAudit, departmentExecution.neuralCycles);
   return {
     context: ctx,
-    locations, unresolved: normalizedUnresolved, countryCode, plan, results, ranked, draft,
+    locations, unresolved: placeUnresolved, departmentIssues, countryCode, plan, results, ranked, draft,
     availableDomains: departmentExecution.availableDomains, unavailableDomains: departmentExecution.unavailableDomains, mode: ctx.planningMode, pendingCount,
     orchestration: { selected: plan.selectedDomains, skipped: plan.skippedDomains, reasons: plan.selectionReasons, explicitSignals: [...deriveOrchestrationSignals(ctx).explicit], inferredSignals: [...deriveOrchestrationSignals(ctx).inferred] },
     reverseEngineering,

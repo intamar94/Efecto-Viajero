@@ -18,6 +18,7 @@ import { formatearRangoFechas } from "@/lib/formatoFecha";
 import type { ContextoViaje, EstadoRequisito, Viaje } from "@/lib/types";
 
 const SECCIONES = [
+  { href: "decisiones", icono: "🧠", titulo: "Decisiones" },
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
   { href: "actividades", icono: "🎒", titulo: "Actividades" },
@@ -98,6 +99,7 @@ export default function ViajeDetallePage() {
   const paises = paisesDelViaje(viaje);
 
   const estadoTexto: Record<(typeof SECCIONES)[number]["href"], string> = {
+    decisiones: "Análisis por departamentos",
     transporte: viaje.transporte.length > 0 ? `${viaje.transporte.length} tramo(s)` : "Sin definir",
     alojamiento: alojamientoElegido ? alojamientoElegido.nombre : "Sin elegir",
     actividades:

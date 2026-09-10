@@ -19,11 +19,15 @@ export function extractLocationCandidates(text: string): string[] {
     }
   };
 
-  const countryPart = text.match(/\b(?:ir|viajar|viajamos|viajo)\s+(?:a|al)\s+(.+?)(?=\b(?:visitar|conocer|pasar\s+por)\b|[.!?]|$)/i);
+  const countryPart = text.match(/\b(?:ir|viajar|viajamos|viajo|vamos|voy|iremos)\s+(?:a|al)\s+(.+?)(?=\b(?:visitar|conocer|pasar\s+por)\b|[.!?]|$)/i);
   if (countryPart) push(countryPart[1]);
   const visitPart = text.match(/\b(?:visitar|visito|visitamos|conocer|conoceremos|pasar\s+por)\s+(.+?)(?=\bdurante\b|[.!?]|$)/i);
   if (visitPart) push(visitPart[1]);
-  for (const match of text.matchAll(/(?:^|[:(])\s*([^.!?]+)/g)) if (/,/.test(match[1])) push(match[1]);
+  // Solo listas de lugares explícitas tras ":" o "(" (p. ej. "Colombia:
+  // Bogotá, Medellín, Cartagena"). Sin el "^" cualquier frase con una coma
+  // cualquiera ("quiero ir a X, presupuesto Y, me gusta Z") se colaba
+  // entera como si fuera un lugar.
+  for (const match of text.matchAll(/[:(]\s*([^.!?]+)/g)) if (/,/.test(match[1])) push(match[1]);
   return candidates;
 }
 

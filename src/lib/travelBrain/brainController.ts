@@ -29,7 +29,7 @@ const MAX_CONTROL_CYCLES = 3;
 
 function buildBlockers(analysis: Awaited<ReturnType<typeof analyzeTrip>>): BrainBlocker[] {
   const blockers: BrainBlocker[] = [];
-  for (const unresolved of analysis.unresolved) blockers.push({ id: `unresolved:${unresolved}`, type: "missing-data", target: unresolved, reason: unresolved, severity: "high" });
+  for (const unresolved of [...analysis.unresolved, ...analysis.departmentIssues]) blockers.push({ id: `unresolved:${unresolved}`, type: "missing-data", target: unresolved, reason: unresolved, severity: "high" });
   for (const domain of analysis.unavailableDomains) blockers.push({ id: `provider:${domain}`, type: "provider", target: domain, reason: `La capacidad ${domain} no está disponible en esta ejecución.`, severity: "high" });
   for (const conflict of analysis.workingMemory.conflicts) blockers.push({ id: `conflict:${conflict.key}`, type: "conflict", target: conflict.key, reason: conflict.reason, severity: "high" });
   return blockers;
@@ -74,7 +74,7 @@ function buildBrainState(context: CanonicalTripContext, analysis: Awaited<Return
   const optimization = optimizePlanningState(context, actionState.pending);
   const blockers = buildBlockers(analysis);
   const initial = updateBrainState(brain, {
-    phase: phaseFor(decision.action, blockers, !decision.action && !analysis.unresolved.length && !analysis.workingMemory.conflicts.length),
+    phase: phaseFor(decision.action, blockers, !decision.action && !analysis.unresolved.length && !analysis.departmentIssues.length && !analysis.workingMemory.conflicts.length),
     results, facts: analysis.workingMemory.facts, evidence, conflicts: analysis.workingMemory.conflicts,
     decisions: analysis.workingMemory.decisions, pendingActions: actionState.pending, completedActions: actionState.completed,
     blockers, decision, optimization, cycles: analysis.neuralCycles.length, completeness, confidence,
