@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
@@ -10,6 +10,8 @@ import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { URL_BUS, URL_TREN, urlBusquedaVuelos } from "@/lib/afiliados";
 import { paisesDelViaje, etapasDe } from "@/lib/viaje";
+import { resolveDestination } from "@/lib/travelBrain/destinationResolver";
+import { aeropuertosCercanos, type AeropuertoCercano } from "@/lib/aeropuertos";
 import type { ModoTransporte, TramoTransporte } from "@/lib/types";
 import { PRESENTATION_STATUS } from "@/lib/travelBrain/presentation";
 
@@ -32,6 +34,34 @@ export default function TransportePage() {
   const [modo, setModo] = useState<ModoTransporte>("tren");
   const [origen, setOrigen] = useState(""); const [destinoTramo, setDestinoTramo] = useState(""); const [horaSalida, setHoraSalida] = useState(""); const [coste, setCoste] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false); const [ciudadOrigenInput, setCiudadOrigenInput] = useState(""); const [editandoOrigen, setEditandoOrigen] = useState(false);
+  const [aeropuertos, setAeropuertos] = useState<AeropuertoCercano[]>([]);
+  const [estadoAeropuertos, setEstadoAeropuertos] = useState<"cargando" | "sin_datos" | "listo">("cargando");
+
+  // Investigación real de "cómo llegar": antes esta tarjeta era solo una
+  // caja fija de enlaces genéricos pese al badge "Investigando" — ahora sí
+  // busca de verdad el aeropuerto real más cercano al destino, vía
+  // OpenStreetMap. No hay vuelos/tarifas reales sin una API de pago, pero
+  // saber a qué aeropuerto llegar es un dato concreto que sí podemos dar.
+  useEffect(() => {
+    if (!viaje) return;
+    let cancelado = false;
+    setEstadoAeropuertos("cargando");
+    const puntoEntrada = etapasDe(viaje)[0]?.nombre ?? viaje.destino;
+    (async () => {
+      try {
+        const resultados = await resolveDestination(puntoEntrada);
+        const mejor = resultados.find((r) => Number.isFinite(r.latitude) && Number.isFinite(r.longitude));
+        if (!mejor) { if (!cancelado) setEstadoAeropuertos("sin_datos"); return; }
+        const cercanos = await aeropuertosCercanos(mejor.latitude, mejor.longitude);
+        if (cancelado) return;
+        setAeropuertos(cercanos);
+        setEstadoAeropuertos(cercanos.length ? "listo" : "sin_datos");
+      } catch {
+        if (!cancelado) setEstadoAeropuertos("sin_datos");
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [viaje?.id]);
 
   if (!viaje) return <main className="flex-1 px-5 py-8"><div className="mx-auto max-w-xl"><Cabecera titulo="Viaje no encontrado" volverA="/viajes" /></div></main>;
 
@@ -52,8 +82,20 @@ export default function TransportePage() {
       <Cabecera titulo="Transporte" subtitulo="Cómo llegar y cómo moverte una vez allí." volverA={`/viajes/${viaje.id}`} />
 
       <section className="card mb-6">
-        <div className="mb-1 flex items-center justify-between gap-3"><h2 className="font-medium">Cómo llegar</h2><StatusBadge status="researching" detail="Estos enlaces abren buscadores externos; todavía no representan una ruta, tarifa o disponibilidad verificada." /></div>
+        <div className="mb-1 flex items-center justify-between gap-3"><h2 className="font-medium">Cómo llegar</h2><StatusBadge status={estadoAeropuertos === "cargando" ? "researching" : estadoAeropuertos === "listo" ? "partial" : "pending"} detail={estadoAeropuertos === "listo" ? "El aeropuerto es un dato real de OpenStreetMap; los enlaces de reserva siguen sin tarifa o disponibilidad verificada." : "Estos enlaces abren buscadores externos; todavía no representan una ruta, tarifa o disponibilidad verificada."} /></div>
         <p className="mb-3 text-xs text-neutral-400">Te lleva a la web real del proveedor para completar la reserva. Vuelve aquí y guarda el ticket en el Travel Vault.</p>
+        {estadoAeropuertos === "cargando" && <p className="mb-3 text-xs text-neutral-400 animate-pulse">🔎 Buscando el aeropuerto más cercano…</p>}
+        {estadoAeropuertos === "listo" && aeropuertos.length > 0 && (
+          <div className="mb-3 rounded-xl bg-neutral-50 p-3 text-sm">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-400">Aeropuerto{aeropuertos.length > 1 ? "s" : ""} más cercano{aeropuertos.length > 1 ? "s" : ""}</p>
+            {aeropuertos.map((a) => (
+              <p key={`${a.iata}-${a.lat}`} className="text-neutral-700">
+                {a.nombre}{a.iata ? ` (${a.iata})` : ""} — a {Math.round(a.distanciaKm)} km
+                <a href={`https://www.google.com/maps/search/?api=1&query=${a.lat},${a.lon}`} target="_blank" rel="noopener noreferrer" className="ml-2 text-marino-600 underline">Ver en el mapa</a>
+              </p>
+            ))}
+          </div>
+        )}
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm"><span className="text-neutral-500">Saliendo desde:</span>
           {editandoOrigen ? <form onSubmit={guardarOrigen} className="flex flex-1 gap-2"><input className="input flex-1" placeholder="ej. Madrid" value={ciudadOrigenInput} onChange={(e) => setCiudadOrigenInput(e.target.value)} autoFocus /><button type="submit" className="btn-primary shrink-0 px-3 py-1.5 text-xs">Guardar</button></form> : <button type="button" onClick={() => { setCiudadOrigenInput(viaje.contexto.ciudadOrigen ?? ""); setEditandoOrigen(true); }} className="font-medium text-marino-700 underline hover:text-marino-900">{viaje.contexto.ciudadOrigen ?? "sin definir — añadir"}</button>}
         </div>
