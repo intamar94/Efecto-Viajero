@@ -20,10 +20,14 @@ type Analisis = {
   explorer?: { intent: string; searchProfile: { categories: string[]; pace: string; familyFriendly: boolean; accessibilityRequired: boolean; budgetAware: boolean }; companionTips: string[] };
 };
 
-const EJEMPLOS = [
-  "Quiero ir a Colombia y visitar Pereira, Santander y Leticia durante 10 días. Quiero comer bien y conocer naturaleza.",
-  "Quiero viajar 7 días con mi hija. Naturaleza, pueblos bonitos y comer bien, sin conducir mucho.",
-  "Dos semanas por Japón: Tokio, Kioto y Osaka, con trenes, mercados y templos.",
+// Ya no son ejemplos de "viaje completo" (el destino ahora se pregunta
+// aparte): son inspiración de qué tipo de cosas poner en peticiones
+// especiales, que es lo único para lo que sirve ya el texto libre.
+const EJEMPLOS_PETICIONES = [
+  "Es nuestra luna de miel",
+  "Preferimos no caminar mucho",
+  "Nos encanta la comida callejera",
+  "Queremos evitar sitios muy turísticos",
 ];
 
 const MODOS: Array<{ id: ModoPlanificacion; icon: string; title: string; text: string }> = [
@@ -57,6 +61,10 @@ function resumen(n: NecesidadesViaje | null, hayFechasExplicitas: boolean) {
 export default function PlanificarPage() {
   const router = useRouter();
   const { crearViaje: guardarViaje } = useData();
+  // El destino ya no se adivina del texto libre: se pregunta directo. Es
+  // la causa raíz de casi todos los bugs de "reconoce mal el destino" —
+  // un campo dedicado no tiene ambigüedad que resolver.
+  const [destinos, setDestinos] = useState<string[]>([""]);
   const [texto, setTexto] = useState("");
   const [tipo, setTipo] = useState<TipoViaje>("simple");
   const [modo, setModo] = useState<ModoPlanificacion>("completo");
@@ -79,6 +87,7 @@ export default function PlanificarPage() {
   const [nuevaParada, setNuevaParada] = useState("");
   const [error, setError] = useState<string | null>(null);
   const etiquetas = useMemo(() => resumen(necesidades, Boolean(fechaSalida && fechaRegreso)), [necesidades, fechaSalida, fechaRegreso]);
+  const destinosLlenos = useMemo(() => destinos.map((d) => d.trim()).filter(Boolean), [destinos]);
 
   // El presupuesto se puede expresar por persona o por día, pero el
   // seguimiento del gasto solo entiende un total. Antes, elegir cualquiera de
@@ -103,17 +112,33 @@ export default function PlanificarPage() {
     setEdadesNinos((prev) => Array.from({ length: count }, (_, i) => prev[i] ?? 8));
   }
 
+  function actualizarDestino(i: number, valor: string) {
+    setDestinos((prev) => prev.map((d, idx) => (idx === i ? valor : d)));
+  }
+
+  function quitarDestino(i: number) {
+    setDestinos((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
+  }
+
   async function analizar(e: React.FormEvent) {
     e.preventDefault();
-    if (!texto.trim() || analizando) return;
+    if (!destinosLlenos.length || analizando) return;
     if (fechaSalida && fechaRegreso && fechaRegreso < fechaSalida) {
       setError("La fecha de regreso no puede ser anterior a la fecha de salida.");
       return;
     }
     setAnalizando(true); setError(null);
+    const tipoCalculado: TipoViaje = destinosLlenos.length > 1 ? "circuito" : "simple";
+    setTipo(tipoCalculado);
+    // El cerebro necesita un texto para investigar (intereses, comida,
+    // etc.); si el viajero no escribió peticiones especiales, se arma uno
+    // simple a partir de los destinos en vez de bloquear el flujo pidiendo
+    // texto que ya no hace falta.
+    const textoEnviado = texto.trim() || `Viaje a ${destinosLlenos.join(", ")}.`;
     try {
       const body = {
-        text: texto,
+        text: textoEnviado,
+        destinations: destinosLlenos,
         fechaSalida: fechaSalida || undefined,
         fechaRegreso: fechaRegreso || undefined,
         presupuesto: presupuesto ? Number(presupuesto) : undefined,
@@ -132,10 +157,9 @@ export default function PlanificarPage() {
       const response = await fetch("/api/trips/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await response.json() as Analisis & { error?: string };
       if (!response.ok) throw new Error(data.error ?? "No se pudo analizar el viaje.");
-      setNecesidades(interpretarTexto(texto));
+      setNecesidades(interpretarTexto(textoEnviado));
       setAnalisis(data);
       setEtapas(data.locations);
-      setTipo(data.locations.length > 1 ? "circuito" : "simple");
     } catch (e) { setError(e instanceof Error ? e.message : "No se pudo analizar el viaje."); }
     finally { setAnalizando(false); }
   }
@@ -181,7 +205,7 @@ export default function PlanificarPage() {
 
   function agregarManual() {
     const name = nuevaParada.trim(); if (!name) return;
-    setTexto((current) => `${current}${current ? ", " : ""}${name}`); setNuevaParada(""); setAnalisis(null);
+    setDestinos((prev) => [...prev, name]); setNuevaParada(""); setAnalisis(null);
   }
 
   if (analisis) return (
@@ -205,7 +229,7 @@ export default function PlanificarPage() {
         <div className="space-y-2">{etapas.map((l, i) => <div key={l.id} className="flex items-center gap-3 rounded-2xl border border-neutral-200 p-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-marino-50 text-xs font-semibold text-marino-700">{i + 1}</span><div className="min-w-0 flex-1"><p className="font-medium text-neutral-900">{l.name}</p><p className="text-xs text-neutral-500">{[l.region, l.country].filter(Boolean).join(", ")}</p></div><button type="button" onClick={() => setEtapas((p) => p.filter((x) => x.id !== l.id))} className="text-neutral-400 hover:text-red-600" aria-label={`Quitar ${l.name}`}>×</button></div>)}
           {analisis.unresolved.length > 0 && <div className="rounded-2xl bg-amber-50 p-3 text-xs text-amber-800">Necesitan confirmación: {analisis.unresolved.join(", ")}</div>}
         </div>
-        {esCircuito && <div className="mt-3 flex gap-2"><input className="input flex-1" value={nuevaParada} onChange={(e) => setNuevaParada(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), agregarManual())} placeholder="Añadir otra ciudad o región" /><button type="button" onClick={agregarManual} className="btn-secondary">Añadir</button></div>}
+        <div className="mt-3 flex gap-2"><input className="input flex-1" value={nuevaParada} onChange={(e) => setNuevaParada(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), agregarManual())} placeholder="Añadir otra ciudad o región" /><button type="button" onClick={agregarManual} className="btn-secondary">Añadir</button></div>
       </section>
       <button disabled={!etapas.length} onClick={crearViaje} className="btn-primary w-full disabled:opacity-50">Crear mi viaje →</button>
     </div></main>
@@ -213,10 +237,13 @@ export default function PlanificarPage() {
 
   return (
     <main className="flex-1 px-5 py-8"><div className="mx-auto max-w-3xl">
-      <div className="mb-7"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-600">Efecto Viajero</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-950">Cuéntanos qué viaje tienes en mente.</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">Empieza con tus propias palabras. Después ajustamos lo necesario para que el viaje se adapte a ti.</p></div>
+      <div className="mb-7"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-600">Efecto Viajero</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-950">Cuéntanos tu viaje en unas preguntas.</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">Responde lo que sepas — puedes dejar cualquier campo sin rellenar y completarlo después.</p></div>
 
       <form onSubmit={analizar} className="space-y-5">
-        <section className="card"><div className="mb-2 flex items-center justify-between"><label className="text-sm font-medium text-neutral-800">Tu idea de viaje</label><span className="text-xs text-neutral-400">Texto libre</span></div><textarea autoFocus value={texto} onChange={(e) => setTexto(e.target.value)} className="input min-h-44 resize-y text-base leading-6" placeholder="Ej. Quiero ir a Colombia y visitar Pereira, Santander y Leticia durante 10 días. Quiero comer bien y conocer naturaleza."/><div className="mt-3 flex flex-wrap gap-2">{EJEMPLOS.map((ej) => <button key={ej} type="button" onClick={() => setTexto(ej)} className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-left text-xs text-neutral-500 hover:border-coral-300">{ej.length > 62 ? `${ej.slice(0, 62)}…` : ej}</button>)}</div></section>
+        <section className="card"><div className="mb-4"><h2 className="font-semibold">¿A dónde quieres ir?</h2><p className="mt-1 text-xs text-neutral-500">Un destino o varios, en el orden en que los visitarás.</p></div>
+          <div className="space-y-2">{destinos.map((d, i) => <div key={i} className="flex gap-2"><input className="input flex-1" value={d} onChange={(e) => actualizarDestino(i, e.target.value)} placeholder={i === 0 ? "Ej. Bogotá, Japón, Roma…" : "Otra parada"} />{destinos.length > 1 && <button type="button" onClick={() => quitarDestino(i)} className="shrink-0 text-neutral-400 hover:text-red-600" aria-label="Quitar destino">×</button>}</div>)}</div>
+          <button type="button" onClick={() => setDestinos((p) => [...p, ""])} className="mt-3 text-sm text-marino-700 underline hover:text-marino-900">+ Añadir otro destino</button>
+        </section>
 
         <section className="card"><div className="mb-4"><h2 className="font-semibold">¿Cuándo y con qué presupuesto?</h2><p className="mt-1 text-xs text-neutral-500">Puedes dejar cualquiera de estos datos sin definir y completarlos después.</p></div><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm text-neutral-700">Salida<input type="date" className="input mt-1" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} /></label><label className="text-sm text-neutral-700">Regreso<input type="date" className="input mt-1" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} /></label><label className="text-sm text-neutral-700">Presupuesto aproximado<input type="number" min="0" step="50" className="input mt-1" value={presupuesto} onChange={(e) => setPresupuesto(e.target.value)} placeholder="1.500" /></label><label className="text-sm text-neutral-700">Cómo quieres expresarlo<select className="input mt-1" value={presupuestoTipo} onChange={(e) => setPresupuestoTipo(e.target.value as TipoPresupuesto)}><option value="total">Total del viaje</option><option value="por_persona">Por persona</option><option value="por_dia">Por día</option></select></label></div>{presupuestoTotalCalculado !== undefined && presupuestoTipo !== "total" && <p className="mt-3 text-xs text-neutral-500">Para el seguimiento del gasto lo contamos como <span className="font-medium text-neutral-700">{presupuestoTotalCalculado} € en total</span>.</p>}{presupuesto && presupuestoTipo === "por_dia" && presupuestoTotalCalculado === undefined && <p className="mt-3 text-xs text-neutral-500">Un presupuesto por día necesita saber cuántos días dura el viaje: dinos las fechas o la duración y lo convertimos a total.</p>}<label className="mt-3 flex items-center gap-2 text-xs text-neutral-600"><input type="checkbox" checked={presupuestoFlexible} onChange={(e) => setPresupuestoFlexible(e.target.checked)} /> El presupuesto puede variar un poco si mejora la experiencia</label></section>
 
@@ -225,7 +252,10 @@ export default function PlanificarPage() {
 
         <section className="card"><div className="mb-4"><h2 className="font-semibold">¿Cómo quieres vivir el viaje?</h2><p className="mt-1 text-xs text-neutral-500">Puedes cambiar de comportamiento más adelante sin perder el viaje.</p></div><div className="grid gap-3">{MODOS.map((m) => <button key={m.id} type="button" onClick={() => setModo(m.id)} className={`rounded-2xl border p-4 text-left transition ${modo === m.id ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white hover:border-neutral-300"}`}><div className="flex items-start gap-3"><span className="text-xl">{m.icon}</span><span><span className="block text-sm font-semibold text-neutral-900">{m.title}</span><span className="mt-1 block text-xs leading-5 text-neutral-500">{m.text}</span></span></div></button>)}</div>{modo === "dejarse_llevar" && <div className="mt-3 rounded-2xl bg-marino-50 p-3 text-xs leading-5 text-marino-800">Ejemplo: “Hoy quiero playa y un día tranquilo”. Efecto Viajero combinará lugar + hora + clima + distancia + grupo + presupuesto + condiciones locales antes de recomendar.</div>}</section>
 
-        <section className="card"><div className="mb-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => setTipo("simple")} className={`rounded-2xl border p-3 text-left ${tipo === "simple" ? "border-coral-300 bg-coral-50" : "border-neutral-200"}`}>📍 <span className="text-sm font-semibold">Un destino</span></button><button type="button" onClick={() => setTipo("circuito")} className={`rounded-2xl border p-3 text-left ${tipo === "circuito" ? "border-coral-300 bg-coral-50" : "border-neutral-200"}`}>🧭 <span className="text-sm font-semibold">Varios destinos</span></button></div>{error && <p className="mb-3 rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}<button disabled={!texto.trim() || analizando} className="btn-primary w-full disabled:opacity-50">{analizando ? "Entendiendo tu viaje…" : "Continuar →"}</button></section>
+        <section className="card"><div className="mb-2 flex items-center justify-between"><label className="text-sm font-medium text-neutral-800">¿Algo más? Peticiones especiales</label><span className="text-xs text-neutral-400">Opcional</span></div><p className="mb-2 text-xs text-neutral-500">Todo lo de arriba ya queda guardado. Usa esto solo para lo que no cabe en una pregunta: intereses, ocasión especial, cosas a evitar…</p><textarea value={texto} onChange={(e) => setTexto(e.target.value)} className="input min-h-28 resize-y text-base leading-6" placeholder="Ej. Queremos comer bien, nos gusta caminar y es nuestro aniversario."/><div className="mt-3 flex flex-wrap gap-2">{EJEMPLOS_PETICIONES.map((ej) => <button key={ej} type="button" onClick={() => setTexto((t) => t ? `${t} ${ej}.` : `${ej}.`)} className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-left text-xs text-neutral-500 hover:border-coral-300">{ej}</button>)}</div></section>
+
+        {error && <p className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
+        <button disabled={!destinosLlenos.length || analizando} className="btn-primary w-full disabled:opacity-50">{analizando ? "Preparando tu viaje…" : "Continuar →"}</button>
       </form>
     </div></main>
   );

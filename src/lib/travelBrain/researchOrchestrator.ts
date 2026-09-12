@@ -40,7 +40,16 @@ export async function analyzeTrip(rawText: string, context?: CanonicalTripContex
   let countryCode: string | undefined;
   async function resolverTolerante(valor: string, code?: string) { try { return await resolveDestination(valor, code); } catch { return []; } }
   if (hint) { const matches = await resolverTolerante(hint); countryCode = matches.find((r) => r.name.toLowerCase() === hint.toLowerCase())?.countryCode ?? matches[0]?.countryCode; }
-  const resolved = await Promise.all(candidates.map(async (candidate) => { const matches = await resolverTolerante(candidate, countryCode); const best = bestMatch(matches, countryCode); if (!best) return { candidate, destination: undefined, unresolved: true }; const isCountry = best.name.toLowerCase() === candidate.toLowerCase() && !best.region; const unresolved = Boolean(countryCode && best.countryCode.toUpperCase() !== countryCode.toUpperCase()); return { candidate, destination: !isCountry || candidates.length === 1 ? best : undefined, unresolved }; }));
+  // isCountry descarta un candidato que en realidad solo nombra el país (p.
+  // ej. "Colombia y Pereira": "Colombia" no debe añadirse como parada
+  // aparte de "Pereira"). La ausencia de "region" era la única pista para
+  // eso, pero el diccionario local (sin red) nunca rellena "region" ni
+  // siquiera para ciudades reales — así que con red caída, cualquier
+  // ciudad del diccionario en un viaje de varias paradas (candidates.length
+  // > 1) se confundía con una mención de país y se descartaba entera. El
+  // campo "type" ya distingue country/city de forma fiable — se usa
+  // primero, y el heurístico de "region" solo entra si no lo sabemos ya.
+  const resolved = await Promise.all(candidates.map(async (candidate) => { const matches = await resolverTolerante(candidate, countryCode); const best = bestMatch(matches, countryCode); if (!best) return { candidate, destination: undefined, unresolved: true }; const isCountry = best.type === "country" || (best.type !== "city" && best.name.toLowerCase() === candidate.toLowerCase() && !best.region); const unresolved = Boolean(countryCode && best.countryCode.toUpperCase() !== countryCode.toUpperCase()); return { candidate, destination: !isCountry || candidates.length === 1 ? best : undefined, unresolved }; }));
   const locations: ResolvedDestination[] = [];
   const unresolved: string[] = [];
   for (const item of resolved) { if (item.destination) locations.push(item.destination); if (item.unresolved || (!item.destination && item.candidate !== hint)) unresolved.push(item.candidate); }
