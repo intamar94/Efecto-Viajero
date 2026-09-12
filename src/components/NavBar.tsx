@@ -13,9 +13,10 @@ const ENLACES = [{ href: "/viajes", icono: "🗺️", titulo: "Mis viajes", cort
 export function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { errorGuardado } = useData();
+  const { errorGuardado, borrarTodo } = useData();
   const { user, loading: authLoading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [borrando, setBorrando] = useState(false);
 
   async function handleLogout() {
     try {
@@ -32,6 +33,21 @@ export function NavBar() {
     limpiarEjemploBase();
     cargarEjemploBase();
     window.location.href = "/viajes";
+  }
+
+  async function handleBorrarTodo() {
+    setMenuOpen(false);
+    if (!confirm("Esto borra todos tus viajes y viajeros guardados, en este navegador y en la nube si iniciaste sesión, para empezar de cero. No se puede deshacer. ¿Continuar?")) return;
+    setBorrando(true);
+    try {
+      limpiarEjemploBase();
+      await borrarTodo();
+      window.location.href = "/planificar";
+    } catch (err) {
+      console.error("Error al borrar todo:", err);
+      alert("No se pudo borrar todo. Revisa tu conexión e inténtalo de nuevo.");
+      setBorrando(false);
+    }
   }
 
   return (
@@ -85,10 +101,17 @@ export function NavBar() {
                   🧑‍🤝‍🧑 Viajeros
                 </Link>
                 <button
+                  onClick={handleBorrarTodo}
+                  disabled={borrando}
+                  className="block w-full border-t border-neutral-100 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {borrando ? "🧹 Borrando…" : "🧹 Borrar todo (empezar de cero)"}
+                </button>
+                <button
                   onClick={handleRestablecerEjemplo}
                   className="block w-full border-t border-neutral-100 px-4 py-2 text-left text-sm text-neutral-500 hover:bg-neutral-50"
                 >
-                  🔄 Restablecer al ejemplo
+                  🔄 Cargar viaje de ejemplo
                 </button>
                 {!authLoading && user ? (
                   <>
