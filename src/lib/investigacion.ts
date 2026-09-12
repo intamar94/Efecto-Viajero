@@ -127,11 +127,19 @@ function esObjeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === "object" && valor !== null;
 }
 
-function extraerSitios(data: unknown, categoria: CategoriaSitio): { lugar: string; sitios: SitioReal[] }[] {
-  if (!Array.isArray(data)) return [];
+// Cada ResearchResult que llega aquí trae su data envuelta como
+// { findings, requirements, agents, agentResults } (departmentRunner.ts).
+// Lo único que interesa para mostrar en pantalla son los "findings": la
+// lista real de { destination, result } que cada proveedor devolvió.
+function findingsDe(data: unknown): unknown[] {
+  if (!esObjeto(data)) return [];
+  return Array.isArray(data.findings) ? data.findings : [];
+}
+
+function extraerSitios(findings: unknown[], categoria: CategoriaSitio): { lugar: string; sitios: SitioReal[] }[] {
   const salida: { lugar: string; sitios: SitioReal[] }[] = [];
 
-  for (const entrada of data) {
+  for (const entrada of findings) {
     if (!esObjeto(entrada)) continue;
     const destino = esObjeto(entrada.destination) ? entrada.destination : undefined;
     const lugar = typeof destino?.name === "string" ? destino.name : undefined;
@@ -162,31 +170,37 @@ function extraerSitios(data: unknown, categoria: CategoriaSitio): { lugar: strin
   return salida;
 }
 
-function extraerClima(data: unknown): ClimaLugar[] {
-  if (!Array.isArray(data)) return [];
+// El proveedor de clima (domainProviders.ts) devuelve la respuesta cruda de
+// Open-Meteo tal cual: "current"/"daily" en snake_case y los días como
+// listas paralelas (time[], temperature_2m_min[], ...), no como objetos.
+function extraerClima(findings: unknown[]): ClimaLugar[] {
   const salida: ClimaLugar[] = [];
 
-  for (const entrada of data) {
+  for (const entrada of findings) {
     if (!esObjeto(entrada)) continue;
     const destino = esObjeto(entrada.destination) ? entrada.destination : undefined;
     const lugar = typeof destino?.name === "string" ? destino.name : undefined;
-    const clima = esObjeto(entrada.weather) ? entrada.weather : undefined;
-    if (!lugar || !clima) continue;
+    const resultado = esObjeto(entrada.result) ? entrada.result : undefined;
+    const actual = esObjeto(resultado?.current) ? resultado.current : undefined;
+    const diario = esObjeto(resultado?.daily) ? resultado.daily : undefined;
+    if (!lugar || !resultado) continue;
 
-    const actual = esObjeto(clima.current) ? clima.current : undefined;
-    const dias = Array.isArray(clima.daily) ? clima.daily : [];
+    const fechas = Array.isArray(diario?.time) ? (diario.time as unknown[]) : [];
+    const minimos = Array.isArray(diario?.temperature_2m_min) ? (diario.temperature_2m_min as unknown[]) : [];
+    const maximos = Array.isArray(diario?.temperature_2m_max) ? (diario.temperature_2m_max as unknown[]) : [];
+    const probLluvia = Array.isArray(diario?.precipitation_probability_max) ? (diario.precipitation_probability_max as unknown[]) : [];
 
     salida.push({
       lugar,
-      actualC: typeof actual?.temperatureC === "number" ? actual.temperatureC : undefined,
+      actualC: typeof actual?.temperature_2m === "number" ? actual.temperature_2m : undefined,
       // Una semana basta: más días ni caben en pantalla ni son fiables.
-      dias: dias.slice(0, 7).flatMap((d) => {
-        if (!esObjeto(d) || typeof d.date !== "string") return [];
+      dias: fechas.slice(0, 7).flatMap((fecha, i) => {
+        if (typeof fecha !== "string") return [];
         return [{
-          fecha: d.date,
-          minC: typeof d.minC === "number" ? d.minC : undefined,
-          maxC: typeof d.maxC === "number" ? d.maxC : undefined,
-          probabilidadLluvia: typeof d.precipitationProbability === "number" ? d.precipitationProbability : undefined,
+          fecha,
+          minC: typeof minimos[i] === "number" ? (minimos[i] as number) : undefined,
+          maxC: typeof maximos[i] === "number" ? (maximos[i] as number) : undefined,
+          probabilidadLluvia: typeof probLluvia[i] === "number" ? (probLluvia[i] as number) : undefined,
         }];
       }),
     });
@@ -195,12 +209,18 @@ function extraerClima(data: unknown): ClimaLugar[] {
   return salida;
 }
 
-function extraerMoneda(data: unknown): CambioMoneda | undefined {
-  if (!esObjeto(data)) return undefined;
-  const resultado = esObjeto(data.result) ? data.result : undefined;
-  const base = typeof resultado?.base === "string" ? resultado.base : undefined;
-  const fecha = typeof resultado?.date === "string" ? resultado.date : undefined;
-  const tasas = esObjeto(resultado?.rates) ? (resultado.rates as Record<string, number>) : undefined;
+// El proveedor de moneda (domainProviders.ts) guarda la respuesta cruda de
+// Frankfurter completa bajo la clave "rates" (junto a "destination" y
+// "upstream"), así que el objeto que interesa está un nivel más adentro:
+// finding.result.rates = { amount, base, date, rates: {...} }.
+function extraerMoneda(findings: unknown[]): CambioMoneda | undefined {
+  const primero = findings.find(esObjeto) as Record<string, unknown> | undefined;
+  if (!primero) return undefined;
+  const resultado = esObjeto(primero.result) ? primero.result : undefined;
+  const frankfurter = esObjeto(resultado?.rates) ? resultado.rates : undefined;
+  const base = typeof frankfurter?.base === "string" ? frankfurter.base : undefined;
+  const fecha = typeof frankfurter?.date === "string" ? frankfurter.date : undefined;
+  const tasas = esObjeto(frankfurter?.rates) ? (frankfurter.rates as Record<string, number>) : undefined;
   if (!base || !fecha || !tasas) return undefined;
   return { base, fecha, tasas };
 }
@@ -229,20 +249,20 @@ export function normalizarInvestigacion(bruto: AnalisisBruto | null | undefined)
     if (!dominio || resultado.status === "unavailable" || resultado.status === "error") continue;
 
     if (dominio === "weather") {
-      clima = extraerClima(resultado.data);
+      clima = extraerClima(findingsDe(resultado.data));
       if (clima.length) fuentes.add("Open-Meteo");
       continue;
     }
 
     if (dominio === "currency") {
-      moneda = extraerMoneda(resultado.data);
+      moneda = extraerMoneda(findingsDe(resultado.data));
       if (moneda) fuentes.add("Frankfurter");
       continue;
     }
 
     const categoria = CATEGORIAS[dominio];
     if (!categoria) continue;
-    for (const { lugar, sitios: encontrados } of extraerSitios(resultado.data, categoria)) {
+    for (const { lugar, sitios: encontrados } of extraerSitios(findingsDe(resultado.data), categoria)) {
       sitios[lugar] = [...(sitios[lugar] ?? []), ...encontrados];
       fuentes.add("OpenStreetMap");
     }
