@@ -665,9 +665,9 @@ export default function ActividadesPage() {
                     <div className="rounded-xl border border-dashed border-marino-200 bg-marino-50/50 p-3">
                       <p className="mb-1 text-sm font-medium text-marino-900">✨ ¿Qué te gustaría hacer en {etapa.nombre}?</p>
                       <p className="mb-2 text-xs text-neutral-500">
-                        Toca una categoría o describe en pocas palabras qué buscas.
+                        Elige lo que buscas y aparece directo abajo, o descríbelo con tus palabras.
                       </p>
-                      <div className="mb-3 flex flex-wrap gap-1.5">
+                      <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
                         {ORDEN_CATEGORIAS.map((c) => {
                           const activo = categoriasBuscadas !== null && categoriasBuscadas.length === 1 && categoriasBuscadas[0] === c;
                           return (
@@ -678,11 +678,14 @@ export default function ActividadesPage() {
                                 setTextosIntencion((prev) => ({ ...prev, [etapa.id]: "" }));
                                 setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: activo ? null : [c] }));
                               }}
-                              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
-                                activo ? "border-coral-300 bg-coral-50 text-coral-700" : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
+                              className={`flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition ${
+                                activo ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white hover:border-neutral-300"
                               }`}
                             >
-                              {ETIQUETA_CATEGORIA[c].icono} {ETIQUETA_CATEGORIA[c].etiqueta}
+                              <span className="text-xl">{ETIQUETA_CATEGORIA[c].icono}</span>
+                              <span className={`text-[11px] font-medium leading-tight ${activo ? "text-coral-700" : "text-neutral-600"}`}>
+                                {ETIQUETA_CATEGORIA[c].etiqueta}
+                              </span>
                             </button>
                           );
                         })}
