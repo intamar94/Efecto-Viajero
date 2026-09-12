@@ -102,7 +102,7 @@ export async function resolveDestination(query: string, countryCode?: string): P
 
   let data: GeocodingResponse;
   try {
-    const response = await fetch(url, { next: { revalidate: 86400 } });
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000), next: { revalidate: 86400 } });
     if (!response.ok) throw new Error(`No se pudo resolver ${value}`);
     data = (await response.json()) as GeocodingResponse;
   } catch (error) {

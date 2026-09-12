@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useData } from "@/lib/store";
 import { interpretarTexto, type NecesidadesViaje } from "@/lib/explorador";
@@ -86,6 +86,7 @@ export default function PlanificarPage() {
   const [mascotas, setMascotas] = useState(0);
   const [accesibilidad, setAccesibilidad] = useState<AccesibilidadViaje>({ requiereAccesibilidad: false });
   const [analizando, setAnalizando] = useState(false);
+  const [tardandoMucho, setTardandoMucho] = useState(false);
   const [analisis, setAnalisis] = useState<Analisis | null>(null);
   const [necesidades, setNecesidades] = useState<NecesidadesViaje | null>(null);
   const [etapas, setEtapas] = useState<LugarResuelto[]>([]);
@@ -124,6 +125,17 @@ export default function PlanificarPage() {
   function quitarDestino(i: number) {
     setDestinos((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
   }
+
+  // El análisis investiga varias fuentes reales (mapas, clima, sitios) y
+  // normalmente tarda unos segundos, pero un destino menos común o un
+  // proveedor lento puede alargarlo. Sin ningún cambio visual el botón
+  // parece congelado; a partir de los 6s se muestra un aviso para dejar
+  // claro que sigue trabajando, no bloqueado.
+  useEffect(() => {
+    if (!analizando) { setTardandoMucho(false); return; }
+    const id = setTimeout(() => setTardandoMucho(true), 6000);
+    return () => clearTimeout(id);
+  }, [analizando]);
 
   async function analizar(e: React.FormEvent) {
     e.preventDefault();
@@ -272,7 +284,15 @@ export default function PlanificarPage() {
         <section className="card"><div className="mb-2 flex items-center justify-between"><label className="text-sm font-medium text-neutral-800">¿Algo más? Peticiones especiales</label><span className="text-xs text-neutral-400">Opcional</span></div><p className="mb-2 text-xs text-neutral-500">Todo lo de arriba ya queda guardado. Usa esto solo para lo que no cabe en una pregunta: intereses, ocasión especial, cosas a evitar…</p><textarea value={texto} onChange={(e) => setTexto(e.target.value)} className="input min-h-28 resize-y text-base leading-6" placeholder="Ej. Queremos comer bien, nos gusta caminar y es nuestro aniversario."/><div className="mt-3 flex flex-wrap gap-2">{EJEMPLOS_PETICIONES.map((ej) => <button key={ej} type="button" onClick={() => setTexto((t) => t ? `${t} ${ej}.` : `${ej}.`)} className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-left text-xs text-neutral-500 hover:border-coral-300">{ej}</button>)}</div></section>
 
         {error && <p className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
-        <button disabled={!destinosLlenos.length || analizando} className="btn-primary w-full disabled:opacity-50">{analizando ? "Preparando tu viaje…" : "Continuar →"}</button>
+        <button disabled={!destinosLlenos.length || analizando} className="btn-primary flex w-full items-center justify-center gap-2 disabled:opacity-50">
+          {analizando && <span aria-hidden className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+          {analizando ? "Preparando tu viaje…" : "Continuar →"}
+        </button>
+        {tardandoMucho && (
+          <p className="text-center text-xs text-neutral-500">
+            Sigue trabajando: está buscando mapas, clima y sitios reales para tu destino. Un destino menos común puede tardar un poco más.
+          </p>
+        )}
       </form>
     </div></main>
   );

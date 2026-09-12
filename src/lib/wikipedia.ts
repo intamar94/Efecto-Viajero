@@ -39,7 +39,7 @@ const cache = new Map<string, { titulo: string; extractoCompleto: string; url: s
 
 async function buscarResumen(termino: string, idioma: "es" | "en"): Promise<{ titulo: string; extractoCompleto: string; url: string } | null> {
   try {
-    const res = await fetch(`https://${idioma}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(termino)}`);
+    const res = await fetch(`https://${idioma}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(termino)}`, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) return null;
     const data = await res.json();
     if (data.type === "disambiguation" || !data.extract || data.extract_html?.includes("puede referirse a")) return null;

@@ -45,11 +45,18 @@ const evidence = (source: string, confidence: EvidenceRef["confidence"] = "mediu
 // pasajero. Se reintenta una vez con una pequeña espera antes de dar el
 // dominio por caído — así el propio proveedor se "autocorrige" sin tener
 // que escalar cada fallo transitorio al controlador central.
-async function getJson(url: string, source: string, init?: RequestInit, intentos = 2) {
+//
+// Un servicio público gratuito a veces no falla rápido: se queda colgado
+// sin responder ni devolver error. Sin un límite de tiempo por intento,
+// eso bloqueaba TODO el análisis del viaje varios minutos (reportado en
+// vivo por un usuario esperando "Preparando tu viaje…"). timeoutMs acota
+// cada intento con AbortSignal.timeout, así un servicio caído se detecta
+// y se reintenta/abandona en vez de colgar la petición entera.
+async function getJson(url: string, source: string, init?: RequestInit, intentos = 2, timeoutMs = 10000) {
   let ultimoError: unknown;
   for (let intento = 1; intento <= intentos; intento++) {
     try {
-      const response = await fetch(url, { ...init, next: { revalidate: 900 } });
+      const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs), next: { revalidate: 900 } });
       if (!response.ok) throw new Error(`${source}: HTTP ${response.status}`);
       return await response.json();
     } catch (error) {
@@ -80,13 +87,20 @@ const osmPoi: Adapter = async ({ destination, domain, query }) => {
   for (const radioKm of RADIOS_KM) {
     const clauses = filters.map((filter) => `nwr[${filter}](around:${radioKm * 1000},${destination.latitude},${destination.longitude});`).join("");
     const body = `[out:json][timeout:15];(${clauses});out center tags 40;`;
-    for (const endpoint of OVERPASS_ENDPOINTS) {
-      try {
-        const data = (await getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() })) as { elements?: unknown[] };
-        if ((data.elements?.length ?? 0) > 0) return { domain, status: "ready", data, evidence: [evidence("OpenStreetMap Overpass")] };
-        ultimaRespuestaVacia = data;
-      } catch (error) { lastError = error; }
-    }
+    // Los dos endpoints se prueban a la vez, no uno tras otro: si uno está
+    // caído o muy lento, ya no dobla la espera del radio entero — solo un
+    // fallo real en los DOS a la vez obliga a pasar al siguiente radio.
+    const intentos = await Promise.allSettled(
+      OVERPASS_ENDPOINTS.map((endpoint) =>
+        getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() }, 1, 12000) as Promise<{ elements?: unknown[] }>,
+      ),
+    );
+    const conDatos = intentos.find((r) => r.status === "fulfilled" && (r.value.elements?.length ?? 0) > 0);
+    if (conDatos?.status === "fulfilled") return { domain, status: "ready", data: conDatos.value, evidence: [evidence("OpenStreetMap Overpass")] };
+    const vacio = intentos.find((r) => r.status === "fulfilled");
+    if (vacio?.status === "fulfilled") ultimaRespuestaVacia = vacio.value;
+    const fallo = intentos.find((r) => r.status === "rejected");
+    if (fallo?.status === "rejected") lastError = fallo.reason;
   }
   // Si al menos una consulta respondió sin error (aunque vacía), no es un
   // fallo del proveedor — de verdad no hay nada etiquetado cerca ni lejos.

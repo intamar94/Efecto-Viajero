@@ -142,7 +142,7 @@ function extraerListings(wikitext: string): WikivoyageListing[] {
 async function buscarArticulo(ciudad: string, idioma: "es" | "en"): Promise<string | null> {
   const url = `https://${idioma}.wikivoyage.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(ciudad)}&format=json&origin=*&srlimit=1`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
       console.warn(`Wikivoyage (${idioma}): búsqueda de "${ciudad}" respondió ${res.status}`);
       return null;
@@ -159,7 +159,7 @@ async function buscarArticulo(ciudad: string, idioma: "es" | "en"): Promise<stri
 async function obtenerWikitext(titulo: string, idioma: "es" | "en"): Promise<string | null> {
   const url = `https://${idioma}.wikivoyage.org/w/api.php?action=parse&page=${encodeURIComponent(titulo)}&prop=wikitext&format=json&origin=*`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
       console.warn(`Wikivoyage (${idioma}): parse de "${titulo}" respondió ${res.status}`);
       return null;
