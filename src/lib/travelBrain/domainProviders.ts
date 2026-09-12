@@ -73,7 +73,12 @@ const poi: Record<string, string[]> = {
   // nada para ella. Se suma aquí, no como dominio aparte: el reparto por
   // categoría real ya lo hace investigacion.ts a partir de la etiqueta de
   // cada sitio, no de qué dominio lo buscó.
-  experiences: ["tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
+  // Tiendas reales (regalos, artesanía, arte, delicatessen) tampoco tenían
+  // ninguna consulta real detrás — "Qué comprar" dependía solo de un
+  // catálogo genérico por país. Se suman aquí por el mismo motivo que la
+  // vida nocturna: categoriaDeTags (investigacion.ts) ya sabe convertir
+  // shop=* en "compras" a partir de la propia etiqueta.
+  experiences: ["tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub", "shop=gift", "shop=souvenir", "shop=craft", "shop=art", "shop=deli"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
   accommodation: ["tourism=hotel", "tourism=hostel", "tourism=guest_house", "tourism=apartment"],
 };
 

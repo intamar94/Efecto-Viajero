@@ -89,6 +89,13 @@ const DETALLE_OSM: Record<string, string> = {
   castle: "castillo",
   ruins: "ruinas",
   archaeological_site: "yacimiento arqueológico",
+  pub: "pub",
+  nightclub: "discoteca",
+  gift: "tienda de regalos",
+  souvenir: "tienda de souvenirs",
+  craft: "artesanía",
+  art: "galería de arte",
+  deli: "delicatessen",
 };
 
 const MAX_POR_CATEGORIA = 8;
@@ -101,7 +108,7 @@ interface ElementoOverpass {
 }
 
 function detalleDe(tags: Record<string, string> = {}): string | undefined {
-  for (const clave of ["amenity", "tourism", "leisure", "natural", "historic"]) {
+  for (const clave of ["amenity", "tourism", "leisure", "natural", "historic", "shop"]) {
     const valor = tags[clave];
     if (valor && DETALLE_OSM[valor]) return DETALLE_OSM[valor];
   }
