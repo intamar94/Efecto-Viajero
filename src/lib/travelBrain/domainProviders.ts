@@ -1,5 +1,6 @@
 import type { EvidenceRef, ResearchDomain } from "./researchOrchestrator";
 import type { ResolvedDestination } from "./destinationResolver";
+import { buscarPaisPorCodigo } from "../paises";
 
 export interface ProviderSignal {
   requirementId: string;
@@ -61,6 +62,7 @@ async function getJson(url: string, source: string, init?: RequestInit, intentos
 
 const poi: Record<string, string[]> = {
   experiences: ["tourism=attraction"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
+  accommodation: ["tourism=hotel", "tourism=hostel", "tourism=guest_house", "tourism=apartment"],
 };
 
 const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
@@ -148,7 +150,36 @@ const offline: Adapter = async ({ destination, dependencySignals }) => {
   return { domain: "offline", status: "ready", data: { destination, bundle, readyCount: bundle.filter((item) => item.status === "ready").length, total: bundle.length, policy: "never fabricate missing offline content" }, evidence: [evidence("Efecto Viajero Offline Planner", "medium")] };
 };
 
-const adapters: Partial<Record<ResearchDomain, Adapter>> = { experiences: osmPoi, culture: osmPoi, gastronomy: osmPoi, nature: osmPoi, weather, map, transport: route, currency, budget, expenses, offline };
+// Estos dos dominios tenían dato real en la app desde hace tiempo
+// (paises.ts: bloques regionales, número de emergencias, autoridad) pero
+// nunca se conectó aquí — así que el cerebro los reportaba "unavailable"
+// siempre, para cualquier destino, en vez de usar lo que ya sabíamos.
+// Nota de honestidad: esto es el requisito/emergencia a nivel de PAÍS, no
+// por viajero concreto (eso vive en requisitos.ts, que sí conoce
+// nacionalidad y documentos reales de cada persona una vez añadida al viaje).
+const requirementsProvider: Adapter = async ({ destination }) => {
+  const pais = buscarPaisPorCodigo(destination.countryCode);
+  if (!pais) return { domain: "requirements", status: "unavailable", data: { reason: "País de destino no reconocido todavía." } };
+  return {
+    domain: "requirements",
+    status: "ready",
+    data: { pais: pais.nombre, bloques: pais.bloques ?? [], nota: "El requisito exacto depende de la nacionalidad de cada viajero: ver detalle por persona en Requisitos del viaje." },
+    evidence: [evidence("Efecto Viajero — datos de país", "high")],
+  };
+};
+
+const emergencyProvider: Adapter = async ({ destination }) => {
+  const pais = buscarPaisPorCodigo(destination.countryCode);
+  if (!pais?.emergencias) return { domain: "emergency", status: "unavailable", data: { reason: "Número de emergencias no confirmado con certeza para este país." } };
+  return {
+    domain: "emergency",
+    status: "ready",
+    data: { pais: pais.nombre, emergencias: pais.emergencias, telefonoTurista: pais.telefonoTurista, autoridad: pais.autoridad },
+    evidence: [evidence("Efecto Viajero — datos de país", "high")],
+  };
+};
+
+const adapters: Partial<Record<ResearchDomain, Adapter>> = { experiences: osmPoi, culture: osmPoi, gastronomy: osmPoi, nature: osmPoi, accommodation: osmPoi, weather, map, transport: route, currency, budget, expenses, offline, requirements: requirementsProvider, emergency: emergencyProvider };
 
 export async function executeDomainProvider(domain: ResearchDomain, context: Omit<DomainProviderContext, "domain">): Promise<DomainProviderResult> {
   const adapter = adapters[domain];
