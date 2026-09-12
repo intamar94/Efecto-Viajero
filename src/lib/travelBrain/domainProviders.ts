@@ -195,9 +195,46 @@ const emergencyProvider: Adapter = async ({ destination }) => {
 
 const adapters: Partial<Record<ResearchDomain, Adapter>> = { experiences: osmPoi, culture: osmPoi, gastronomy: osmPoi, nature: osmPoi, accommodation: osmPoi, weather, map, transport: route, currency, budget, expenses, offline, requirements: requirementsProvider, emergency: emergencyProvider };
 
+// Cada dominio tiene varias "preguntas" internas (reverseEngineeringOrchestrator.ts
+// las encadena en secuencia, una tras otra), pero executeDomainProvider despacha
+// SOLO por dominio+destino: "experiences" por sí solo tiene 11 preguntas
+// (activities, schedule, duration, group_fit, children_fit...) y las 11
+// disparaban, una detrás de otra, la MISMA búsqueda real en Overpass para el
+// mismo destino. Eso multiplicaba por hasta 11 el peor caso de espera de un
+// solo dominio — la causa real detrás de "se queda cargando" varios minutos,
+// no solo llamadas de red sin límite de tiempo (ya acotadas en getJson).
+// Se cachea por (dominio, destino, parámetros que sí cambian el resultado)
+// solo para los proveedores que consultan una fuente externa real y estable
+// durante todo el análisis: la primera pregunta paga el coste de red, el
+// resto de preguntas del mismo dominio reutilizan la misma respuesta.
+// budget/expenses/requirements/emergency quedan fuera: son cálculo local o
+// dependen de señales que sí cambian entre preguntas del mismo dominio.
+const DOMINIOS_CACHEABLES = new Set<ResearchDomain>(["experiences", "culture", "gastronomy", "nature", "accommodation", "weather", "map", "transport", "currency"]);
+const TTL_CACHE_MS = 10 * 60 * 1000;
+const cacheProveedor = new Map<string, { expira: number; promesa: Promise<DomainProviderResult> }>();
+
+function claveCache(domain: ResearchDomain, context: Omit<DomainProviderContext, "domain">): string {
+  const destino = context.destination ? `${context.destination.latitude},${context.destination.longitude}` : "";
+  const origen = context.origin ? `${context.origin.latitude},${context.origin.longitude}` : "";
+  return [domain, destino, origen, context.query ?? "", context.currency ?? ""].join("|");
+}
+
 export async function executeDomainProvider(domain: ResearchDomain, context: Omit<DomainProviderContext, "domain">): Promise<DomainProviderResult> {
   const adapter = adapters[domain];
   if (!adapter) return { domain, status: "unavailable", data: { reason: "Este dominio requiere un conector especializado antes de poder ofrecer datos factuales." } };
-  try { return await adapter({ ...context, domain }); }
-  catch (error) { return { domain, status: "error", error: error instanceof Error ? error.message : "Provider error" }; }
+
+  const cacheable = DOMINIOS_CACHEABLES.has(domain);
+  const clave = cacheable ? claveCache(domain, context) : "";
+  if (cacheable) {
+    const enCache = cacheProveedor.get(clave);
+    if (enCache && enCache.expira > Date.now()) return enCache.promesa;
+  }
+
+  const promesa = (async (): Promise<DomainProviderResult> => {
+    try { return await adapter({ ...context, domain }); }
+    catch (error) { return { domain, status: "error" as const, error: error instanceof Error ? error.message : "Provider error" }; }
+  })();
+
+  if (cacheable) cacheProveedor.set(clave, { expira: Date.now() + TTL_CACHE_MS, promesa });
+  return promesa;
 }
