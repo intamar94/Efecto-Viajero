@@ -4,7 +4,6 @@ import { useRouter, usePathname } from "next/navigation";
 
 const HERRAMIENTAS = [
   { href: "", icono: "🏠", titulo: "Resumen" },
-  { href: "decisiones", icono: "🧠", titulo: "Decisiones" },
   { href: "ruta", icono: "🧭", titulo: "Ruta e itinerario" },
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
