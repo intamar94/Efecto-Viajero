@@ -19,9 +19,14 @@ export function extractLocationCandidates(text: string): string[] {
     }
   };
 
-  const countryPart = text.match(/\b(?:ir|viajar|viajamos|viajo|vamos|voy|iremos)\s+(?:a|al)\s+(.+?)(?=\b(?:visitar|conocer|pasar\s+por|desde)\b|[.!?]|$)/i);
+  // Palabras que casi siempre abren una cláusula nueva después de nombrar
+  // el destino ("a Frankfurt CON mi hija", "a Roma POR una semana", "a
+  // Cuba PARA mi cumpleaños", "a Japón DESDE Madrid"): sin cortar ahí, esa
+  // cláusula entera se colaba dentro del nombre del lugar.
+  const CORTE_CLAUSULA = "visitar|conocer|pasar\\s+por|desde|con|para|por|durante|sin";
+  const countryPart = text.match(new RegExp(`\\b(?:ir|viajar|viajamos|viajo|vamos|voy|iremos)\\s+(?:a|al)\\s+(.+?)(?=\\b(?:${CORTE_CLAUSULA})\\b|[.!?]|$)`, "i"));
   if (countryPart) push(countryPart[1]);
-  const visitPart = text.match(/\b(?:visitar|visito|visitamos|conocer|conoceremos|pasar\s+por)\s+(.+?)(?=\b(?:durante|desde)\b|[.!?]|$)/i);
+  const visitPart = text.match(new RegExp(`\\b(?:visitar|visito|visitamos|conocer|conoceremos|pasar\\s+por)\\s+(.+?)(?=\\b(?:${CORTE_CLAUSULA})\\b|[.!?]|$)`, "i"));
   if (visitPart) push(visitPart[1]);
   // Solo listas de lugares explícitas tras ":" o "(" (p. ej. "Colombia:
   // Bogotá, Medellín, Cartagena"). Sin el "^" cualquier frase con una coma
