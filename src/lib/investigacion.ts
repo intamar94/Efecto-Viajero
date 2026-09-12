@@ -10,11 +10,11 @@
 // un tamaño que quepa en localStorage (las respuestas de Overpass traen
 // decenas de elementos por categoría y por lugar, con toda su etiquetería).
 
-export type CategoriaSitio = "gastronomia" | "cultura" | "naturaleza" | "experiencias";
+import type { CategoriaActividad } from "./types";
 
 export interface SitioReal {
   nombre: string;
-  categoria: CategoriaSitio;
+  categoria: CategoriaActividad;
   detalle?: string;
   lat?: number;
   lon?: number;
@@ -62,19 +62,10 @@ export interface Investigacion {
   fuentes: string[];
 }
 
-const CATEGORIAS: Record<string, CategoriaSitio> = {
-  gastronomy: "gastronomia",
-  culture: "cultura",
-  nature: "naturaleza",
-  experiences: "experiencias",
-};
-
-export const ETIQUETA_CATEGORIA_SITIO: Record<CategoriaSitio, { etiqueta: string; icono: string }> = {
-  gastronomia: { etiqueta: "Para comer", icono: "🍽️" },
-  cultura: { etiqueta: "Cultura y museos", icono: "🏛️" },
-  naturaleza: { etiqueta: "Naturaleza", icono: "🌿" },
-  experiencias: { etiqueta: "Qué ver", icono: "🎟️" },
-};
+// Dominios cuyos resultados son sitios reales navegables (los que buscan en
+// OpenStreetMap). "accommodation" queda fuera: eso lo cubre su propia
+// sección, no tiene sentido como "actividad".
+const DOMINIOS_CON_SITIOS = new Set(["gastronomy", "culture", "nature", "experiences"]);
 
 // Traducción de las etiquetas de OpenStreetMap a algo legible. Solo las
 // que se entienden sin contexto: el resto no se muestra en vez de
@@ -136,7 +127,28 @@ function findingsDe(data: unknown): unknown[] {
   return Array.isArray(data.findings) ? data.findings : [];
 }
 
-function extraerSitios(findings: unknown[], categoria: CategoriaSitio): { lugar: string; sitios: SitioReal[] }[] {
+// La categoría real de cada sitio se saca de su propia etiqueta de
+// OpenStreetMap, no de qué dominio lo buscó: antes TODO lo que encontraba
+// el dominio "nature" se guardaba como "naturaleza" genérica, así que una
+// playa real (natural=beach) nunca aparecía como "🏖️ Playa" aunque el dato
+// hubiera llegado — quedaba enterrada bajo una etiqueta más vaga. Solo se
+// cae al dominio como pista general cuando la propia etiqueta no dice nada
+// más específico.
+function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): CategoriaActividad {
+  if (tags.natural === "beach") return "playa";
+  if (tags.leisure === "park") return "parque";
+  if (tags.leisure === "nature_reserve" || tags.tourism === "viewpoint" || tags.natural === "waterfall") return "naturaleza";
+  if (tags.amenity === "bar" || tags.amenity === "pub" || tags.amenity === "nightclub") return "discoteca";
+  if (tags.amenity === "restaurant" || tags.amenity === "cafe" || tags.amenity === "fast_food") return "restaurante";
+  if (tags.tourism === "museum" || tags.tourism === "gallery" || tags.historic) return "museo";
+  if (tags.shop) return "compras";
+  if (dominio === "gastronomy") return "restaurante";
+  if (dominio === "culture") return "museo";
+  if (dominio === "nature") return "naturaleza";
+  return "otro";
+}
+
+function extraerSitios(findings: unknown[], dominio: string): { lugar: string; sitios: SitioReal[] }[] {
   const salida: { lugar: string; sitios: SitioReal[] }[] = [];
 
   for (const entrada of findings) {
@@ -148,13 +160,22 @@ function extraerSitios(findings: unknown[], categoria: CategoriaSitio): { lugar:
     if (!lugar || elementos.length === 0) continue;
 
     const vistos = new Set<string>();
+    // El límite es por categoría real, no por lote entero: así unos pocos
+    // resultados de un tipo (p. ej. restaurantes, que suele ser el tipo
+    // con más etiquetas en OSM) no desplazan a los de otro tipo (p. ej.
+    // vida nocturna) que llegaron en el mismo lote.
+    const porCategoria = new Map<CategoriaActividad, number>();
     const sitios: SitioReal[] = [];
     for (const el of elementos) {
       // Sin nombre no sirve de nada: un punto anónimo en el mapa no es un
       // sitio al que alguien pueda ir.
       const nombre = el.tags?.name?.trim();
       if (!nombre || vistos.has(nombre.toLowerCase())) continue;
+      const categoria = categoriaDeTags(el.tags, dominio);
+      const cuenta = porCategoria.get(categoria) ?? 0;
+      if (cuenta >= MAX_POR_CATEGORIA) continue;
       vistos.add(nombre.toLowerCase());
+      porCategoria.set(categoria, cuenta + 1);
       sitios.push({
         nombre,
         categoria,
@@ -162,7 +183,6 @@ function extraerSitios(findings: unknown[], categoria: CategoriaSitio): { lugar:
         lat: el.lat ?? el.center?.lat,
         lon: el.lon ?? el.center?.lon,
       });
-      if (sitios.length >= MAX_POR_CATEGORIA) break;
     }
     if (sitios.length) salida.push({ lugar, sitios });
   }
@@ -260,9 +280,8 @@ export function normalizarInvestigacion(bruto: AnalisisBruto | null | undefined)
       continue;
     }
 
-    const categoria = CATEGORIAS[dominio];
-    if (!categoria) continue;
-    for (const { lugar, sitios: encontrados } of extraerSitios(findingsDe(resultado.data), categoria)) {
+    if (!DOMINIOS_CON_SITIOS.has(dominio)) continue;
+    for (const { lugar, sitios: encontrados } of extraerSitios(findingsDe(resultado.data), dominio)) {
       sitios[lugar] = [...(sitios[lugar] ?? []), ...encontrados];
       fuentes.add("OpenStreetMap");
     }

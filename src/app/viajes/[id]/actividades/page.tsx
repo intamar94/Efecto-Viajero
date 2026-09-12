@@ -13,7 +13,7 @@ import { obtenerGuiaWikivoyage, type TipoListingWikivoyage } from "@/lib/wikivoy
 import { obtenerResumenLugar, type ResumenWikipedia } from "@/lib/wikipedia";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
-import type { CategoriaSitio, SitioReal } from "@/lib/investigacion";
+import type { SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
@@ -57,13 +57,6 @@ const ORDEN_CATEGORIAS: CategoriaActividad[] = [
   "pueblos",
   "otro",
 ];
-
-const CATEGORIA_DE_SITIO: Record<CategoriaSitio, CategoriaActividad> = {
-  gastronomia: "restaurante",
-  cultura: "museo",
-  naturaleza: "naturaleza",
-  experiencias: "otro",
-};
 
 // "sleep" (alojamiento) no cuenta aquí: eso ya lo cubre la sección de
 // Alojamiento, no tiene sentido como "actividad".
@@ -332,11 +325,11 @@ export default function ActividadesPage() {
         id: `sitio-${etapa.id}-${slug(s.nombre)}`,
         nombre: s.nombre,
         tipo: s.categoria,
-        categoria: CATEGORIA_DE_SITIO[s.categoria],
+        categoria: s.categoria,
         duracionHoras: 0,
         costeEstimado: 0,
         apta: [],
-        entorno: s.categoria === "naturaleza" ? "exterior" : "interior",
+        entorno: s.categoria === "naturaleza" || s.categoria === "parque" || s.categoria === "playa" ? "exterior" : "interior",
         admiteMascotas: false,
         descripcion: s.detalle ?? "Sitio real cercano (OpenStreetMap).",
         esPropia: false,
@@ -665,9 +658,6 @@ export default function ActividadesPage() {
                         <div className="rounded-xl bg-gradient-to-br from-marino-50 to-coral-50 p-4">
                           <p className="mb-1 text-sm font-medium text-marino-900">🌎 Sobre {etapa.nombre}</p>
                           <p className="text-sm leading-relaxed text-neutral-700">{resumen.extracto}</p>
-                          <a href={resumen.url} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-block text-xs text-marino-600 underline hover:text-marino-800">
-                            Seguir leyendo en Wikipedia
-                          </a>
                         </div>
                       );
                     })()}
@@ -675,8 +665,28 @@ export default function ActividadesPage() {
                     <div className="rounded-xl border border-dashed border-marino-200 bg-marino-50/50 p-3">
                       <p className="mb-1 text-sm font-medium text-marino-900">✨ ¿Qué te gustaría hacer en {etapa.nombre}?</p>
                       <p className="mb-2 text-xs text-neutral-500">
-                        Describe en pocas palabras qué buscas: comida típica, museos, naturaleza, rutas para caminar, ferias, vida nocturna…
+                        Toca una categoría o describe en pocas palabras qué buscas.
                       </p>
+                      <div className="mb-3 flex flex-wrap gap-1.5">
+                        {ORDEN_CATEGORIAS.map((c) => {
+                          const activo = categoriasBuscadas !== null && categoriasBuscadas.length === 1 && categoriasBuscadas[0] === c;
+                          return (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => {
+                                setTextosIntencion((prev) => ({ ...prev, [etapa.id]: "" }));
+                                setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: activo ? null : [c] }));
+                              }}
+                              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                                activo ? "border-coral-300 bg-coral-50 text-coral-700" : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
+                              }`}
+                            >
+                              {ETIQUETA_CATEGORIA[c].icono} {ETIQUETA_CATEGORIA[c].etiqueta}
+                            </button>
+                          );
+                        })}
+                      </div>
                       <form onSubmit={buscarPorIntencion} className="space-y-2">
                         <textarea
                           className="input text-sm"

@@ -68,7 +68,12 @@ async function getJson(url: string, source: string, init?: RequestInit, intentos
 }
 
 const poi: Record<string, string[]> = {
-  experiences: ["tourism=attraction"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
+  // La vida nocturna (bares, pubs, discotecas) no tenía ninguna consulta
+  // real detrás — la categoría existía en la interfaz pero nunca se pedía
+  // nada para ella. Se suma aquí, no como dominio aparte: el reparto por
+  // categoría real ya lo hace investigacion.ts a partir de la etiqueta de
+  // cada sitio, no de qué dominio lo buscó.
+  experiences: ["tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
   accommodation: ["tourism=hotel", "tourism=hostel", "tourism=guest_house", "tourism=apartment"],
 };
 

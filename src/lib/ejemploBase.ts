@@ -377,7 +377,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       "Bogotá": [
         {
           nombre: "La Candelaria",
-          categoria: "cultura",
+          categoria: "museo",
           detalle: "Barrio histórico colonial",
           lat: 4.5981,
           lon: -74.0758,
@@ -393,7 +393,7 @@ export const VIAJE_EJEMPLO: Viaje = {
       "Medellín": [
         {
           nombre: "Comuna 13",
-          categoria: "cultura",
+          categoria: "museo",
           detalle: "Barrio con arte callejero",
           lat: 6.248,
           lon: -75.545,
