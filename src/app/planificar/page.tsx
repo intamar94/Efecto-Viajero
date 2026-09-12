@@ -6,6 +6,7 @@ import { useData } from "@/lib/store";
 import { interpretarTexto, type NecesidadesViaje } from "@/lib/explorador";
 import { diasEntre } from "@/lib/fecha";
 import { normalizarInvestigacion } from "@/lib/investigacion";
+import { urlBusquedaVuelos, buscadoresAlojamiento } from "@/lib/afiliados";
 import type { AccesibilidadViaje, Etapa, ModoPlanificacion, PresupuestoViaje, TipoPresupuesto, TipoViaje } from "@/lib/types";
 
 type LugarResuelto = {
@@ -42,7 +43,7 @@ const MODOS: Array<{ id: ModoPlanificacion; icon: string; title: string; text: s
 // — así que mostrarlos aquí como si contaran era confuso: si el texto decía
 // "3 adultos" y el selector tenía 2, aparecían los dos números a la vez sin
 // decir cuál se iba a usar.
-function resumen(n: NecesidadesViaje | null, hayFechasExplicitas: boolean) {
+function resumen(n: NecesidadesViaje | null, hayFechasExplicitas: boolean, hayOrigenExplicito: boolean) {
   if (!n) return [];
   const out: string[] = [];
   // Si ya hay fechas de salida/regreso explícitas, esas mandan y se
@@ -52,7 +53,10 @@ function resumen(n: NecesidadesViaje | null, hayFechasExplicitas: boolean) {
   if (n.duracionDias && !hayFechasExplicitas) out.push(`${n.duracionDias} días`);
   n.edadesMenores.forEach((e) => out.push(`menor de ${e} años`));
   if (n.mascota) out.push("mascota");
-  if (n.ciudadOrigen) out.push(`desde ${n.ciudadOrigen}`);
+  // Mismo caso: si ya se preguntó "¿desde dónde sales?" directamente, ese
+  // manda (ver crearViaje()) — repetir aquí lo que cree entender el texto
+  // libre podía mostrar dos ciudades de origen distintas a la vez.
+  if (n.ciudadOrigen && !hayOrigenExplicito) out.push(`desde ${n.ciudadOrigen}`);
   if (n.ritmo) out.push(`ritmo ${n.ritmo}`);
   if (n.sinConducirMucho) out.push("sin conducir mucho");
   return [...out, ...n.intereses];
@@ -65,6 +69,7 @@ export default function PlanificarPage() {
   // la causa raíz de casi todos los bugs de "reconoce mal el destino" —
   // un campo dedicado no tiene ambigüedad que resolver.
   const [destinos, setDestinos] = useState<string[]>([""]);
+  const [origen, setOrigen] = useState("");
   const [texto, setTexto] = useState("");
   const [tipo, setTipo] = useState<TipoViaje>("simple");
   const [modo, setModo] = useState<ModoPlanificacion>("completo");
@@ -86,7 +91,7 @@ export default function PlanificarPage() {
   const [etapas, setEtapas] = useState<LugarResuelto[]>([]);
   const [nuevaParada, setNuevaParada] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const etiquetas = useMemo(() => resumen(necesidades, Boolean(fechaSalida && fechaRegreso)), [necesidades, fechaSalida, fechaRegreso]);
+  const etiquetas = useMemo(() => resumen(necesidades, Boolean(fechaSalida && fechaRegreso), Boolean(origen.trim())), [necesidades, fechaSalida, fechaRegreso, origen]);
   const destinosLlenos = useMemo(() => destinos.map((d) => d.trim()).filter(Boolean), [destinos]);
 
   // El presupuesto se puede expresar por persona o por día, pero el
@@ -139,6 +144,7 @@ export default function PlanificarPage() {
       const body = {
         text: textoEnviado,
         destinations: destinosLlenos,
+        origen: origen.trim() || undefined,
         fechaSalida: fechaSalida || undefined,
         fechaRegreso: fechaRegreso || undefined,
         presupuesto: presupuesto ? Number(presupuesto) : undefined,
@@ -187,7 +193,7 @@ export default function PlanificarPage() {
         numAdultos: adultos,
         edadesMenores: edadesNinos.length ? edadesNinos : undefined,
         mascota: mascotas > 0,
-        ciudadOrigen: necesidades.ciudadOrigen || undefined,
+        ciudadOrigen: origen.trim() || necesidades.ciudadOrigen || undefined,
         textoOriginal: texto,
         presupuesto: { importe: presupuesto ? Number(presupuesto) : undefined, moneda: "EUR", tipo: presupuestoTipo, flexible: presupuestoFlexible },
         viajeros: { adultos, ninos, edadesNinos: edadesNinos.length ? edadesNinos : undefined, bebes: bebes || undefined, personasMayores: personasMayores || undefined, mascotas: mascotas || undefined, accesibilidad },
@@ -215,6 +221,7 @@ export default function PlanificarPage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="rounded-full bg-marino-50 px-3 py-1.5 text-xs font-medium text-marino-800">{MODOS.find((m) => m.id === modo)?.title}</span>
           {fechaSalida && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">{fechaSalida}{fechaRegreso ? ` → ${fechaRegreso}` : ""}</span>}
+          {origen.trim() && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">Desde {origen.trim()}</span>}
           {presupuesto && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">{presupuesto} € · {presupuestoTipo.replace("_", " ")}</span>}
           <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">{adultos} adultos{ninos ? ` · ${ninos} niños` : ""}{bebes ? ` · ${bebes} bebés` : ""}</span>
           {personasMayores > 0 && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">{personasMayores} personas mayores</span>}
@@ -243,9 +250,19 @@ export default function PlanificarPage() {
         <section className="card"><div className="mb-4"><h2 className="font-semibold">¿A dónde quieres ir?</h2><p className="mt-1 text-xs text-neutral-500">Un destino o varios, en el orden en que los visitarás.</p></div>
           <div className="space-y-2">{destinos.map((d, i) => <div key={i} className="flex gap-2"><input className="input flex-1" value={d} onChange={(e) => actualizarDestino(i, e.target.value)} placeholder={i === 0 ? "Ej. Bogotá, Japón, Roma…" : "Otra parada"} />{destinos.length > 1 && <button type="button" onClick={() => quitarDestino(i)} className="shrink-0 text-neutral-400 hover:text-red-600" aria-label="Quitar destino">×</button>}</div>)}</div>
           <button type="button" onClick={() => setDestinos((p) => [...p, ""])} className="mt-3 text-sm text-marino-700 underline hover:text-marino-900">+ Añadir otro destino</button>
+          <label className="mt-4 block border-t border-neutral-100 pt-4 text-sm text-neutral-700">¿Desde dónde sales? <span className="text-neutral-400">(opcional, para buscar vuelos y rutas)</span><input className="input mt-1" value={origen} onChange={(e) => setOrigen(e.target.value)} placeholder="Ej. Madrid" /></label>
         </section>
 
-        <section className="card"><div className="mb-4"><h2 className="font-semibold">¿Cuándo y con qué presupuesto?</h2><p className="mt-1 text-xs text-neutral-500">Puedes dejar cualquiera de estos datos sin definir y completarlos después.</p></div><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm text-neutral-700">Salida<input type="date" className="input mt-1" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} /></label><label className="text-sm text-neutral-700">Regreso<input type="date" className="input mt-1" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} /></label><label className="text-sm text-neutral-700">Presupuesto aproximado<input type="number" min="0" step="50" className="input mt-1" value={presupuesto} onChange={(e) => setPresupuesto(e.target.value)} placeholder="1.500" /></label><label className="text-sm text-neutral-700">Cómo quieres expresarlo<select className="input mt-1" value={presupuestoTipo} onChange={(e) => setPresupuestoTipo(e.target.value as TipoPresupuesto)}><option value="total">Total del viaje</option><option value="por_persona">Por persona</option><option value="por_dia">Por día</option></select></label></div>{presupuestoTotalCalculado !== undefined && presupuestoTipo !== "total" && <p className="mt-3 text-xs text-neutral-500">Para el seguimiento del gasto lo contamos como <span className="font-medium text-neutral-700">{presupuestoTotalCalculado} € en total</span>.</p>}{presupuesto && presupuestoTipo === "por_dia" && presupuestoTotalCalculado === undefined && <p className="mt-3 text-xs text-neutral-500">Un presupuesto por día necesita saber cuántos días dura el viaje: dinos las fechas o la duración y lo convertimos a total.</p>}<label className="mt-3 flex items-center gap-2 text-xs text-neutral-600"><input type="checkbox" checked={presupuestoFlexible} onChange={(e) => setPresupuestoFlexible(e.target.checked)} /> El presupuesto puede variar un poco si mejora la experiencia</label></section>
+        <section className="card"><div className="mb-4"><h2 className="font-semibold">¿Cuándo viajas?</h2><p className="mt-1 text-xs text-neutral-500">Puedes dejarlo sin definir y completarlo después.</p></div><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm text-neutral-700">Salida<input type="date" className="input mt-1" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} /></label><label className="text-sm text-neutral-700">Regreso<input type="date" className="input mt-1" value={fechaRegreso} onChange={(e) => setFechaRegreso(e.target.value)} /></label></div></section>
+
+        {destinosLlenos.length > 0 && <section className="card border-marino-200 bg-marino-50/40"><div className="mb-3"><h2 className="font-semibold">Antes de poner un presupuesto…</h2><p className="mt-1 text-xs text-neutral-600">Estos son buscadores reales — échales un vistazo rápido para que el número que pongas abajo se acerque a la realidad, no sea un cálculo a ciegas.</p></div>
+          <div className="flex flex-wrap gap-2">
+            <a href={urlBusquedaVuelos(destinosLlenos[0], origen.trim() || undefined, fechaSalida || undefined, fechaRegreso || undefined)} target="_blank" rel="noopener noreferrer" className="rounded-full border border-marino-300 bg-white px-3 py-1.5 text-xs font-medium text-marino-800 hover:border-marino-500">✈️ Ver vuelos a {destinosLlenos[0]}</a>
+            {buscadoresAlojamiento(destinosLlenos[0], fechaSalida || undefined, fechaRegreso || undefined).slice(0, 2).map((b) => <a key={b.id} href={b.url} target="_blank" rel="noopener noreferrer" className="rounded-full border border-marino-300 bg-white px-3 py-1.5 text-xs font-medium text-marino-800 hover:border-marino-500">{b.icono} {b.nombre}</a>)}
+          </div>
+        </section>}
+
+        <section className="card"><div className="mb-4"><h2 className="font-semibold">¿Cuánto quieres gastar?</h2><p className="mt-1 text-xs text-neutral-500">Puedes dejarlo sin definir y completarlo después.</p></div><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm text-neutral-700">Presupuesto aproximado<input type="number" min="0" step="50" className="input mt-1" value={presupuesto} onChange={(e) => setPresupuesto(e.target.value)} placeholder="1.500" /></label><label className="text-sm text-neutral-700">Cómo quieres expresarlo<select className="input mt-1" value={presupuestoTipo} onChange={(e) => setPresupuestoTipo(e.target.value as TipoPresupuesto)}><option value="total">Total del viaje</option><option value="por_persona">Por persona</option><option value="por_dia">Por día</option></select></label></div>{presupuestoTotalCalculado !== undefined && presupuestoTipo !== "total" && <p className="mt-3 text-xs text-neutral-500">Para el seguimiento del gasto lo contamos como <span className="font-medium text-neutral-700">{presupuestoTotalCalculado} € en total</span>.</p>}{presupuesto && presupuestoTipo === "por_dia" && presupuestoTotalCalculado === undefined && <p className="mt-3 text-xs text-neutral-500">Un presupuesto por día necesita saber cuántos días dura el viaje: dinos las fechas o la duración y lo convertimos a total.</p>}<label className="mt-3 flex items-center gap-2 text-xs text-neutral-600"><input type="checkbox" checked={presupuestoFlexible} onChange={(e) => setPresupuestoFlexible(e.target.checked)} /> El presupuesto puede variar un poco si mejora la experiencia</label></section>
 
         <section className="card"><div className="mb-4"><h2 className="font-semibold">¿Quiénes viajan?</h2><p className="mt-1 text-xs text-neutral-500">Esto afecta alojamiento, transporte, actividades, ritmo, recomendaciones y preparación.</p></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><Count label="Adultos" value={adultos} onChange={(v) => setAdultos(Math.max(1, v))} min={1}/><Count label="Niños" value={ninos} onChange={syncChildren} min={0}/><Count label="Bebés" value={bebes} onChange={(v) => setBebes(Math.max(0, v))} min={0}/><Count label="Personas mayores" value={personasMayores} onChange={(v) => setPersonasMayores(Math.max(0, v))} min={0}/><Count label="Mascotas" value={mascotas} onChange={(v) => setMascotas(Math.max(0, v))} min={0}/></div>{ninos > 0 && <div className="mt-4 grid gap-3 sm:grid-cols-2">{edadesNinos.map((edad, i) => <label key={i} className="text-sm text-neutral-700">Edad niño {i + 1}<input type="number" min="0" max="17" className="input mt-1" value={edad} onChange={(e) => setEdadesNinos((prev) => prev.map((x, idx) => idx === i ? Number(e.target.value) : x))}/></label>)}</div>}
           <div className="mt-4 border-t border-neutral-100 pt-4"><label className="flex items-center gap-2 text-sm font-medium text-neutral-800"><input type="checkbox" checked={accesibilidad.requiereAccesibilidad} onChange={(e) => setAccesibilidad((a) => ({ ...a, requiereAccesibilidad: e.target.checked }))}/> Hay necesidades de accesibilidad</label>{accesibilidad.requiereAccesibilidad && <div className="mt-3 grid gap-2 sm:grid-cols-2 text-sm text-neutral-700"><Check label="Movilidad reducida / silla de ruedas" checked={accesibilidad.movilidad !== "ninguna"} onChange={(v) => setAccesibilidad((a) => ({ ...a, movilidad: v ? "movilidad_reducida" : "ninguna" }))}/><Check label="Necesidad auditiva" checked={Boolean(accesibilidad.auditiva)} onChange={(v) => setAccesibilidad((a) => ({ ...a, auditiva: v }))}/><Check label="Necesidad visual" checked={Boolean(accesibilidad.visual)} onChange={(v) => setAccesibilidad((a) => ({ ...a, visual: v }))}/><Check label="Necesidad cognitiva" checked={Boolean(accesibilidad.cognitiva)} onChange={(v) => setAccesibilidad((a) => ({ ...a, cognitiva: v }))}/></div>}</div></section>
