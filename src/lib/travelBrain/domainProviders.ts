@@ -65,17 +65,31 @@ const poi: Record<string, string[]> = {
 
 const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 
+// Radio de búsqueda: 8km cubre bien una ciudad compacta, pero en destinos
+// más dispersos (islas, zonas rurales, ciudades extendidas) puede no haber
+// nada etiquetado tan cerca aunque sí exista más lejos. Antes de dar el
+// dominio por vacío, se reintenta una vez con un radio mucho mayor.
+const RADIOS_KM = [8, 25];
+
 const osmPoi: Adapter = async ({ destination, domain, query }) => {
   const filters = query ? [query] : poi[domain] ?? poi.experiences;
-  const clauses = filters.map((filter) => `nwr[${filter}](around:8000,${destination.latitude},${destination.longitude});`).join("");
-  const body = `[out:json][timeout:15];(${clauses});out center tags 40;`;
   let lastError: unknown;
-  for (const endpoint of OVERPASS_ENDPOINTS) {
-    try {
-      const data = await getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() });
-      return { domain, status: "ready", data, evidence: [evidence("OpenStreetMap Overpass")] };
-    } catch (error) { lastError = error; }
+  let ultimaRespuestaVacia: unknown;
+  for (const radioKm of RADIOS_KM) {
+    const clauses = filters.map((filter) => `nwr[${filter}](around:${radioKm * 1000},${destination.latitude},${destination.longitude});`).join("");
+    const body = `[out:json][timeout:15];(${clauses});out center tags 40;`;
+    for (const endpoint of OVERPASS_ENDPOINTS) {
+      try {
+        const data = (await getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() })) as { elements?: unknown[] };
+        if ((data.elements?.length ?? 0) > 0) return { domain, status: "ready", data, evidence: [evidence("OpenStreetMap Overpass")] };
+        ultimaRespuestaVacia = data;
+      } catch (error) { lastError = error; }
+    }
   }
+  // Si al menos una consulta respondió sin error (aunque vacía), no es un
+  // fallo del proveedor — de verdad no hay nada etiquetado cerca ni lejos.
+  // Se devuelve esa respuesta honestamente vacía en vez de fingir un error.
+  if (ultimaRespuestaVacia !== undefined) return { domain, status: "ready", data: ultimaRespuestaVacia, evidence: [evidence("OpenStreetMap Overpass")] };
   throw lastError instanceof Error ? lastError : new Error("OpenStreetMap Overpass: provider unavailable");
 };
 
