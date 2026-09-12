@@ -84,7 +84,17 @@ export async function resolveDestination(query: string, countryCode?: string): P
   const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
   url.searchParams.set("name", value);
   url.searchParams.set("count", "10");
-  url.searchParams.set("language", "es");
+  // Sin "language=es": el nombre que devuelve Open-Meteo se convierte en el
+  // nombre canónico del destino para TODO lo que viene después — incluida
+  // la búsqueda real en Wikivoyage. Pedir el exónimo en español (p. ej.
+  // "Fráncfort del Meno") rompía esa búsqueda: Wikivoyage no tiene
+  // redirecciones para la mayoría de exónimos, así que la investigación
+  // real fallaba en cascada para ciudades con nombre español muy distinto
+  // del local, aunque estuvieran perfectamente documentadas. Sin forzar
+  // idioma, Open-Meteo da el nombre local/tal como aparece en OSM y en la
+  // mayoría de fuentes reales — coincide mucho mejor con lo que hay que
+  // buscar, a cambio de mostrar "Frankfurt am Main" en vez de "Fráncfort
+  // del Meno".
   url.searchParams.set("format", "json");
   if (countryCode) url.searchParams.set("countryCode", countryCode.toUpperCase());
 
