@@ -60,6 +60,12 @@ export interface SitioReal {
   // reseñas — cuando está configurada, ver src/lib/busquedaWeb.ts), con
   // su fuente citada. Mismo patrón "" / undefined que los anteriores.
   resumenWeb?: string;
+  // Tipo de cocina real, cuando OpenStreetMap lo trae etiquetado
+  // (cuisine=colombian;grill, etc.): "en este restaurante puedes comer
+  // X" es justo lo que hace falta para decidir si vale la pena, no solo
+  // "Restaurante." — pero solo se muestra si el dato existe de verdad,
+  // nunca se adivina la especialidad de un sitio.
+  cocina?: string;
 }
 
 export interface DiaClima {
@@ -96,7 +102,7 @@ export interface AuditoriaCapacidades {
 // número, esa investigación quedó desactualizada aunque nadie la haya
 // tocado, y conviene volver a correrla en vez de esperar a que alguien
 // recuerde tocar "Actualizar investigación real".
-export const VERSION_INVESTIGACION = 5;
+export const VERSION_INVESTIGACION = 6;
 
 export interface Investigacion {
   generadoEn: string;
@@ -251,6 +257,84 @@ function precioDe(tags: Record<string, string> = {}): string | undefined {
   return undefined;
 }
 
+// La etiqueta "cuisine" de OpenStreetMap es justo el dato que hace falta
+// para saber "qué se come aquí" sin buscar por fuera — pero llega en
+// claves técnicas en inglés ("steak_house", "regional") separadas por
+// ";". Solo se traducen las que se entienden sin contexto; el resto se
+// descarta en vez de mostrar la clave cruda.
+const CUISINE_ES: Record<string, string> = {
+  colombian: "colombiana",
+  regional: "regional",
+  local: "local",
+  latin_american: "latinoamericana",
+  international: "internacional",
+  grill: "parrilla",
+  steak_house: "carnes",
+  seafood: "mariscos",
+  fish: "pescado",
+  vegetarian: "vegetariana",
+  vegan: "vegana",
+  pizza: "pizza",
+  italian: "italiana",
+  mexican: "mexicana",
+  peruvian: "peruana",
+  argentinian: "argentina",
+  venezuelan: "venezolana",
+  spanish: "española",
+  french: "francesa",
+  chinese: "china",
+  japanese: "japonesa",
+  sushi: "sushi",
+  asian: "asiática",
+  thai: "tailandesa",
+  indian: "india",
+  american: "estadounidense",
+  burger: "hamburguesas",
+  chicken: "pollo",
+  sandwich: "sándwiches",
+  breakfast: "desayunos",
+  coffee_shop: "café",
+  bakery: "panadería",
+  dessert: "postres",
+  ice_cream: "helados",
+  arepa: "arepas",
+  empanada: "empanadas",
+};
+
+function cocinaDe(tags: Record<string, string> = {}): string | undefined {
+  const crudo = tags.cuisine;
+  if (!crudo) return undefined;
+  const traducidas = crudo
+    .split(/[;,]/)
+    .map((v) => CUISINE_ES[v.trim().toLowerCase()])
+    .filter((v): v is string => Boolean(v));
+  const unicas = [...new Set(traducidas)];
+  return unicas.length > 0 ? unicas.join(", ") : undefined;
+}
+
+// Los nombres de cadena real (no la etiqueta OSM de "comida rápida" o
+// "cafetería", que ya se usaba, sino la marca en sí) tampoco deberían
+// ser lo primero que se destaca al pedir algo "típico": una cadena
+// puede estar tageada como restaurante normal en OSM (Crepes & Waffles,
+// por ejemplo, no es "fast_food") y aun así ser justo lo contrario de
+// lo que alguien busca al pedir gastronomía local. Lista acotada a
+// marcas reales y reconocibles — nunca se "adivina" que algo es cadena
+// solo por su tipo de comida.
+const NOMBRES_CADENA = [
+  "mcdonald", "burger king", "kfc", "subway", "starbucks", "domino's", "dominos",
+  "pizza hut", "dunkin", "papa john", "wendy's", "wendys", "popeyes", "dairy queen",
+  "little caesars", "cinnabon", "baskin robbins", "taco bell", "carl's jr", "chili's",
+  "tgi friday", "hooters", "applebee",
+  "crepes & waffles", "crepes y waffles", "el corral", "presto", "frisby", "kokoriko",
+  "archie's", "archies", "juan valdez", "oma", "sandwich qbano", "tostao", "jeno's pizza",
+  "el corral gourmet", "sanduq", "el sitio", "cosechas", "bogotá beer company",
+];
+
+export function esCadenaConocida(nombre: string): boolean {
+  const normal = nombre.toLowerCase();
+  return NOMBRES_CADENA.some((marca) => normal.includes(marca));
+}
+
 function extraerSitios(findings: unknown[], dominio: string): { lugar: string; sitios: SitioReal[] }[] {
   const salida: { lugar: string; sitios: SitioReal[] }[] = [];
 
@@ -310,6 +394,7 @@ function extraerSitios(findings: unknown[], dominio: string): { lugar: string; s
         precioAprox: precioDe(el.tags),
         enlaceWikipedia: el.tags?.wikipedia,
         enlaceWikidata: el.tags?.wikidata,
+        cocina: cocinaDe(el.tags),
       });
     }
     if (sitios.length) salida.push({ lugar, sitios });

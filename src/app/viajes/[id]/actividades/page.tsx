@@ -18,7 +18,7 @@ import { slug } from "@/lib/puntosGeo";
 import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
 import { acortarTexto } from "@/lib/texto";
 import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
-import { VERSION_INVESTIGACION, VERSION_ENRIQUECIMIENTO_SITIO, type Investigacion, type SitioReal } from "@/lib/investigacion";
+import { VERSION_INVESTIGACION, VERSION_ENRIQUECIMIENTO_SITIO, esCadenaConocida, type Investigacion, type SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
@@ -42,7 +42,7 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   parque: { etiqueta: "Parques y paseos", icono: "🌳" },
   restaurante: { etiqueta: "Restaurantes típicos", icono: "🍽️" },
   cine_teatro: { etiqueta: "Cine y teatro", icono: "🎭" },
-  discoteca: { etiqueta: "Vida nocturna", icono: "🎶" },
+  discoteca: { etiqueta: "Fiesta", icono: "🎶" },
   compras: { etiqueta: "Compras", icono: "🛍️" },
   naturaleza: { etiqueta: "Naturaleza", icono: "🌿" },
   playa: { etiqueta: "Playa", icono: "🏖️" },
@@ -70,12 +70,22 @@ function distanciaDelCentro(etapa: Etapa, lat?: number, lon?: number): string | 
 // undefined, que significa "todavía no se buscó") — por eso se
 // comprueba explícito nivel por nivel en vez de encadenar "||", que
 // saltaría un nivel real pero vacío como si no existiera.
+// Nombres típicos de eventos/festivales (no lugares fijos) que a veces
+// aparecen como listings "do" de Wikivoyage — se filtran de la grilla de
+// sitios reales, ver el comentario donde se usa.
+const PARECE_EVENTO = /\b(festival|feria|carnaval|bienal|maratón|maraton|concurso|congreso|cumbre|mundial de|copa (mundial|américa|america)|semana santa|temporada de)\b/i;
+
 function descripcionDeSitio(s: SitioReal): string {
   if (s.resumenWikipedia) return s.resumenWikipedia;
+  // La cocina real (cuando OpenStreetMap la trae etiquetada) es justo lo
+  // que hace falta para decidir un restaurante — "Restaurante." solo no
+  // dice si es de carnes, mariscos o comida colombiana. Se suma a la
+  // categoría base, nunca se inventa si el dato no está.
   const categoriaLabel = s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Lugar cercano.";
-  if (s.entornoCercano) return `${categoriaLabel} ${s.entornoCercano}`;
-  if (s.resumenWeb) return `${categoriaLabel} ${s.resumenWeb}`;
-  return categoriaLabel;
+  const base = s.cocina ? `${categoriaLabel} Cocina: ${s.cocina}.` : categoriaLabel;
+  if (s.entornoCercano) return `${base} ${s.entornoCercano}`;
+  if (s.resumenWeb) return `${base} ${s.resumenWeb}`;
+  return base;
 }
 
 // Lo que cada categoría promete, en un lenguaje que invita en vez de
@@ -201,7 +211,14 @@ type Item = ActividadDestino & {
   // una frase, no la palabra suelta) para poder filtrarlas sin depender de
   // cómo esté redactado el texto que ve el usuario.
   cadenaGenerica?: boolean;
+  // Cocina local/regional real (según la etiqueta de OpenStreetMap): la
+  // caja se llama "Restaurantes típicos", así que un sitio con cocina
+  // local confirmada debería verse ANTES que uno de cocina genérica sin
+  // dato — nunca se asume que algo ES típico sin la etiqueta real.
+  cocinaLocal?: boolean;
 };
+
+const COCINAS_LOCALES = new Set(["colombiana", "regional", "local", "latinoamericana", "arepas", "empanadas"]);
 
 // Insignia de progreso por ciudad: sencilla, sin más objetivo que hacer
 // visible el avance de un vistazo, como una barra de nivel.
@@ -663,7 +680,13 @@ export default function ActividadesPage() {
         mapaUrl: s.lat && s.lon ? `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}` : undefined,
         webUrl: s.url,
         webEsDirecta: !!s.url,
-        cadenaGenerica: s.detalle === "comida rápida" || s.detalle === "cafetería",
+        // No solo por el tipo de OSM (fast_food/cafe): una cadena real de
+        // restaurante normal (Crepes & Waffles, El Corral...) no queda
+        // tageada como "comida rápida" en OpenStreetMap y aun así es
+        // justo lo contrario de "gastronomía típica" cuando alguien lo
+        // pide — se reconoce también por el nombre real de la marca.
+        cadenaGenerica: s.detalle === "comida rápida" || s.detalle === "cafetería" || esCadenaConocida(s.nombre),
+        cocinaLocal: s.cocina ? s.cocina.split(", ").some((c) => COCINAS_LOCALES.has(c)) : false,
         direccion: distanciaDelCentro(etapa, s.lat, s.lon),
       }));
 
@@ -680,6 +703,14 @@ export default function ActividadesPage() {
     const deWikivoyage: Item[] = (guiaWikivoyage?.listings ?? []).flatMap((l) => {
       const categoria = CATEGORIA_DE_LISTING[l.tipo];
       if (!categoria || !l.nombre) return [];
+      // Un festival o feria no es un sitio al que se pueda ir cualquier
+      // día — es un evento con fecha propia, y Wikivoyage no trae esa
+      // fecha en estos listings. Mostrarlo con "+Añadir"/mapa como si
+      // fuera un lugar fijo (sin poder decir cuándo ocurre) confunde más
+      // de lo que ayuda; los eventos reales con fecha ya tienen su
+      // propia sección (EventosEstacionalesDestino, con datos curados
+      // por país y mes) — aquí se descartan en vez de mostrarse a medias.
+      if (PARECE_EVENTO.test(l.nombre)) return [];
       const id = `wv-${etapa.id}-${slug(l.nombre)}`;
       if (idsWikivoyageYaAñadidos.has(id)) return [];
       return [
@@ -1014,13 +1045,18 @@ export default function ActividadesPage() {
 
             // Sin menú de categorías que abrir y cerrar: se muestra la
             // lista directa, ya sea filtrada por la búsqueda o completa.
-            // Dentro de cada categoría, una cadena genérica (McDonald's,
-            // Starbucks...) se manda al final: sigue siendo un resultado
-            // real y válido, pero lo primero que se ve al abrir
-            // "Restaurantes típicos" no debería ser justo lo que menos se
-            // busca al pedir algo típico.
+            // Dentro de cada categoría: primero lo que de verdad coincide
+            // con "típico" (cocina local/regional real, según OSM), luego
+            // el resto, y al final una cadena genérica (McDonald's,
+            // Crepes & Waffles...) — sigue siendo un resultado real y
+            // válido, pero lo primero que se ve al abrir "Restaurantes
+            // típicos" no debería ser justo lo que menos se busca al pedir
+            // algo típico.
             const listaMostrada = [...(categoriasBuscadas !== null ? resultadosBusqueda : items)].sort(
-              (a, b) => ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria) || Number(Boolean(a.cadenaGenerica)) - Number(Boolean(b.cadenaGenerica))
+              (a, b) =>
+                ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria) ||
+                Number(Boolean(b.cocinaLocal)) - Number(Boolean(a.cocinaLocal)) ||
+                Number(Boolean(a.cadenaGenerica)) - Number(Boolean(b.cadenaGenerica))
             );
 
             // Para presentar la ciudad: prioriza lo que la persona pidió al

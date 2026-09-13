@@ -30,7 +30,7 @@ export interface WikivoyageListing {
 // añadir la traducción automática): una guía ya guardada en un viaje con
 // una versión anterior se vuelve a buscar en vez de quedarse con el
 // inglés sin traducir para siempre.
-export const VERSION_WIKIVOYAGE = 5;
+export const VERSION_WIKIVOYAGE = 6;
 
 export interface WikivoyageResumen {
   articulo: string;
@@ -89,15 +89,29 @@ function extraerListingsDePlantillas(wikitext: string): WikivoyageListing[] {
     const tipo = m[1].toLowerCase() as TipoListingWikivoyage;
     const p = parsearParametros(m[2]);
     if (!p.name && !p.content) continue;
+    // El parámetro "name" de la plantilla normalmente es un título real,
+    // pero algunos colaboradores escriben ahí una frase descriptiva
+    // entera en vez de un nombre corto ("Festival de Rock al Parque
+    // reconocido como el festival musical..."). Igual que en las
+    // viñetas, se separa el título real del resto cuando es
+    // sospechosamente largo — nunca se pisa un "content" ya real que la
+    // plantilla trajera aparte.
+    let nombre = p.name;
+    let contenido = p.content;
+    if (nombre && nombre.length > 60) {
+      const partido = partirNombreYContenido(nombre);
+      nombre = partido.nombre;
+      contenido = contenido ?? partido.contenido;
+    }
     listings.push({
       tipo,
-      nombre: p.name,
+      nombre,
       direccion: p.address,
       horario: p.hours,
       precio: p.price,
       url: p.url,
       telefono: p.phone,
-      contenido: p.content,
+      contenido,
       lat: p.lat ? Number(p.lat) : undefined,
       lon: p.long ? Number(p.long) : undefined,
     });
