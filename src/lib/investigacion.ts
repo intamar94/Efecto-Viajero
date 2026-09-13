@@ -91,6 +91,7 @@ const DETALLE_OSM: Record<string, string> = {
   archaeological_site: "yacimiento arqueológico",
   pub: "pub",
   nightclub: "discoteca",
+  biergarten: "terraza / jardín de cerveza",
   gift: "tienda de regalos",
   souvenir: "tienda de souvenirs",
   craft: "artesanía",
@@ -145,7 +146,7 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
   if (tags.natural === "beach") return "playa";
   if (tags.leisure === "park") return "parque";
   if (tags.leisure === "nature_reserve" || tags.tourism === "viewpoint" || tags.natural === "waterfall") return "naturaleza";
-  if (tags.amenity === "bar" || tags.amenity === "pub" || tags.amenity === "nightclub") return "discoteca";
+  if (tags.amenity === "bar" || tags.amenity === "pub" || tags.amenity === "nightclub" || tags.amenity === "biergarten") return "discoteca";
   if (tags.amenity === "restaurant" || tags.amenity === "cafe" || tags.amenity === "fast_food") return "restaurante";
   if (tags.tourism === "museum" || tags.tourism === "gallery" || tags.historic) return "museo";
   if (tags.shop) return "compras";

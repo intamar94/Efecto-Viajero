@@ -78,7 +78,7 @@ const poi: Record<string, string[]> = {
   // catálogo genérico por país. Se suman aquí por el mismo motivo que la
   // vida nocturna: categoriaDeTags (investigacion.ts) ya sabe convertir
   // shop=* en "compras" a partir de la propia etiqueta.
-  experiences: ["tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub", "shop=gift", "shop=souvenir", "shop=craft", "shop=art", "shop=deli"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
+  experiences: ["tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub", "amenity=biergarten", "shop=gift", "shop=souvenir", "shop=craft", "shop=art", "shop=deli"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
   accommodation: ["tourism=hotel", "tourism=hostel", "tourism=guest_house", "tourism=apartment"],
 };
 

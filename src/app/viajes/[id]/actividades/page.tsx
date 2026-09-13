@@ -13,6 +13,7 @@ import { obtenerGuiaWikivoyage, type TipoListingWikivoyage } from "@/lib/wikivoy
 import { obtenerResumenLugar, type ResumenWikipedia } from "@/lib/wikipedia";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
+import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
 import type { SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
 
@@ -123,14 +124,15 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
         {it.horarioHabitual && <span className="chip">🕐 {it.horarioHabitual}</span>}
         {it.admiteMascotas && <span className="chip">🐾 Mascotas</span>}
         {it.esPropia && <span className="chip">✍️ Tuya</span>}
-        {it.fuenteEtiqueta && <span className="chip">🌍 {it.fuenteEtiqueta}</span>}
-        {it.esGenerica && <span className="chip">💡 Idea general</span>}
       </div>
 
       {it.esGenerica && (
         <p className="mt-2 text-xs text-amber-700">
-          Todavía no encontramos un sitio concreto para esto en {it.etapaNombre}: es una idea orientativa, no un lugar investigado.
+          💡 Idea orientativa, no un lugar concreto — el coste es una referencia, no un precio real.
         </p>
+      )}
+      {it.esSitioReal && it.fuenteEtiqueta && (
+        <p className="mt-1 text-[11px] text-neutral-400">Fuente: {it.fuenteEtiqueta}</p>
       )}
 
       {it.direccion && <p className="mt-2 text-xs text-neutral-500">📍 {it.direccion}</p>}
@@ -162,8 +164,8 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
           </a>
         )}
         {estado === "disponible" && (
-          <button onClick={() => onCambiarEstado("planificada")} className="btn-primary px-3 py-1.5 text-xs">
-            + Añadir al itinerario
+          <button onClick={() => onCambiarEstado("planificada")} className="btn-primary px-2.5 py-1 text-xs shadow-none">
+            + Añadir
           </button>
         )}
         {(estado === "planificada" || estado === "reservada") && (
@@ -198,6 +200,8 @@ export default function ActividadesPage() {
   const destino = viaje ? destinoPrincipal(viaje) : undefined;
 
   const [adaptacion, setAdaptacion] = useState<"lluvia" | "cansancio" | null>(null);
+  const [refrescando, setRefrescando] = useState(false);
+  const [errorRefresco, setErrorRefresco] = useState<string | null>(null);
   const [etapasAbiertas, setEtapasAbiertas] = useState<Set<string>>(new Set());
   const [formEtapaId, setFormEtapaId] = useState<string | null>(null);
   const [nombreNueva, setNombreNueva] = useState("");
@@ -293,6 +297,24 @@ export default function ActividadesPage() {
         </div>
       </main>
     );
+  }
+
+  // Un viaje ya creado se queda con la investigación de cuando se analizó
+  // la primera vez. Si desde entonces se mejoró cómo investigamos (nuevas
+  // categorías reales, más fuentes...), este viaje no lo nota solo — hace
+  // falta volver a correr el análisis sobre las mismas ciudades.
+  async function actualizarInvestigacion() {
+    if (!viaje) return;
+    setRefrescando(true);
+    setErrorRefresco(null);
+    try {
+      const nuevaInvestigacion = await refrescarAnalisis(viaje.id, viaje);
+      actualizarViaje(viaje.id, { investigacion: nuevaInvestigacion });
+    } catch (err) {
+      setErrorRefresco(err instanceof Error ? err.message : "No se pudo actualizar la investigación.");
+    } finally {
+      setRefrescando(false);
+    }
   }
 
   const etapas = etapasDe(viaje);
@@ -408,7 +430,15 @@ export default function ActividadesPage() {
     const sinDuplicar = (lista: Item[]) =>
       lista.filter((it) => !nombresYaMostrados.has(slug(it.nombre)) && nombresYaMostrados.add(slug(it.nombre)));
 
-    return [...propiasDeEtapa, ...sinDuplicar(deSitiosReales), ...sinDuplicar(deWikivoyage), ...sinDuplicar(delCatalogo)];
+    const realesDeEtapa = [...deSitiosReales, ...deWikivoyage];
+    // Si ya hay lugares reales de una categoría, la idea genérica del
+    // catálogo para esa misma categoría sobra: antes se mostraba igual, con
+    // un coste inventado, junto al aviso de que no era un lugar investigado
+    // — contradictorio cuando de hecho SÍ había algo real que mostrar.
+    const categoriasConDatosReales = new Set(realesDeEtapa.map((it) => it.categoria));
+    const delCatalogoUtil = delCatalogo.filter((it) => !categoriasConDatosReales.has(it.categoria));
+
+    return [...propiasDeEtapa, ...sinDuplicar(deSitiosReales), ...sinDuplicar(deWikivoyage), ...sinDuplicar(delCatalogoUtil)];
   }
 
   function setEstado(item: Item, estado: EstadoActividad | null) {
@@ -530,6 +560,13 @@ export default function ActividadesPage() {
           subtitulo="Elige qué hacer en cada ciudad y súmalo directo a tu itinerario."
           volverA={`/viajes/${viaje.id}`}
         />
+
+        <div className="mb-4 flex items-center justify-between gap-3 text-xs">
+          <button onClick={actualizarInvestigacion} disabled={refrescando} className="text-neutral-400 underline hover:text-neutral-700 disabled:opacity-50">
+            {refrescando ? "🔄 Actualizando investigación real…" : "🔄 Actualizar investigación real"}
+          </button>
+        </div>
+        {errorRefresco && <p className="mb-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">{errorRefresco}</p>}
 
         <section className="card mb-6">
           <h2 className="mb-3 font-medium">Algo ha cambiado</h2>
