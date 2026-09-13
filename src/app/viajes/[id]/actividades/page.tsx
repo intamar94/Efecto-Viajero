@@ -12,6 +12,7 @@ import { destinoParaCatalogo, destinoPrincipal, etapasDe, paisDeEtapa } from "@/
 import { obtenerGuiaWikivoyage, VERSION_WIKIVOYAGE, type TipoListingWikivoyage } from "@/lib/wikivoyage";
 import { obtenerResumenLugar, obtenerResumenPorEnlaceOsm, type ResumenWikipedia } from "@/lib/wikipedia";
 import { entornoCercanoDe } from "@/lib/entornoCercano";
+import { buscarEnLaWeb, describirResultadoWeb } from "@/lib/busquedaWeb";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
 import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
@@ -59,6 +60,22 @@ function distanciaDelCentro(etapa: Etapa, lat?: number, lon?: number): string | 
   const metros = distanciaMetros(etapa.lat, etapa.lon, lat, lon);
   if (metros < 150) return "En el centro";
   return `${formatearDistancia(metros)} del centro`;
+}
+
+// Prioridad de fuentes para describir un sitio real, de la más a la
+// menos fiable: su propio artículo de Wikipedia > qué hay de verdad
+// alrededor (OSM) > un fragmento real de una búsqueda web (blogs,
+// reseñas) > solo la categoría, sin relleno, si ninguna tuvo nada. Cada
+// nivel es una cadena vacía "" cuando ya se buscó y no había nada (no
+// undefined, que significa "todavía no se buscó") — por eso se
+// comprueba explícito nivel por nivel en vez de encadenar "||", que
+// saltaría un nivel real pero vacío como si no existiera.
+function descripcionDeSitio(s: SitioReal): string {
+  if (s.resumenWikipedia) return s.resumenWikipedia;
+  const categoriaLabel = s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Lugar cercano.";
+  if (s.entornoCercano) return `${categoriaLabel} ${s.entornoCercano}`;
+  if (s.resumenWeb) return `${categoriaLabel} ${s.resumenWeb}`;
+  return categoriaLabel;
 }
 
 // Lo que cada categoría promete, en un lenguaje que invita en vez de
@@ -497,6 +514,18 @@ export default function ActividadesPage() {
               if (cancelado) return;
             }
           }
+          // Último recurso: ni Wikipedia ni lo que hay alrededor tuvieron
+          // nada. Una búsqueda web real (blogs, reseñas — cuando está
+          // configurada; si no, buscarEnLaWeb simplemente no devuelve
+          // nada y esto no cambia el comportamiento de siempre) puede
+          // tener lo que ninguna fuente estructurada tenía.
+          if (!siguiente.resumenWikipedia && !siguiente.entornoCercano && siguiente.resumenWeb === undefined) {
+            const resultados = await buscarEnLaWeb(siguiente.nombre, etapa.nombre);
+            if (cancelado) return;
+            huboCambios = true;
+            const conFragmento = resultados.find((r) => r.fragmento);
+            siguiente = { ...siguiente, resumenWeb: (conFragmento && describirResultadoWeb(conFragmento)) || "" };
+          }
           actualizados.push(siguiente);
         }
         if (huboCambios && investigacionActual) {
@@ -625,22 +654,13 @@ export default function ActividadesPage() {
         apta: [],
         entorno: s.categoria === "naturaleza" ? "exterior" : "interior",
         admiteMascotas: false,
-        // Si este sitio en concreto (no la ciudad) tiene su propio artículo
-        // real de Wikipedia, se usa ese extracto — cuenta qué hay de verdad
-        // ahí (aves, una escultura, su historia), no solo la categoría. Si
-        // no tiene artículo, en vez de quedarse en la categoría sola se
-        // suma qué hay de verdad alrededor según OpenStreetMap (bancos,
-        // heladería, baños...). Solo si ninguna de las dos fuentes tiene
-        // nada se cae a la categoría real sin relleno: decir "real" y
+        // Ver descripcionDeSitio: Wikipedia > entorno cercano (OSM) >
+        // búsqueda web > solo la categoría, sin relleno. Decir "real" y
         // repetir "confirma horario y precio antes de ir" en cada tarjeta
         // era redundante con la nota general al pie de la página (que ya lo
         // dice una vez para todos los sitios reales) y no aportaba nada que
         // el usuario no supiera ya.
-        descripcion:
-          s.resumenWikipedia ||
-          [s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Lugar cercano.", s.entornoCercano]
-            .filter(Boolean)
-            .join(" "),
+        descripcion: descripcionDeSitio(s),
         esPropia: false,
         esSitioReal: true,
         fuenteEtiqueta: "OpenStreetMap",

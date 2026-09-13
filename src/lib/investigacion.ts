@@ -54,6 +54,11 @@ export interface SitioReal {
   // es leer el enlace que OSM ya dejó hecho. No siempre está presente.
   enlaceWikipedia?: string;
   enlaceWikidata?: string;
+  // Último recurso, solo si ni Wikipedia ni lo que hay alrededor (OSM)
+  // tuvieron nada: un fragmento real de una búsqueda web (blogs, foros,
+  // reseñas — cuando está configurada, ver src/lib/busquedaWeb.ts), con
+  // su fuente citada. Mismo patrón "" / undefined que los anteriores.
+  resumenWeb?: string;
 }
 
 export interface DiaClima {
