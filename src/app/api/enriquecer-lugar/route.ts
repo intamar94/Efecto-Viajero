@@ -114,6 +114,14 @@ const FSQ_VERSION = "2025-06-17";
 // si merece la pena ir. Sin este parámetro la API no los devuelve.
 const FSQ_CAMPOS = "fsq_place_id,name,categories,location,latitude,longitude,tel,website,price,hours";
 
+// Cuando no vuelve nada hay tres causas muy distintas y hasta ahora se
+// confundían en un mismo silencio: que la clave esté mal (401), que la
+// petición esté mal formada (400), o que Foursquare simplemente no tenga
+// nada mapeado en esa zona (200 con lista vacía). Se guarda el motivo
+// real para poder distinguirlas sin adivinar. Solo un código de estado y
+// un recuento: nunca la clave ni la respuesta entera.
+let ultimoDiagnosticoFoursquare: string | undefined;
+
 async function buscarFoursquare(nombre: string, lat: number, lon: number, apiKey: string): Promise<DatoFoursquare | undefined> {
   try {
     const url = `${FSQ_ENDPOINT}?ll=${lat}%2C${lon}&query=${encodeURIComponent(nombre)}&radius=${UMBRAL_METROS}&limit=5&fields=${FSQ_CAMPOS}`;
@@ -125,9 +133,13 @@ async function buscarFoursquare(nombre: string, lat: number, lon: number, apiKey
       },
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return undefined;
+    if (!res.ok) {
+      ultimoDiagnosticoFoursquare = `HTTP ${res.status}`;
+      return undefined;
+    }
     const data = await res.json();
     const resultados: FoursquareResultado[] = Array.isArray(data?.results) ? data.results : [];
+    ultimoDiagnosticoFoursquare = `HTTP 200, ${resultados.length} resultados`;
     const candidatos = resultados.flatMap((r) => {
       const latitud = r.latitude ?? r.geocodes?.main?.latitude;
       const longitud = r.longitude ?? r.geocodes?.main?.longitude;
@@ -147,7 +159,8 @@ async function buscarFoursquare(nombre: string, lat: number, lon: number, apiKey
       telefono: elegido.raw.tel,
       web: elegido.raw.website,
     };
-  } catch {
+  } catch (error) {
+    ultimoDiagnosticoFoursquare = error instanceof Error ? `fallo de red: ${error.name}` : "fallo de red";
     return undefined;
   }
 }
@@ -281,5 +294,12 @@ export async function GET(req: NextRequest) {
     yelpKey && esGastronomico ? buscarYelp(nombre, lat, lon, yelpKey) : Promise.resolve(undefined),
   ]);
 
-  return NextResponse.json({ configurado: true, foursquare: foursquare ?? null, yelp: yelp ?? null });
+  return NextResponse.json({
+    configurado: true,
+    foursquare: foursquare ?? null,
+    yelp: yelp ?? null,
+    // Solo cuando no hubo resultado: por qué. Distingue "la clave falla"
+    // de "aquí no hay nada mapeado", que exigen arreglos opuestos.
+    ...(foursquare ? {} : { diagnostico: ultimoDiagnosticoFoursquare }),
+  });
 }
