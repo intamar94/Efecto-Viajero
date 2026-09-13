@@ -202,3 +202,13 @@ export async function obtenerResumenLugar(nombre: string, maxCaracteres: number 
   if (!completo) return null;
   return { titulo: completo.titulo, extracto: acortar(completo.extractoCompleto, maxCaracteres), url: completo.url };
 }
+
+// El mismo criterio de resolución completo (enlace directo de OSM →
+// coordenadas → nombre/contexto) en un solo punto, para que cualquier
+// pantalla que necesite el resumen real de un sitio (Actividades, Modo
+// Guía...) use exactamente la misma lógica en vez de reinventar una
+// versión propia y potencialmente más débil.
+export async function obtenerResumenSitio(nombre: string, contexto: string | undefined, coords: Coordenadas | undefined, enlaces: EnlacesOsm | undefined, maxCaracteres: number = LARGO_POR_DEFECTO): Promise<ResumenWikipedia | null> {
+  const porEnlaceOsm = enlaces && (enlaces.wikipedia || enlaces.wikidata) ? await obtenerResumenPorEnlaceOsm(enlaces, maxCaracteres) : null;
+  return porEnlaceOsm ?? obtenerResumenLugar(nombre, maxCaracteres, contexto, coords);
+}

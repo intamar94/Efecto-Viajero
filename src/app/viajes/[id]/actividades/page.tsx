@@ -10,7 +10,7 @@ import { generarId } from "@/lib/id";
 import { actividadesDe, urlBuscarActividad, urlMapsActividad, queProbarDe } from "@/lib/catalogo";
 import { destinoParaCatalogo, destinoPrincipal, etapasDe, paisDeEtapa } from "@/lib/viaje";
 import { obtenerGuiaWikivoyage, VERSION_WIKIVOYAGE, type TipoListingWikivoyage } from "@/lib/wikivoyage";
-import { obtenerResumenLugar, obtenerResumenPorEnlaceOsm, type ResumenWikipedia } from "@/lib/wikipedia";
+import { obtenerResumenLugar, obtenerResumenSitio, type ResumenWikipedia } from "@/lib/wikipedia";
 import { entornoCercanoDe } from "@/lib/entornoCercano";
 import { buscarEnLaWeb, describirResultadoWeb } from "@/lib/busquedaWeb";
 import { interpretarIntencion } from "@/lib/intencion";
@@ -479,23 +479,13 @@ export default function ActividadesPage() {
           // marcado como "ya buscado" para siempre si la forma de buscar
           // mejoró después.
           if (siguiente.resumenWikipedia === undefined || siguiente.versionResumen !== VERSION_ENRIQUECIMIENTO_SITIO) {
-            // Si el propio colaborador de OpenStreetMap ya enlazó este
-            // sitio a su artículo real (etiquetas wikipedia=/wikidata=),
-            // esa es la fuente más fiable — se usa antes de adivinar por
-            // nombre o coordenadas.
-            const porEnlaceOsm =
-              siguiente.enlaceWikipedia || siguiente.enlaceWikidata
-                ? await obtenerResumenPorEnlaceOsm({ wikipedia: siguiente.enlaceWikipedia, wikidata: siguiente.enlaceWikidata }, 200)
-                : null;
-            if (cancelado) return;
-            const resumen =
-              porEnlaceOsm ??
-              (await obtenerResumenLugar(
-                siguiente.nombre,
-                200,
-                etapa.nombre,
-                siguiente.lat !== undefined && siguiente.lon !== undefined ? { lat: siguiente.lat, lon: siguiente.lon } : undefined
-              ));
+            const resumen = await obtenerResumenSitio(
+              siguiente.nombre,
+              etapa.nombre,
+              siguiente.lat !== undefined && siguiente.lon !== undefined ? { lat: siguiente.lat, lon: siguiente.lon } : undefined,
+              { wikipedia: siguiente.enlaceWikipedia, wikidata: siguiente.enlaceWikidata },
+              200
+            );
             if (cancelado) return;
             huboCambios = true;
             siguiente = { ...siguiente, resumenWikipedia: resumen?.extracto ?? "", versionResumen: VERSION_ENRIQUECIMIENTO_SITIO };

@@ -12,6 +12,13 @@ export interface PuntoGeo {
   lon: number;
   fuente: "OpenStreetMap" | "Wikivoyage";
   detalle?: string;
+  // Ya investigado desde Actividades (si el viajero la abrió antes):
+  // reusar esto evita repetir la misma búsqueda dos veces en dos
+  // pantallas distintas. undefined = todavía no se investigó desde
+  // ningún lado; "" = se buscó y no había nada.
+  resumenWikipedia?: string;
+  enlaceWikipedia?: string;
+  enlaceWikidata?: string;
 }
 
 export function slug(s: string): string {
@@ -33,6 +40,9 @@ export function puntosConCoordenadas(viaje: Viaje, etapa: Etapa): PuntoGeo[] {
       lon: s.lon!,
       fuente: "OpenStreetMap",
       detalle: s.detalle,
+      resumenWikipedia: s.resumenWikipedia,
+      enlaceWikipedia: s.enlaceWikipedia,
+      enlaceWikidata: s.enlaceWikidata,
     }));
 
   const deWikivoyage: PuntoGeo[] = (viaje.wikivoyage?.[etapa.nombre]?.listings ?? [])

@@ -8,7 +8,7 @@ import { useData } from "@/lib/store";
 import { etapasDe } from "@/lib/viaje";
 import { distanciaMetros, hablar, haySintesisDeVoz } from "@/lib/geoAudio";
 import { puntosConCoordenadas } from "@/lib/puntosGeo";
-import { obtenerResumenLugar, type ResumenWikipedia } from "@/lib/wikipedia";
+import { obtenerResumenSitio, type ResumenWikipedia } from "@/lib/wikipedia";
 
 const UMBRAL_METROS = 120;
 
@@ -21,6 +21,10 @@ interface PuntoGuia {
   etapaNombre: string;
   fuente: string;
   wikipediaUrl?: string;
+  // Independiente de wikipediaUrl: un resumen reusado desde Actividades
+  // es igual de real y rico, pero no siempre trae guardada la URL del
+  // artículo — no debe ocultarse el avance del texto solo por eso.
+  tieneResumenRico: boolean;
 }
 
 export default function ModoGuiaPage() {
@@ -64,6 +68,14 @@ export default function ModoGuiaPage() {
   // propio con historia real, mucho más que el "detalle" corto que trae
   // OpenStreetMap. No inventamos leyendas: si no hay artículo, se narra
   // igual con lo que ya sabemos del sitio.
+  //
+  // Si Actividades ya investigó este mismo sitio (misma id, mismo
+  // viaje), se reusa ese resultado tal cual en vez de repetir la
+  // búsqueda una segunda vez desde esta pantalla — y cuando SÍ hace
+  // falta buscar de cero (p. ej. si el viajero abre primero el Modo
+  // Guía), se usa la misma resolución completa que Actividades
+  // (obtenerResumenSitio: enlace directo de OSM → coordenadas → nombre),
+  // no una búsqueda más débil solo por estar en otra pantalla.
   useEffect(() => {
     if (!viaje) return;
     let cancelado = false;
@@ -73,7 +85,14 @@ export default function ModoGuiaPage() {
         for (const p of puntosConCoordenadas(viaje, etapa)) {
           if (nombresYaVistos.has(p.id)) continue;
           nombresYaVistos.add(p.id);
-          const resumen = await obtenerResumenLugar(p.nombre, 140, etapa.nombre);
+          if (p.resumenWikipedia !== undefined) {
+            setResumenesSitio((prev) => ({
+              ...prev,
+              [p.id]: p.resumenWikipedia ? { titulo: p.nombre, extracto: p.resumenWikipedia, url: "" } : "sin_datos",
+            }));
+            continue;
+          }
+          const resumen = await obtenerResumenSitio(p.nombre, etapa.nombre, { lat: p.lat, lon: p.lon }, { wikipedia: p.enlaceWikipedia, wikidata: p.enlaceWikidata }, 140);
           if (cancelado) return;
           setResumenesSitio((prev) => ({ ...prev, [p.id]: resumen ?? "sin_datos" }));
         }
@@ -116,6 +135,7 @@ export default function ModoGuiaPage() {
         etapaNombre: etapa.nombre,
         fuente: p.fuente,
         wikipediaUrl: rico?.url,
+        tieneResumenRico: !!rico?.extracto,
       };
     })
   );
@@ -224,7 +244,7 @@ export default function ModoGuiaPage() {
               <div className="mb-5 rounded-2xl border-2 border-marino-400 bg-marino-50 p-4">
                 <p className="text-sm font-medium text-marino-900">📍 Estás cerca de {pendiente.nombre}</p>
                 <p className="mt-1 text-xs text-marino-700">¿Quieres escuchar sobre este lugar?</p>
-                {pendiente.wikipediaUrl && (
+                {pendiente.tieneResumenRico && (
                   <p className="mt-2 line-clamp-2 text-xs text-marino-600">{pendiente.texto}</p>
                 )}
                 <div className="mt-3 flex gap-2">
