@@ -8,7 +8,7 @@ import { EventosEstacionalesDestino } from "@/components/EventosEstacionalesDest
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { actividadesDe, urlBuscarActividad, urlMapsActividad, queProbarDe } from "@/lib/catalogo";
-import { destinoParaCatalogo, destinoPrincipal, etapasDe } from "@/lib/viaje";
+import { destinoParaCatalogo, destinoPrincipal, etapasDe, paisDeEtapa } from "@/lib/viaje";
 import { obtenerGuiaWikivoyage, type TipoListingWikivoyage } from "@/lib/wikivoyage";
 import { obtenerResumenLugar, type ResumenWikipedia } from "@/lib/wikipedia";
 import { interpretarIntencion } from "@/lib/intencion";
@@ -109,9 +109,6 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1.5">
-        <span className="chip">
-          {ETIQUETA_CATEGORIA[it.categoria].icono} {ETIQUETA_CATEGORIA[it.categoria].etiqueta}
-        </span>
         {it.duracionHoras > 0 && <span className="chip">⏱️ {it.duracionHoras}h</span>}
         {it.notaPrecio ? (
           <span className="chip">💵 {it.notaPrecio}</span>
@@ -130,9 +127,6 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
         <p className="mt-2 text-xs text-amber-700">
           💡 Idea orientativa, no un lugar concreto — el coste es una referencia, no un precio real.
         </p>
-      )}
-      {it.esSitioReal && it.fuenteEtiqueta && (
-        <p className="mt-1 text-[11px] text-neutral-400">Fuente: {it.fuenteEtiqueta}</p>
       )}
 
       {it.direccion && <p className="mt-2 text-xs text-neutral-500">📍 {it.direccion}</p>}
@@ -153,14 +147,18 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
       )}
 
       <div className="mt-2.5 flex flex-wrap gap-2">
-        {it.mapaUrl && (
+        {/* Para una idea genérica (sin lugar real detrás) no se ofrece un
+            "buscar en Google" ni un mapa de búsqueda: eso es mandar al
+            usuario a averiguarlo por su cuenta en vez de darle información
+            completa. Mapa y web solo aparecen cuando hay un lugar real. */}
+        {!it.esGenerica && it.mapaUrl && (
           <a href={it.mapaUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-marino-500">
-            📍 {it.fuenteEtiqueta ? "Mapa" : "Ver opciones reales en el mapa"}
+            📍 Mapa
           </a>
         )}
-        {it.webUrl && (
+        {!it.esGenerica && it.webUrl && it.webEsDirecta && (
           <a href={it.webUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg bg-marino-50 border border-marino-200 text-marino-700 hover:bg-marino-100">
-            {it.webEsDirecta ? "🔗 Sitio web" : "🔎 Buscar en Google"}
+            🔗 Sitio web
           </a>
         )}
         {estado === "disponible" && (
@@ -212,10 +210,7 @@ export default function ActividadesPage() {
   const [mascotaNueva, setMascotaNueva] = useState(false);
   const [estadoWikivoyage, setEstadoWikivoyage] = useState<Record<string, "cargando" | "sin_datos" | "listo">>({});
   const [resumenCiudad, setResumenCiudad] = useState<Record<string, ResumenWikipedia | "cargando" | "sin_datos">>({});
-  // Por ciudad: cada etapa tiene su propia búsqueda de intención, ya que
-  // "quiero comida típica" en Cartagena no debería mostrar resultados de
-  // Bogotá.
-  const [textosIntencion, setTextosIntencion] = useState<Record<string, string>>({});
+  // Por ciudad: qué categoría está seleccionada, si alguna.
   const [categoriasBuscadasPorEtapa, setCategoriasBuscadasPorEtapa] = useState<Record<string, CategoriaActividad[] | null>>({});
 
   // Investigación bajo demanda: al abrir Actividades, se busca la guía
@@ -278,7 +273,10 @@ export default function ActividadesPage() {
       for (const etapa of etapasDe(viaje)) {
         if (resumenCiudad[etapa.nombre]) continue;
         setResumenCiudad((prev) => ({ ...prev, [etapa.nombre]: "cargando" }));
-        const resumen = await obtenerResumenLugar(etapa.nombre);
+        // El país como contexto de búsqueda: sin él, un lugar cuyo nombre
+        // coincide con una palabra común (Faro, Mérida, Sucre...) trae el
+        // artículo sobre esa palabra, no sobre la ciudad.
+        const resumen = await obtenerResumenLugar(etapa.nombre, undefined, paisDeEtapa(etapa)?.nombre);
         if (cancelado) return;
         setResumenCiudad((prev) => ({ ...prev, [etapa.nombre]: resumen ?? "sin_datos" }));
       }
@@ -637,17 +635,23 @@ export default function ActividadesPage() {
             ).length;
             const abierta = etapasAbiertas.has(etapa.id) || etapas.length === 1;
 
+            // Solo se ofrecen cajas de categorías que de verdad tienen algo
+            // detrás: antes se mostraban las 10 categorías siempre, así que
+            // tocar "Playa" en un destino sin nada investigado ahí llevaba a
+            // una pantalla vacía — una caja que no lleva a ningún lado no
+            // ayuda a nadie.
+            const categoriasConContenido = new Set(items.map((it) => it.categoria));
+            const categoriasDisponibles = ORDEN_CATEGORIAS.filter((c) => categoriasConContenido.has(c));
+
             // Lo que la persona describió al crear el viaje ("restaurantes
             // típicos, naturaleza, museos de historia...") ya dice qué le
             // interesa: se usa como punto de partida en cada ciudad, sin
-            // obligar a volver a escribirlo — pero solo mientras esta etapa
-            // no tenga su propia búsqueda (ni una activa ni un "Limpiar"
-            // explícito, que también debe respetarse).
+            // obligar a repetirlo — pero solo mientras esta etapa no tenga
+            // su propia selección (una caja tocada, o un "Ver todo" explícito).
             const textoOriginalViaje = viaje.contexto.textoOriginal;
-            const categoriasSugeridas = textoOriginalViaje ? interpretarIntencion(textoOriginalViaje) : [];
+            const categoriasSugeridas = (textoOriginalViaje ? interpretarIntencion(textoOriginalViaje) : []).filter((c) => categoriasConContenido.has(c));
             const haySugerenciaDelViaje = categoriasBuscadasPorEtapa[etapa.id] === undefined && categoriasSugeridas.length > 0;
 
-            const textoIntencion = textosIntencion[etapa.id] ?? (haySugerenciaDelViaje ? textoOriginalViaje ?? "" : "");
             const categoriasBuscadas =
               categoriasBuscadasPorEtapa[etapa.id] !== undefined
                 ? categoriasBuscadasPorEtapa[etapa.id]
@@ -663,11 +667,6 @@ export default function ActividadesPage() {
             const listaMostrada = [...(categoriasBuscadas !== null ? resultadosBusqueda : items)].sort(
               (a, b) => ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria)
             );
-
-            function buscarPorIntencion(e: React.FormEvent) {
-              e.preventDefault();
-              setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: interpretarIntencion(textoIntencion) }));
-            }
 
             return (
               <div key={etapa.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
@@ -699,77 +698,47 @@ export default function ActividadesPage() {
                       );
                     })()}
 
-                    <div className="rounded-xl border border-dashed border-marino-200 bg-marino-50/50 p-3">
-                      <p className="mb-1 text-sm font-medium text-marino-900">✨ ¿Qué te gustaría hacer en {etapa.nombre}?</p>
-                      <p className="mb-2 text-xs text-neutral-500">
-                        Elige lo que buscas y aparece directo abajo, o descríbelo con tus palabras.
-                      </p>
-                      <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                        {ORDEN_CATEGORIAS.map((c) => {
-                          const activo = categoriasBuscadas !== null && categoriasBuscadas.length === 1 && categoriasBuscadas[0] === c;
-                          return (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => {
-                                setTextosIntencion((prev) => ({ ...prev, [etapa.id]: "" }));
-                                setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: activo ? null : [c] }));
-                              }}
-                              className={`flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition ${
-                                activo ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white hover:border-neutral-300"
-                              }`}
-                            >
-                              <span className="text-xl">{ETIQUETA_CATEGORIA[c].icono}</span>
-                              <span className={`text-[11px] font-medium leading-tight ${activo ? "text-coral-700" : "text-neutral-600"}`}>
-                                {ETIQUETA_CATEGORIA[c].etiqueta}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <form onSubmit={buscarPorIntencion} className="space-y-2">
-                        <textarea
-                          className="input text-sm"
-                          rows={2}
-                          placeholder="Ej: comida típica, museos de historia, caminar por miradores"
-                          value={textoIntencion}
-                          onChange={(e) => setTextosIntencion((prev) => ({ ...prev, [etapa.id]: e.target.value }))}
-                        />
-                        <div className="flex gap-2">
-                          <button type="submit" className="btn-primary text-sm px-3 py-1.5">
-                            🔎 Buscar
-                          </button>
-                          {categoriasBuscadas !== null && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: null }));
-                                setTextosIntencion((prev) => ({ ...prev, [etapa.id]: "" }));
-                              }}
-                              className="btn-secondary text-sm px-3 py-1.5"
-                            >
-                              Limpiar
-                            </button>
-                          )}
+                    {categoriasDisponibles.length > 0 && (
+                      <div className="rounded-xl border border-dashed border-marino-200 bg-marino-50/50 p-3">
+                        <p className="mb-2 text-sm font-medium text-marino-900">✨ ¿Qué te gustaría hacer en {etapa.nombre}?</p>
+                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                          {categoriasDisponibles.map((c) => {
+                            const activo = categoriasBuscadas !== null && categoriasBuscadas.length === 1 && categoriasBuscadas[0] === c;
+                            return (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: activo ? null : [c] }))}
+                                className={`flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition ${
+                                  activo ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white hover:border-neutral-300"
+                                }`}
+                              >
+                                <span className="text-xl">{ETIQUETA_CATEGORIA[c].icono}</span>
+                                <span className={`text-[11px] font-medium leading-tight ${activo ? "text-coral-700" : "text-neutral-600"}`}>
+                                  {ETIQUETA_CATEGORIA[c].etiqueta}
+                                </span>
+                              </button>
+                            );
+                          })}
                         </div>
-                      </form>
 
-                      {categoriasBuscadas !== null && (
-                        <div className="mt-3 border-t border-marino-100 pt-3">
-                          {categoriasBuscadas.length === 0 ? (
-                            <p className="text-sm text-neutral-400">
-                              No detectamos categorías conocidas. Prueba con &quot;restaurantes&quot;, &quot;naturaleza&quot;,
-                              &quot;museos&quot;, &quot;caminar&quot; o &quot;vida nocturna&quot;.
-                            </p>
-                          ) : (
+                        {categoriasBuscadas !== null && (
+                          <div className="mt-3 flex items-center justify-between gap-2 border-t border-marino-100 pt-3">
                             <p className="text-xs text-neutral-500">
-                              {haySugerenciaDelViaje ? "✨ Basado en lo que describiste al crear el viaje: " : "Detectamos: "}
+                              {haySugerenciaDelViaje ? "✨ Basado en lo que describiste al crear el viaje: " : "Mostrando: "}
                               {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta).join(", ")}
                             </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                            <button
+                              type="button"
+                              onClick={() => setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: null }))}
+                              className="shrink-0 text-xs text-marino-600 underline"
+                            >
+                              Ver todo
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {estadoWikivoyage[etapa.nombre] === "sin_datos" && (
                       <p className="text-xs text-neutral-400">
