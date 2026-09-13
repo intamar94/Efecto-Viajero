@@ -11,6 +11,7 @@
 // decenas de elementos por categoría y por lugar, con toda su etiquetería).
 
 import type { CategoriaActividad } from "./types";
+import { distanciaMetros } from "./geoAudio";
 
 // Sube cuando cambia de raíz CÓMO se busca resumenWikipedia por sitio (una
 // estrategia de búsqueda mejor, no solo más categorías elegibles). Un
@@ -95,7 +96,7 @@ export interface AuditoriaCapacidades {
 // número, esa investigación quedó desactualizada aunque nadie la haya
 // tocado, y conviene volver a correrla en vez de esperar a que alguien
 // recuerde tocar "Actualizar investigación real".
-export const VERSION_INVESTIGACION = 4;
+export const VERSION_INVESTIGACION = 5;
 
 export interface Investigacion {
   generadoEn: string;
@@ -257,9 +258,29 @@ function extraerSitios(findings: unknown[], dominio: string): { lugar: string; s
     if (!esObjeto(entrada)) continue;
     const destino = esObjeto(entrada.destination) ? entrada.destination : undefined;
     const lugar = typeof destino?.name === "string" ? destino.name : undefined;
+    const destLat = typeof destino?.latitude === "number" ? destino.latitude : undefined;
+    const destLon = typeof destino?.longitude === "number" ? destino.longitude : undefined;
     const resultado = esObjeto(entrada.result) ? entrada.result : undefined;
-    const elementos = Array.isArray(resultado?.elements) ? (resultado.elements as ElementoOverpass[]) : [];
+    let elementos = Array.isArray(resultado?.elements) ? (resultado.elements as ElementoOverpass[]) : [];
     if (!lugar || elementos.length === 0) continue;
+
+    // Ahora la búsqueda combina un radio chico y uno grande (para no
+    // perder sitios reales de un pueblo vecino cuando el centro mismo
+    // tiene poco etiquetado): con más candidatos compitiendo por el
+    // mismo cupo por categoría, se ordenan del más cercano al más
+    // lejano ANTES de aplicar el límite, para que "los primeros 8" sean
+    // de verdad los más cercanos y no un orden arbitrario de Overpass.
+    if (destLat !== undefined && destLon !== undefined) {
+      elementos = [...elementos].sort((a, b) => {
+        const latA = a.lat ?? a.center?.lat;
+        const lonA = a.lon ?? a.center?.lon;
+        const latB = b.lat ?? b.center?.lat;
+        const lonB = b.lon ?? b.center?.lon;
+        const distA = latA !== undefined && lonA !== undefined ? distanciaMetros(destLat, destLon, latA, lonA) : Infinity;
+        const distB = latB !== undefined && lonB !== undefined ? distanciaMetros(destLat, destLon, latB, lonB) : Infinity;
+        return distA - distB;
+      });
+    }
 
     const vistos = new Set<string>();
     // El límite es por categoría real, no por lote entero: así unos pocos

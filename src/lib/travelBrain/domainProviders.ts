@@ -91,37 +91,66 @@ const poi: Record<string, string[]> = {
 const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 
 // Radio de búsqueda: 8km cubre bien una ciudad compacta, pero en destinos
-// más dispersos (islas, zonas rurales, ciudades extendidas) puede no haber
-// nada etiquetado tan cerca aunque sí exista más lejos. Antes de dar el
-// dominio por vacío, se reintenta una vez con un radio mucho mayor.
+// más dispersos (islas, zonas rurales, ciudades extendidas, o simplemente
+// una ciudad con poco etiquetado en su propio centro) puede no haber
+// mucho tan cerca aunque sí exista más lejos — los termales de un pueblo
+// vecino, por ejemplo.
 const RADIOS_KM = [8, 25];
 
+interface ElementoOverpassCrudo {
+  type?: string;
+  id?: number;
+  [clave: string]: unknown;
+}
+
+// Antes, en cuanto el radio más chico (8km) devolvía CUALQUIER resultado
+// (aunque fuera uno o dos), se daba el dominio por resuelto y el radio
+// grande (25km) nunca se llegaba a probar — así un centro con poco
+// etiquetado se quedaba para siempre con esos 1-2 resultados, aunque a
+// 20km (un pueblo vecino con termales, cascadas, restaurantes...)
+// hubiera muchísimo más. Ahora se consultan TODOS los radios y se
+// combinan los elementos (deduplicados por id real de OSM: el mismo
+// sitio puede aparecer en el radio chico Y en el grande) antes de
+// devolver el resultado — el radio grande solo se salta si el chico ya
+// costó una consulta completa a los dos endpoints y AMBOS fallaron
+// (entonces tampoco tiene sentido gastar otra consulta más amplia).
 const osmPoi: Adapter = async ({ destination, domain, query }) => {
   const filters = query ? [query] : poi[domain] ?? poi.experiences;
   let lastError: unknown;
-  let ultimaRespuestaVacia: unknown;
+  let huboRespuestaValida = false;
+  const elementosPorId = new Map<string, ElementoOverpassCrudo>();
+
   for (const radioKm of RADIOS_KM) {
     const clauses = filters.map((filter) => `nwr[${filter}](around:${radioKm * 1000},${destination.latitude},${destination.longitude});`).join("");
     const body = `[out:json][timeout:15];(${clauses});out center tags 40;`;
     // Los dos endpoints se prueban a la vez, no uno tras otro: si uno está
     // caído o muy lento, ya no dobla la espera del radio entero — solo un
-    // fallo real en los DOS a la vez obliga a pasar al siguiente radio.
+    // fallo real en los DOS a la vez cuenta como fallo de este radio.
     const intentos = await Promise.allSettled(
       OVERPASS_ENDPOINTS.map((endpoint) =>
-        getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() }, 1, 12000) as Promise<{ elements?: unknown[] }>,
+        getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() }, 1, 12000) as Promise<{ elements?: ElementoOverpassCrudo[] }>,
       ),
     );
+    // Entre los dos endpoints de este radio, se prefiere el que sí trajo
+    // datos (uno puede tener un índice más completo que el otro).
     const conDatos = intentos.find((r) => r.status === "fulfilled" && (r.value.elements?.length ?? 0) > 0);
-    if (conDatos?.status === "fulfilled") return { domain, status: "ready", data: conDatos.value, evidence: [evidence("OpenStreetMap Overpass")] };
-    const vacio = intentos.find((r) => r.status === "fulfilled");
-    if (vacio?.status === "fulfilled") ultimaRespuestaVacia = vacio.value;
+    const exitoso = conDatos ?? intentos.find((r) => r.status === "fulfilled");
+    if (exitoso?.status === "fulfilled") {
+      huboRespuestaValida = true;
+      for (const el of exitoso.value.elements ?? []) {
+        const clave = el.type && el.id !== undefined ? `${el.type}${el.id}` : JSON.stringify(el);
+        elementosPorId.set(clave, el);
+      }
+    }
     const fallo = intentos.find((r) => r.status === "rejected");
     if (fallo?.status === "rejected") lastError = fallo.reason;
   }
+
   // Si al menos una consulta respondió sin error (aunque vacía), no es un
-  // fallo del proveedor — de verdad no hay nada etiquetado cerca ni lejos.
-  // Se devuelve esa respuesta honestamente vacía en vez de fingir un error.
-  if (ultimaRespuestaVacia !== undefined) return { domain, status: "ready", data: ultimaRespuestaVacia, evidence: [evidence("OpenStreetMap Overpass")] };
+  // fallo del proveedor — de verdad no hay nada etiquetado en ningún
+  // radio. Se devuelve esa respuesta honestamente vacía en vez de fingir
+  // un error.
+  if (huboRespuestaValida) return { domain, status: "ready", data: { elements: [...elementosPorId.values()] }, evidence: [evidence("OpenStreetMap Overpass")] };
   throw lastError instanceof Error ? lastError : new Error("OpenStreetMap Overpass: provider unavailable");
 };
 
