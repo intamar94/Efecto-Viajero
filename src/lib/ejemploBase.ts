@@ -1,5 +1,6 @@
 import type { PersonaViajero, Viaje } from "./types";
 import { generarId } from "./id";
+import { VERSION_INVESTIGACION } from "./investigacion";
 
 function offsetFecha(dias: number): string {
   const d = new Date();
@@ -373,6 +374,7 @@ export const VIAJE_EJEMPLO: Viaje = {
   },
   investigacion: {
     generadoEn: new Date().toISOString(),
+    version: VERSION_INVESTIGACION,
     sitios: {
       "Bogotá": [
         {

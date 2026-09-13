@@ -14,7 +14,7 @@ import { obtenerResumenLugar, type ResumenWikipedia } from "@/lib/wikipedia";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
 import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
-import type { SitioReal } from "@/lib/investigacion";
+import { VERSION_INVESTIGACION, type Investigacion, type SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
@@ -45,6 +45,50 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   pueblos: { etiqueta: "Pueblos cercanos", icono: "🏘️" },
   otro: { etiqueta: "Otros planes", icono: "✨" },
 };
+
+// Lo que cada categoría promete, en un lenguaje que invita en vez de
+// describir con frialdad: se usa para presentar la ciudad conectando lo
+// que el viajero pidió al crear el viaje (o lo que de verdad encontramos)
+// con la emoción de ir a descubrirlo, no solo el dato duro de Wikipedia.
+// Sin "y" dentro de cada frase: al combinar dos categorías con el
+// conector de fraseDeseo ("A y B"), una frase que ya trae su propio "y"
+// da una doble conjunción rara de leer ("su historia y su cultura y su
+// gastronomía").
+const DESEO_CATEGORIA: Partial<Record<CategoriaActividad, string>> = {
+  museo: "su patrimonio cultural",
+  restaurante: "su gastronomía",
+  cine_teatro: "su escena cultural",
+  discoteca: "su vida nocturna",
+  compras: "su artesanía local",
+  naturaleza: "su naturaleza",
+  playa: "sus playas",
+  pueblos: "los pueblos de alrededor",
+};
+
+function fraseDeseo(categorias: CategoriaActividad[]): string {
+  const frases = categorias.map((c) => DESEO_CATEGORIA[c]).filter((f): f is string => Boolean(f));
+  if (frases.length === 0) return "todo lo que tiene para descubrir";
+  if (frases.length === 1) return frases[0];
+  return `${frases.slice(0, -1).join(", ")} y ${frases[frases.length - 1]}`;
+}
+
+// Tres tonos simples según lo que de verdad promete la ciudad (naturaleza,
+// cultura, o sin un tema claro todavía): no inventa nada sobre el lugar,
+// solo cambia cómo se presenta lo que ya sabemos que hay.
+function fraseInspiradora(etapaNombre: string, categorias: CategoriaActividad[]): string {
+  const top = categorias.slice(0, 2);
+  const deseo = fraseDeseo(top);
+  if (top.some((c) => c === "naturaleza" || c === "playa")) {
+    return `🌴 ${etapaNombre} puede ser tu propio paraíso — con ${deseo} esperándote.`;
+  }
+  if (top.some((c) => c === "museo" || c === "cine_teatro")) {
+    return `🏛️ ${etapaNombre} es una joya por descubrir, con ${deseo} a tu alcance.`;
+  }
+  if (top.length > 0) {
+    return `✨ ${etapaNombre} tiene ${deseo} esperando a que lo vivas.`;
+  }
+  return `✨ Prepárate para descubrir ${etapaNombre}.`;
+}
 
 const ORDEN_CATEGORIAS: CategoriaActividad[] = [
   "museo",
@@ -287,6 +331,73 @@ export default function ActividadesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viaje?.id]);
 
+  // Un fallo parcial (p. ej. Overpass caído justo esa vez, mientras
+  // clima/moneda sí respondieron) no debe borrar sitios reales que ya
+  // teníamos de una ciudad: se conservan los de la investigación anterior
+  // para cualquier ciudad donde la nueva pasada no trajo nada, y solo se
+  // reemplazan los que sí llegaron con datos frescos.
+  function conservarSitiosSiVacio(anterior: Investigacion | undefined, nueva: Investigacion): Investigacion {
+    if (!anterior) return nueva;
+    const sitios = { ...nueva.sitios };
+    for (const [ciudad, previos] of Object.entries(anterior.sitios)) {
+      if (previos.length > 0 && !(sitios[ciudad]?.length > 0)) sitios[ciudad] = previos;
+    }
+    return { ...nueva, sitios };
+  }
+
+  // Un viaje ya creado se queda con la investigación de cuando se analizó
+  // la primera vez. Si desde entonces se mejoró cómo investigamos (nuevas
+  // categorías reales, más fuentes...), este viaje no lo nota solo — hace
+  // falta volver a correr el análisis sobre las mismas ciudades. Si la
+  // llamada no trae nada nuevo (undefined), se deja la investigación que
+  // ya había: perderla por un fallo de red sería peor que quedarse
+  // desactualizada.
+  async function actualizarInvestigacion() {
+    if (!viaje) return;
+    setRefrescando(true);
+    setErrorRefresco(null);
+    try {
+      const nuevaInvestigacion = await refrescarAnalisis(viaje.id, viaje);
+      if (nuevaInvestigacion) {
+        actualizarViaje(viaje.id, { investigacion: conservarSitiosSiVacio(viaje.investigacion, nuevaInvestigacion) });
+      } else {
+        setErrorRefresco("No encontramos nada nuevo para actualizar todavía.");
+      }
+    } catch (err) {
+      setErrorRefresco(err instanceof Error ? err.message : "No se pudo actualizar la investigación.");
+    } finally {
+      setRefrescando(false);
+    }
+  }
+
+  // La misma actualización, pero automática: un viaje cuya investigación
+  // quedó guardada con una versión anterior (o de antes de que existiera
+  // este campo) se refresca solo al abrir la pantalla, en vez de depender
+  // de que la persona recuerde tocar el botón manual cada vez que
+  // mejoramos cómo investigamos.
+  useEffect(() => {
+    if (!viaje) return;
+    if (!viaje.investigacion || viaje.investigacion.version === VERSION_INVESTIGACION) return;
+    let cancelado = false;
+    (async () => {
+      setRefrescando(true);
+      try {
+        const nuevaInvestigacion = await refrescarAnalisis(viaje.id, viaje);
+        if (!cancelado && nuevaInvestigacion) {
+          actualizarViaje(viaje.id, { investigacion: conservarSitiosSiVacio(viaje.investigacion, nuevaInvestigacion) });
+        }
+      } catch {
+        // Silencioso: el botón manual sigue disponible si esto falla.
+      } finally {
+        if (!cancelado) setRefrescando(false);
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viaje?.id, viaje?.investigacion?.version]);
+
   if (!viaje) {
     return (
       <main className="flex-1 px-5 py-8">
@@ -295,24 +406,6 @@ export default function ActividadesPage() {
         </div>
       </main>
     );
-  }
-
-  // Un viaje ya creado se queda con la investigación de cuando se analizó
-  // la primera vez. Si desde entonces se mejoró cómo investigamos (nuevas
-  // categorías reales, más fuentes...), este viaje no lo nota solo — hace
-  // falta volver a correr el análisis sobre las mismas ciudades.
-  async function actualizarInvestigacion() {
-    if (!viaje) return;
-    setRefrescando(true);
-    setErrorRefresco(null);
-    try {
-      const nuevaInvestigacion = await refrescarAnalisis(viaje.id, viaje);
-      actualizarViaje(viaje.id, { investigacion: nuevaInvestigacion });
-    } catch (err) {
-      setErrorRefresco(err instanceof Error ? err.message : "No se pudo actualizar la investigación.");
-    } finally {
-      setRefrescando(false);
-    }
   }
 
   const etapas = etapasDe(viaje);
@@ -689,11 +782,20 @@ export default function ActividadesPage() {
                   <div className="space-y-3 p-4">
                     {(() => {
                       const resumen = resumenCiudad[etapa.nombre];
-                      if (!resumen || resumen === "cargando" || resumen === "sin_datos") return null;
+                      const extracto = resumen && resumen !== "cargando" && resumen !== "sin_datos" ? resumen.extracto : undefined;
+                      // Prioriza lo que la persona pidió al crear el viaje
+                      // sobre lo que simplemente encontramos: conecta la
+                      // presentación de la ciudad con su propio deseo, no
+                      // solo con el dato frío de Wikipedia.
+                      const categoriasParaTono = categoriasSugeridas.length > 0 ? categoriasSugeridas : categoriasDisponibles;
                       return (
                         <div className="rounded-xl bg-gradient-to-br from-marino-50 to-coral-50 p-4">
-                          <p className="mb-1 text-sm font-medium text-marino-900">🌎 Sobre {etapa.nombre}</p>
-                          <p className="text-sm leading-relaxed text-neutral-700">{resumen.extracto}</p>
+                          <p className="mb-1 text-sm font-medium text-marino-900">{fraseInspiradora(etapa.nombre, categoriasParaTono)}</p>
+                          {extracto ? (
+                            <p className="text-sm leading-relaxed text-neutral-700">{extracto}</p>
+                          ) : resumen === "cargando" ? (
+                            <p className="text-xs text-neutral-400">Buscando algo curioso sobre {etapa.nombre}…</p>
+                          ) : null}
                         </div>
                       );
                     })()}

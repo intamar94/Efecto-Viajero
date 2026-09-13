@@ -52,8 +52,18 @@ export interface AuditoriaCapacidades {
   noEjercidas: string[];
 }
 
+// Se sube cada vez que cambia de raíz cómo se investiga o categoriza (una
+// nueva fuente, una corrección de categoría, una extracción de dato que
+// antes no se leía). Un viaje ya creado guarda su investigación con la
+// versión vigente al momento de analizarse: si desde entonces subió el
+// número, esa investigación quedó desactualizada aunque nadie la haya
+// tocado, y conviene volver a correrla en vez de esperar a que alguien
+// recuerde tocar "Actualizar investigación real".
+export const VERSION_INVESTIGACION = 2;
+
 export interface Investigacion {
   generadoEn: string;
+  version: number;
   clima: ClimaLugar[];
   // Por nombre de lugar: en un circuito cada parada tiene los suyos.
   sitios: Record<string, SitioReal[]>;
@@ -323,7 +333,7 @@ export function normalizarInvestigacion(bruto: AnalisisBruto | null | undefined)
   const hayAlgo = clima.length > 0 || Object.keys(sitios).length > 0 || moneda || auditoria.operativas.length > 0;
   if (!hayAlgo) return undefined;
 
-  return { generadoEn: new Date().toISOString(), clima, sitios, moneda, auditoria, fuentes: [...fuentes] };
+  return { generadoEn: new Date().toISOString(), version: VERSION_INVESTIGACION, clima, sitios, moneda, auditoria, fuentes: [...fuentes] };
 }
 
 // Nombres legibles de los departamentos, para poder enseñar la auditoría

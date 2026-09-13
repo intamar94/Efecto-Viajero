@@ -86,6 +86,7 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
       entorno: "exterior",
       admiteMascotas: conPerro,
       descripcion: "Callejear sin prisa por las zonas más características.",
+      horarioHabitual: "Disponible a cualquier hora; mejor con luz natural.",
     },
     {
       id: `${destino.id}-act-parque`,
@@ -98,6 +99,7 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
       entorno: "exterior",
       admiteMascotas: conPerro,
       descripcion: "Aire libre y descanso entre planes, gratis y sin reserva.",
+      horarioHabitual: "Acceso libre; normalmente de amanecer a anochecer.",
     },
     {
       id: `${destino.id}-act-restaurante`,
@@ -110,6 +112,7 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
       entorno: "mixto",
       admiteMascotas: false,
       descripcion: "Probar los platos más representativos de la zona.",
+      horarioHabitual: "Horario habitual de comidas: mediodía y noche.",
     },
     {
       id: `${destino.id}-act-gastro`,
@@ -122,6 +125,7 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
       entorno: "mixto",
       admiteMascotas: false,
       descripcion: "Probar platos y productos típicos de varias paradas.",
+      horarioHabitual: "Mejor a media tarde o noche, con varias paradas cortas.",
     },
     {
       id: `${destino.id}-act-museo`,
@@ -135,6 +139,7 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
       admiteMascotas: false,
       descripcion: "Buena opción si hace mal tiempo.",
       consejo: "Muchos museos tienen un día o una franja horaria gratis a la semana o al mes: consúltalo en su web oficial antes de pagar la entrada.",
+      horarioHabitual: "Suele abrir de mañana a tarde; muchos cierran un día a la semana.",
     },
     {
       id: `${destino.id}-act-teatro`,
@@ -173,6 +178,7 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
       entorno: "mixto",
       admiteMascotas: false,
       descripcion: "Artesanía y productos típicos.",
+      horarioHabitual: "Mejor por la mañana, entre semana suele haber menos gente.",
     },
   ];
 
@@ -188,6 +194,7 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
       entorno: "exterior",
       admiteMascotas: conPerro,
       descripcion: "Sendero accesible con buenas vistas.",
+      horarioHabitual: "Mejor saliendo temprano, con luz de día por delante.",
     });
   }
   if (destino.tags.includes("playa")) {
@@ -202,6 +209,7 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
       entorno: "exterior",
       admiteMascotas: conPerro,
       descripcion: "Tiempo libre junto al mar. Muchas playas restringen perros en temporada alta: conviene comprobar la señalización.",
+      horarioHabitual: "Acceso libre; mejor de media mañana a media tarde.",
     });
   }
   if (destino.tags.includes("pueblos")) {
@@ -216,6 +224,7 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
       entorno: "exterior",
       admiteMascotas: conPerro,
       descripcion: "Descubrir un pueblo tradicional a poca distancia.",
+      horarioHabitual: "Ideal como excursión de día completo, saliendo por la mañana.",
     });
   }
 
