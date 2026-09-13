@@ -30,7 +30,7 @@ export interface WikivoyageListing {
 // añadir la traducción automática): una guía ya guardada en un viaje con
 // una versión anterior se vuelve a buscar en vez de quedarse con el
 // inglés sin traducir para siempre.
-export const VERSION_WIKIVOYAGE = 6;
+export const VERSION_WIKIVOYAGE = 7;
 
 export interface WikivoyageResumen {
   articulo: string;
@@ -41,14 +41,34 @@ export interface WikivoyageResumen {
   version: number;
 }
 
+// Entidades HTML más comunes en el wikitext crudo de Wikivoyage (un
+// nombre con "&" o un apóstrofo tipográfico suele venir así en el
+// código fuente): sin decodificarlas, un título terminaba mostrando
+// literalmente "&amp;" o "&#39;" en vez del símbolo real.
+const ENTIDADES_HTML: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&apos;": "'",
+  "&nbsp;": " ",
+};
+
+function decodificarEntidadesHtml(texto: string): string {
+  return texto.replace(/&(amp|lt|gt|quot|#39|apos|nbsp);/g, (m) => ENTIDADES_HTML[m] ?? m);
+}
+
 function limpiarWikitext(texto: string): string {
-  return texto
-    .replace(/\{\{[^{}]*\}\}/g, "")
-    .replace(/\[\[([^|\]]*\|)?([^\]]+)\]\]/g, "$2")
-    .replace(/\[https?:\/\/\S+\s+([^\]]+)\]/g, "$1")
-    .replace(/'''?/g, "")
-    .replace(/<[^>]+>/g, "")
-    .trim();
+  return decodificarEntidadesHtml(
+    texto
+      .replace(/\{\{[^{}]*\}\}/g, "")
+      .replace(/\[\[([^|\]]*\|)?([^\]]+)\]\]/g, "$2")
+      .replace(/\[https?:\/\/\S+\s+([^\]]+)\]/g, "$1")
+      .replace(/'''?/g, "")
+      .replace(/<[^>]+>/g, "")
+      .trim()
+  );
 }
 
 // Divide el bloque de parámetros de una plantilla por "|", respetando los

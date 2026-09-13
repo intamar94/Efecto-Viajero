@@ -207,6 +207,17 @@ export interface SouvenirDestino {
   dondéComprar?: string;
 }
 
+// Un plato o bebida típica real (no un souvenir para llevar, algo para
+// pedir/probar en el sitio). `ciudades` marca cuándo es especialmente
+// propio de una región/ciudad concreta (p. ej. el cholado de Cali); sin
+// esa lista, es un plato de todo el país.
+export interface PlatoTipico {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  ciudades?: string[];
+}
+
 export interface Votacion { id: string; pregunta: string; opciones: string[]; votos: Record<string, string>; }
 export interface Recuerdo { id: string; titulo: string; fecha?: string; nota?: string; fotoDataUrl?: string; }
 export type TipoViaje = "simple" | "circuito";

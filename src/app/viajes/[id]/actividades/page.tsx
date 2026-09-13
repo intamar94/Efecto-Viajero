@@ -7,12 +7,12 @@ import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { EventosEstacionalesDestino } from "@/components/EventosEstacionalesDestino";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
-import { actividadesDe, urlBuscarActividad, urlMapsActividad, queProbarDe } from "@/lib/catalogo";
+import { actividadesDe, urlBuscarActividad, urlMapsActividad, platosTipicosDe } from "@/lib/catalogo";
 import { destinoParaCatalogo, destinoPrincipal, etapasDe, paisDeEtapa } from "@/lib/viaje";
 import { obtenerGuiaWikivoyage, VERSION_WIKIVOYAGE, type TipoListingWikivoyage } from "@/lib/wikivoyage";
 import { obtenerResumenLugar, obtenerResumenSitio, type ResumenWikipedia } from "@/lib/wikipedia";
 import { entornoCercanoDe } from "@/lib/entornoCercano";
-import { buscarEnLaWeb, describirResultadoWeb } from "@/lib/busquedaWeb";
+import { buscarEnLaWeb, describirResultadoWeb, type ResultadoBusquedaWeb } from "@/lib/busquedaWeb";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
 import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
@@ -48,6 +48,26 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   playa: { etiqueta: "Playa", icono: "🏖️" },
   pueblos: { etiqueta: "Pueblos cercanos", icono: "🏘️" },
   otro: { etiqueta: "Otros planes", icono: "✨" },
+};
+
+// Frase de búsqueda real para cuando OpenStreetMap no tiene NADA mapeado
+// de esta categoría en la ciudad (pasa sobre todo con vida nocturna: los
+// bares/discotecas reales rara vez están bien etiquetados en OSM fuera de
+// las grandes capitales). En vez de resignarse a la idea genérica del
+// catálogo, se prueba una búsqueda web real con el mismo buscador que ya
+// se usa por sitio — así Cali (famosa por su vida nocturna) puede mostrar
+// discotecas reales encontradas en blogs, en vez de solo "idea orientativa".
+const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
+  museo: "mejores museos",
+  parque: "parques imprescindibles",
+  restaurante: "restaurantes típicos recomendados",
+  cine_teatro: "cines y teatros",
+  discoteca: "mejores discotecas y bares de rumba",
+  compras: "mejores lugares para comprar",
+  naturaleza: "naturaleza y senderos",
+  playa: "mejores playas",
+  pueblos: "pueblos cercanos que visitar",
+  otro: "planes turísticos recomendados",
 };
 
 // Un punto de referencia real ("~800 m del centro") ayuda mucho más que
@@ -127,15 +147,15 @@ function nombresDestacadosDe(items: Item[], categoria: CategoriaActividad): stri
   return elegidos.map((it) => it.nombre).slice(0, 2);
 }
 
-function fraseEjemplo(nombresReales: string[], pais: string | undefined): string {
+function fraseEjemplo(nombresReales: string[], pais: string | undefined, ciudad: string): string {
   if (nombresReales.length > 0) return ` Como ${nombresReales.join(" o ")}.`;
-  // Sin un sitio real todavía para presumir, un plato o producto típico
-  // real del país (el mismo dato curado que usa "Qué comprar") da algo
+  // Sin un sitio real todavía para presumir, un plato típico real de la
+  // ciudad (o del país, si no hay uno propio de esta ciudad) da algo
   // concreto igual — pero solo el nombre no basta: decir de qué se trata
   // es lo que hace sentir que vale la pena probarlo, no solo un nombre
-  // suelto en otro idioma.
+  // suelto.
   if (!pais) return "";
-  const sabores = queProbarDe(pais);
+  const sabores = platosTipicosDe(pais, ciudad);
   if (sabores.length === 0) return "";
   const [primero, segundo] = sabores;
   // Solo la primera letra en minúscula (para que fluya tras el guion): en
@@ -155,7 +175,7 @@ function fraseEjemplo(nombresReales: string[], pais: string | undefined): string
 function fraseInspiradora(etapaNombre: string, categorias: CategoriaActividad[], nombresReales: string[], pais: string | undefined): string {
   const top = categorias.slice(0, 2);
   const deseo = fraseDeseo(top);
-  const ejemplo = fraseEjemplo(nombresReales, pais);
+  const ejemplo = fraseEjemplo(nombresReales, pais, etapaNombre);
   if (top.some((c) => c === "naturaleza" || c === "playa")) {
     return `🌴 Puede ser tu propio paraíso — con ${deseo} esperándote.${ejemplo}`;
   }
@@ -278,11 +298,17 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
 
       {it.consejo && <p className="mt-2 text-xs text-neutral-500">💡 {it.consejo}</p>}
 
-      {it.categoria === "restaurante" && !it.esSitioReal && it.pais && queProbarDe(it.pais).length > 0 && (
+      {/* Antes solo se mostraba para el catálogo genérico (esSitioReal
+          false): un restaurante REAL encontrado en OpenStreetMap se
+          quedaba sin ninguna sugerencia de qué pedir, que es justo el
+          dato que más se pidió — un plato típico real no depende de si
+          el restaurante en sí es genérico o real, así que se muestra
+          para los dos. */}
+      {it.categoria === "restaurante" && it.pais && platosTipicosDe(it.pais, it.etapaNombre).length > 0 && (
         <div className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2">
           <p className="text-xs font-medium text-amber-800">🍴 Si no sabes qué pedir, prueba:</p>
           <ul className="mt-1 space-y-0.5 text-xs text-amber-700">
-            {queProbarDe(it.pais).map((s) => (
+            {platosTipicosDe(it.pais, it.etapaNombre).map((s) => (
               <li key={s.id}>
                 <span className="font-medium">{s.nombre}</span> — {s.descripcion}
               </li>
@@ -357,6 +383,10 @@ export default function ActividadesPage() {
   const [resumenCiudad, setResumenCiudad] = useState<Record<string, ResumenWikipedia | "cargando" | "sin_datos">>({});
   // Por ciudad: qué categoría está seleccionada, si alguna.
   const [categoriasBuscadasPorEtapa, setCategoriasBuscadasPorEtapa] = useState<Record<string, CategoriaActividad[] | null>>({});
+  // Por ciudad+categoría (clave "etapaId:categoria"): resultado de la
+  // búsqueda web de respaldo, solo para cuando esa categoría no tiene
+  // NINGÚN sitio real de OpenStreetMap en esta ciudad.
+  const [busquedaWebCategoria, setBusquedaWebCategoria] = useState<Record<string, ResultadoBusquedaWeb[] | "cargando" | "sin_datos">>({});
 
   // Investigación bajo demanda: al abrir Actividades, se busca la guía
   // Wikivoyage de cada ciudad que aún no la tenga guardada. Una sola vez
@@ -615,6 +645,39 @@ export default function ActividadesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viaje?.id, viaje?.investigacion?.version]);
 
+  // Cuando la persona filtra por una sola categoría y ESA categoría no
+  // tiene ni un solo sitio real de OpenStreetMap en esta ciudad (el caso
+  // de "Fiesta" en ciudades donde OSM no tiene bien mapeada la vida
+  // nocturna), en vez de resignarse a la idea genérica del catálogo se
+  // prueba una búsqueda web real — el mismo buscador ya usado por sitio.
+  // Solo se dispara cuando el usuario de verdad filtró a una categoría
+  // (no en cada carga de página): evita búsquedas de más para categorías
+  // que nadie está mirando.
+  useEffect(() => {
+    if (!viaje) return;
+    let cancelado = false;
+    (async () => {
+      for (const etapa of etapasDe(viaje)) {
+        const categorias = categoriasBuscadasPorEtapa[etapa.id];
+        if (!categorias || categorias.length !== 1) continue;
+        const categoria = categorias[0];
+        const clave = `${etapa.id}:${categoria}`;
+        if (busquedaWebCategoria[clave] !== undefined) continue;
+        const sitiosDeCategoria = (viaje.investigacion?.sitios?.[etapa.nombre] ?? []).filter((s) => s.categoria === categoria);
+        if (sitiosDeCategoria.length > 0) continue;
+        setBusquedaWebCategoria((prev) => ({ ...prev, [clave]: "cargando" }));
+        const consulta = `${CONSULTA_WEB_CATEGORIA[categoria]} en ${etapa.nombre}`;
+        const resultados = await buscarEnLaWeb(consulta);
+        if (cancelado) return;
+        setBusquedaWebCategoria((prev) => ({ ...prev, [clave]: resultados.length > 0 ? resultados : "sin_datos" }));
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viaje?.id, categoriasBuscadasPorEtapa]);
+
   if (!viaje) {
     return (
       <main className="flex-1 px-5 py-8">
@@ -673,6 +736,7 @@ export default function ActividadesPage() {
         fuenteEtiqueta: "OpenStreetMap",
         etapaId: etapa.id,
         etapaNombre: etapa.nombre,
+        pais: destinoEtapa.pais,
         notaPrecio: s.precioAprox,
         // Ya viene formateado en español (formatearHorario, en investigacion.ts):
         // aquí no hay sintaxis cruda de OpenStreetMap que traducir.
@@ -1136,6 +1200,43 @@ export default function ActividadesPage() {
                         orientativo y los sitios de OpenStreetMap de abajo siguen disponibles igual.
                       </p>
                     )}
+
+                    {categoriasBuscadas !== null &&
+                      categoriasBuscadas.length === 1 &&
+                      !resultadosBusqueda.some((it) => it.esSitioReal) &&
+                      (() => {
+                        const categoria = categoriasBuscadas[0];
+                        const estado = busquedaWebCategoria[`${etapa.id}:${categoria}`];
+                        if (!estado || estado === "sin_datos") return null;
+                        if (estado === "cargando") {
+                          return (
+                            <p className="text-xs text-neutral-400">
+                              🔎 OpenStreetMap no tiene esto mapeado en {etapa.nombre} — buscando en la web…
+                            </p>
+                          );
+                        }
+                        return (
+                          <div className="rounded-xl border border-dashed border-coral-200 bg-coral-50/50 p-3">
+                            <p className="mb-1.5 text-xs font-medium text-coral-800">
+                              🔎 OpenStreetMap no tiene esto mapeado en {etapa.nombre}, pero esto se encontró buscando en la web:
+                            </p>
+                            <ul className="space-y-1.5">
+                              {estado.map((r, i) => (
+                                <li key={i} className="text-xs text-neutral-700">
+                                  {r.url ? (
+                                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="font-medium text-coral-700 underline">
+                                      {r.titulo}
+                                    </a>
+                                  ) : (
+                                    <span className="font-medium">{r.titulo}</span>
+                                  )}
+                                  {r.fragmento && <p className="mt-0.5 text-neutral-600">{describirResultadoWeb(r)}</p>}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })()}
 
                     {listaMostrada.length === 0 ? (
                       <p className="text-sm text-neutral-400">

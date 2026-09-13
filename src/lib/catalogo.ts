@@ -1,4 +1,4 @@
-import type { ActividadDestino, Destino, OpcionAlojamiento, SouvenirDestino } from "./types";
+import type { ActividadDestino, Destino, OpcionAlojamiento, PlatoTipico, SouvenirDestino } from "./types";
 
 // El catálogo es orientativo (no sabemos el sitio exacto, su horario real
 // ni su web oficial), así que en vez de inventarlos se da un enlace real
@@ -11,13 +11,28 @@ export function urlMapsActividad(nombre: string, ciudad: string): string {
   return `https://www.google.com/maps/search/${encodeURIComponent(`${nombre} en ${ciudad}`)}`;
 }
 
-// Qué comer o beber si no conoces la gastronomía local: reutiliza el
-// mismo dato ya curado de souvenirs (que ya distingue comida/bebida típica
-// por país) en vez de inventar una lista de platos aparte.
-export function queProbarDe(pais: string): SouvenirDestino[] {
-  return souvenirsDe(pais)
-    .filter((s) => /café|vino|cerveza|whisky|té\b|aguardiente|gastronóm|licor/i.test(`${s.nombre} ${s.descripcion}`))
-    .slice(0, 2);
+// Qué pedir en un restaurante si no conoces la gastronomía local: un
+// plato o bebida típica REAL, no una idea genérica ("prueba algo local").
+// Antes esto reutilizaba el dato de souvenirs filtrado por palabras como
+// "café"/"vino"/"aguardiente" — así, en Colombia, la única sugerencia
+// posible era "Café Colombiano" o "Aguardiente", nunca un plato de
+// verdad (bandeja paisa, ajiaco, cholado...) porque esos platos no
+// estaban en ningún lado del dato de souvenirs. Este es un dato propio,
+// de comida para pedir en el sitio, con nivel de ciudad cuando aplica —
+// un plato como el cholado es de Cali, no de "Colombia" en general, y
+// decirlo así de específico es lo que hace sentir la recomendación como
+// hecha para ESE lugar.
+export function platosTipicosDe(pais: string, ciudad?: string): PlatoTipico[] {
+  const platos = PLATOS_TIPICOS_POR_PAIS[pais.toLowerCase().trim()];
+  if (!platos || platos.length === 0) return [];
+  if (!ciudad) return platos.filter((p) => !p.ciudades).slice(0, 2);
+  const ciudadNorm = ciudad.toLowerCase();
+  const deLaCiudad = platos.filter((p) => p.ciudades?.some((c) => ciudadNorm.includes(c.toLowerCase())));
+  if (deLaCiudad.length > 0) return deLaCiudad.slice(0, 2);
+  // Sin plato propio de esta ciudad concreta: el resto de platos
+  // nacionales (arepa, sancocho...) siguen siendo una sugerencia honesta,
+  // solo menos específica.
+  return platos.filter((p) => !p.ciudades).slice(0, 2);
 }
 
 // Catálogo de demostración: se genera a partir de los atributos del
@@ -460,6 +475,78 @@ const SOUVENIRS_POR_PAIS: Record<string, SouvenirDestino[]> = {
       avisoEquipaje: "Frágil: bien embaladas en cabina.",
       historia: "Tradición navideña de más de 200 años. Las bolas de vidrio nacieron de una mala cosecha de nueces en 1847.",
       dondéComprar: "Mercadillos navideños (Weihnachtsmarkt), tiendas especializadas, artesanos locales.",
+    },
+  ],
+};
+
+// Platos y bebidas típicas para pedir en un restaurante, no souvenirs
+// para llevar. Empieza con Colombia (probado con Cali/Bogotá en esta
+// ronda); se añaden más países según se necesite, igual que el resto de
+// datos curados de la app.
+const PLATOS_TIPICOS_POR_PAIS: Record<string, PlatoTipico[]> = {
+  colombia: [
+    {
+      id: "colombia-plato-bandeja-paisa",
+      nombre: "Bandeja paisa",
+      descripcion: "Plato abundante con frijoles, arroz, carne molida, chicharrón, chorizo, arepa, plátano maduro, huevo y aguacate.",
+      ciudades: ["Medellín", "Envigado", "Bello", "Itagüí"],
+    },
+    {
+      id: "colombia-plato-ajiaco",
+      nombre: "Ajiaco santafereño",
+      descripcion: "Sopa espesa de pollo con tres tipos de papa y guascas, servida con crema de leche, alcaparras y aguacate.",
+      ciudades: ["Bogotá"],
+    },
+    {
+      id: "colombia-plato-cholado",
+      nombre: "Cholado",
+      descripcion: "Postre frío con hielo raspado, frutas picadas (piña, banano, mango, fresa), leche condensada y a veces helado — muy propio de Cali, se vende en puestos callejeros.",
+      ciudades: ["Cali", "Palmira", "Jamundí"],
+    },
+    {
+      id: "colombia-plato-marranitas",
+      nombre: "Marranitas",
+      descripcion: "Bolitas de plátano verde majado y frito con chicharrón, típicas del suroccidente colombiano (Valle del Cauca y Eje Cafetero).",
+      ciudades: ["Cali", "Pereira", "Armenia", "Manizales", "Palmira"],
+    },
+    {
+      id: "colombia-plato-chontaduro",
+      nombre: "Chontaduro",
+      descripcion: "Fruto de palma andino, se come cocido con sal y miel — muy popular en puestos callejeros del suroccidente y el Pacífico colombiano.",
+      ciudades: ["Cali", "Buenaventura", "Palmira"],
+    },
+    {
+      id: "colombia-plato-pandebono",
+      nombre: "Pandebono",
+      descripcion: "Pan de yuca, queso y huevo, redondo y horneado — típico del Valle del Cauca, se come sobre todo en el desayuno o con café.",
+      ciudades: ["Cali", "Palmira", "Buga"],
+    },
+    {
+      id: "colombia-plato-lechona",
+      nombre: "Lechona tolimense",
+      descripcion: "Cerdo entero relleno de arroz, arveja y carne, horneado por horas hasta quedar crujiente por fuera — plato insignia del Tolima.",
+      ciudades: ["Ibagué"],
+    },
+    {
+      id: "colombia-plato-posta-cartagenera",
+      nombre: "Posta cartagenera",
+      descripcion: "Carne de res guisada en una salsa dulce de panela, vinagre y especias, plato típico de la cocina cartagenera.",
+      ciudades: ["Cartagena"],
+    },
+    {
+      id: "colombia-plato-arepa",
+      nombre: "Arepa",
+      descripcion: "Masa de maíz asada o frita, base de la mesa colombiana — cada región tiene su propia variante (de huevo, con queso, boyacense).",
+    },
+    {
+      id: "colombia-plato-sancocho",
+      nombre: "Sancocho",
+      descripcion: "Sopa espesa de carne o pollo con yuca, plátano y papa, plato de reunión familiar en todo el país, con variantes por región.",
+    },
+    {
+      id: "colombia-plato-empanada",
+      nombre: "Empanada colombiana",
+      descripcion: "Masa de maíz rellena de papa y carne, frita, servida con ají — uno de los pasabocas más comunes en todo el país.",
     },
   ],
 };
