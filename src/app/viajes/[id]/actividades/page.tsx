@@ -80,7 +80,7 @@ function fraseDeseo(categorias: CategoriaActividad[]): string {
 // experiencia gastronómica inolvidable" en un destino nuevo.
 function nombresDestacadosDe(items: Item[], categoria: CategoriaActividad): string[] {
   const reales = items.filter((it) => it.categoria === categoria && !it.esGenerica);
-  const preferidos = categoria === "restaurante" ? reales.filter((it) => it.descripcion !== "comida rápida" && it.descripcion !== "cafetería") : reales;
+  const preferidos = categoria === "restaurante" ? reales.filter((it) => !it.cadenaGenerica) : reales;
   const elegidos = preferidos.length > 0 ? preferidos : reales;
   return elegidos.map((it) => it.nombre).slice(0, 2);
 }
@@ -163,6 +163,12 @@ type Item = ActividadDestino & {
   mapaUrl?: string;
   webUrl?: string;
   webEsDirecta?: boolean;
+  // Cadena de comida rápida o café (McDonald's, Burger King, Starbucks...):
+  // real, pero no lo que alguien busca al pedir "comida típica" o
+  // "gastronomía local" — se guarda aparte de la descripción (que ahora es
+  // una frase, no la palabra suelta) para poder filtrarlas sin depender de
+  // cómo esté redactado el texto que ve el usuario.
+  cadenaGenerica?: boolean;
 };
 
 // Insignia de progreso por ciudad: sencilla, sin más objetivo que hacer
@@ -498,6 +504,7 @@ export default function ActividadesPage() {
         mapaUrl: s.lat && s.lon ? `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}` : undefined,
         webUrl: s.url,
         webEsDirecta: !!s.url,
+        cadenaGenerica: s.detalle === "comida rápida" || s.detalle === "cafetería",
       }));
 
     // Guía real de Wikivoyage (nombre, dirección, horario, precio, web ya
