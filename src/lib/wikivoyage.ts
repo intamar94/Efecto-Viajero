@@ -9,6 +9,7 @@
 
 import { acortarTexto } from "./texto";
 import { traducirAlEspanol } from "./traduccion";
+import { geosearchWiki, mejorCoincidenciaPorNombre } from "./wikiGeosearch";
 
 export type TipoListingWikivoyage = "see" | "do" | "buy" | "eat" | "drink" | "sleep";
 
@@ -29,7 +30,7 @@ export interface WikivoyageListing {
 // añadir la traducción automática): una guía ya guardada en un viaje con
 // una versión anterior se vuelve a buscar en vez de quedarse con el
 // inglés sin traducir para siempre.
-export const VERSION_WIKIVOYAGE = 3;
+export const VERSION_WIKIVOYAGE = 4;
 
 export interface WikivoyageResumen {
   articulo: string;
@@ -198,16 +199,29 @@ async function buscarTitulo(consulta: string, idioma: "es" | "en"): Promise<stri
   }
 }
 
+export interface Coordenadas {
+  lat: number;
+  lon: number;
+}
+
 // Muchos nombres de ciudad se repiten entre países (Cartagena existe en
 // España Y en Colombia; lo mismo Mérida, Sucre, Córdoba, Santiago,
-// Valencia, León...). Buscar solo por el nombre es una lotería: puede
-// devolver el artículo de otro país, con otro contenido (o ninguno
-// extraíble), sin que se note el error — la app simplemente parecía "no
-// tener datos para esta ciudad" cuando en realidad buscó el lugar
-// equivocado. El país como contexto (igual que ya hace wikipedia.ts)
-// desambigua primero; si esa consulta más específica no encuentra nada,
-// se prueba con el nombre solo como respaldo.
-async function buscarArticulo(ciudad: string, idioma: "es" | "en", contexto?: string): Promise<string | null> {
+// Valencia, León...). Buscar solo por el nombre es una lotería que no
+// escala: cada nombre repetido en el mundo es un posible artículo
+// equivocado, y no se pueden arreglar uno por uno a mano. Si ya sabemos
+// dónde está la ciudad (coordenadas reales de cuando se creó el viaje),
+// se pregunta primero qué artículo hay geolocalizado justo ahí — funciona
+// igual sin importar el país, porque no depende de adivinar el nombre.
+// El país como contexto de texto (y, sin ninguno de los dos, el nombre
+// solo) quedan como respaldo para cuando no hay coordenadas guardadas
+// (viajes creados antes de tenerlas) o la búsqueda por coordenadas no
+// encuentra un artículo que de verdad coincida de nombre.
+async function buscarArticulo(ciudad: string, idioma: "es" | "en", contexto?: string, coords?: Coordenadas): Promise<string | null> {
+  if (coords) {
+    const cercanos = await geosearchWiki(`${idioma}.wikivoyage.org`, coords.lat, coords.lon, 12000, 10);
+    const coincide = mejorCoincidenciaPorNombre(cercanos, ciudad);
+    if (coincide) return coincide;
+  }
   if (!contexto) return buscarTitulo(ciudad, idioma);
   return (await buscarTitulo(`${ciudad} ${contexto}`, idioma)) ?? (await buscarTitulo(ciudad, idioma));
 }
@@ -252,11 +266,11 @@ async function traducirListings(listings: WikivoyageListing[]): Promise<Wikivoya
 // Intenta primero en español (más útil para el usuario) y si ese artículo
 // no existe o no trae listings estructurados, cae al inglés: Wikivoyage en
 // inglés cubre muchísimas más ciudades que la edición en español.
-// `contexto` (el país) desambigua nombres de ciudad que se repiten entre
+// `coords`/`contexto` desambiguan nombres de ciudad que se repiten entre
 // países — ver el comentario en buscarArticulo.
-export async function obtenerGuiaWikivoyage(ciudad: string, contexto?: string): Promise<WikivoyageResumen | null> {
+export async function obtenerGuiaWikivoyage(ciudad: string, contexto?: string, coords?: Coordenadas): Promise<WikivoyageResumen | null> {
   for (const idioma of ["es", "en"] as const) {
-    const titulo = await buscarArticulo(ciudad, idioma, contexto);
+    const titulo = await buscarArticulo(ciudad, idioma, contexto, coords);
     if (!titulo) continue;
     const wikitext = await obtenerWikitext(titulo, idioma);
     if (!wikitext) continue;

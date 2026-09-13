@@ -17,7 +17,7 @@ import { slug } from "@/lib/puntosGeo";
 import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
 import { acortarTexto } from "@/lib/texto";
 import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
-import { VERSION_INVESTIGACION, type Investigacion, type SitioReal } from "@/lib/investigacion";
+import { VERSION_INVESTIGACION, VERSION_ENRIQUECIMIENTO_SITIO, type Investigacion, type SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
@@ -355,7 +355,11 @@ export default function ActividadesPage() {
         }
         setEstadoWikivoyage((prev) => ({ ...prev, [etapa.nombre]: "cargando" }));
         try {
-          const guia = await obtenerGuiaWikivoyage(etapa.nombre, paisDeEtapa(etapa)?.nombre);
+          const guia = await obtenerGuiaWikivoyage(
+            etapa.nombre,
+            paisDeEtapa(etapa)?.nombre,
+            etapa.lat !== undefined && etapa.lon !== undefined ? { lat: etapa.lat, lon: etapa.lon } : undefined
+          );
           if (cancelado) return;
           if (guia) {
             // Un refresco (p. ej. para traducir una guía vieja) nunca debe
@@ -396,10 +400,18 @@ export default function ActividadesPage() {
       for (const etapa of etapasDe(viaje)) {
         if (resumenCiudad[etapa.nombre]) continue;
         setResumenCiudad((prev) => ({ ...prev, [etapa.nombre]: "cargando" }));
-        // El país como contexto de búsqueda: sin él, un lugar cuyo nombre
-        // coincide con una palabra común (Faro, Mérida, Sucre...) trae el
-        // artículo sobre esa palabra, no sobre la ciudad.
-        const resumen = await obtenerResumenLugar(etapa.nombre, undefined, paisDeEtapa(etapa)?.nombre);
+        // Las coordenadas reales de la ciudad (si el viaje las tiene)
+        // desambiguan mejor que ningún nombre ni país: preguntan
+        // directamente qué artículo hay geolocalizado ahí. El país como
+        // contexto de texto queda de respaldo para viajes sin coordenadas
+        // guardadas o cuando la búsqueda por coordenadas no encuentra nada
+        // que coincida de nombre.
+        const resumen = await obtenerResumenLugar(
+          etapa.nombre,
+          undefined,
+          paisDeEtapa(etapa)?.nombre,
+          etapa.lat !== undefined && etapa.lon !== undefined ? { lat: etapa.lat, lon: etapa.lon } : undefined
+        );
         if (cancelado) return;
         setResumenCiudad((prev) => ({ ...prev, [etapa.nombre]: resumen ?? "sin_datos" }));
       }
@@ -444,11 +456,21 @@ export default function ActividadesPage() {
         const actualizados: SitioReal[] = [];
         for (const s of sitios) {
           let siguiente = s;
-          if (siguiente.resumenWikipedia === undefined) {
-            const resumen = await obtenerResumenLugar(siguiente.nombre, 200, etapa.nombre);
+          // Reintenta si nunca se buscó, o si se buscó con una versión
+          // anterior de la estrategia de búsqueda (p. ej. antes de sumar
+          // las coordenadas reales del sitio): un "" viejo no debe quedar
+          // marcado como "ya buscado" para siempre si la forma de buscar
+          // mejoró después.
+          if (siguiente.resumenWikipedia === undefined || siguiente.versionResumen !== VERSION_ENRIQUECIMIENTO_SITIO) {
+            const resumen = await obtenerResumenLugar(
+              siguiente.nombre,
+              200,
+              etapa.nombre,
+              siguiente.lat !== undefined && siguiente.lon !== undefined ? { lat: siguiente.lat, lon: siguiente.lon } : undefined
+            );
             if (cancelado) return;
             huboCambios = true;
-            siguiente = { ...siguiente, resumenWikipedia: resumen?.extracto ?? "" };
+            siguiente = { ...siguiente, resumenWikipedia: resumen?.extracto ?? "", versionResumen: VERSION_ENRIQUECIMIENTO_SITIO };
           }
           // Sin artículo propio: qué hay de verdad cerca, según OSM. Un
           // fallo de red (entornoCercanoDe lanza en ese caso) se deja tal

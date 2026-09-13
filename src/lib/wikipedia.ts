@@ -2,6 +2,8 @@
 // sobre un lugar — historia, datos curiosos — en vez de dejar la pantalla
 // solo con botones y enlaces, o inventar "leyendas" que no podemos
 // verificar.
+
+import { geosearchWiki, mejorCoincidenciaPorNombre } from "./wikiGeosearch";
 export interface ResumenWikipedia {
   titulo: string;
   extracto: string;
@@ -80,9 +82,27 @@ async function obtenerResumenDeTitulo(titulo: string, idioma: "es" | "en"): Prom
   }
 }
 
-async function buscarResumen(termino: string, idioma: "es" | "en", contexto?: string): Promise<ArticuloWikipedia | null> {
-  const consulta = contexto ? `${termino} ${contexto}` : termino;
-  const titulo = (await buscarTitulo(consulta, idioma)) ?? (contexto ? await buscarTitulo(termino, idioma) : null);
+export interface Coordenadas {
+  lat: number;
+  lon: number;
+}
+
+async function buscarResumen(termino: string, idioma: "es" | "en", contexto?: string, coords?: Coordenadas): Promise<ArticuloWikipedia | null> {
+  // Si ya sabemos dónde está el lugar (coordenadas reales, no adivinadas),
+  // se pregunta primero qué artículo hay geolocalizado justo ahí — sin
+  // depender de si el nombre es ambiguo en algún idioma o país. Solo se
+  // acepta un resultado geolocalizado si de verdad coincide de nombre
+  // (ver mejorCoincidenciaPorNombre): el más cercano sin más podría ser
+  // cualquier otra cosa geoetiquetada cerca, no el lugar que buscamos.
+  let titulo: string | null = null;
+  if (coords) {
+    const cercanos = await geosearchWiki(`${idioma}.wikipedia.org`, coords.lat, coords.lon, 300, 10);
+    titulo = mejorCoincidenciaPorNombre(cercanos, termino) ?? null;
+  }
+  if (!titulo) {
+    const consulta = contexto ? `${termino} ${contexto}` : termino;
+    titulo = (await buscarTitulo(consulta, idioma)) ?? (contexto ? await buscarTitulo(termino, idioma) : null);
+  }
   if (!titulo) return null;
   return obtenerResumenDeTitulo(titulo, idioma);
 }
@@ -91,12 +111,15 @@ async function buscarResumen(termino: string, idioma: "es" | "en", contexto?: st
 // cae a inglés antes de rendirse — mejor un resumen real en otro idioma
 // que ningún dato, y se lo dejamos claro al usuario en el origen mostrado.
 // `contexto` (p. ej. el país) ayuda a desambiguar nombres que coinciden
-// con una palabra común ("Faro", "Sucre", "Mérida"...).
-export async function obtenerResumenLugar(nombre: string, maxCaracteres: number = LARGO_POR_DEFECTO, contexto?: string): Promise<ResumenWikipedia | null> {
+// con una palabra común ("Faro", "Sucre", "Mérida"...) cuando no hay
+// coordenadas; `coords`, cuando se conocen, es la desambiguación más
+// fiable de todas — no depende de adivinar el nombre correcto en ningún
+// idioma ni país, funciona igual en cualquier lugar del mundo.
+export async function obtenerResumenLugar(nombre: string, maxCaracteres: number = LARGO_POR_DEFECTO, contexto?: string, coords?: Coordenadas): Promise<ResumenWikipedia | null> {
   const clave = `${nombre.trim().toLowerCase()}|${(contexto ?? "").trim().toLowerCase()}`;
   let completo = cache.get(clave);
   if (completo === undefined) {
-    completo = (await buscarResumen(nombre, "es", contexto)) ?? (await buscarResumen(nombre, "en", contexto));
+    completo = (await buscarResumen(nombre, "es", contexto, coords)) ?? (await buscarResumen(nombre, "en", contexto, coords));
     cache.set(clave, completo);
   }
   if (!completo) return null;

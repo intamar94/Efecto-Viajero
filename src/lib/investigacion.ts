@@ -12,6 +12,13 @@
 
 import type { CategoriaActividad } from "./types";
 
+// Sube cuando cambia de raíz CÓMO se busca resumenWikipedia por sitio (una
+// estrategia de búsqueda mejor, no solo más categorías elegibles). Un
+// sitio ya marcado como "" (sin artículo) bajo una versión de búsqueda
+// anterior no debe quedarse así para siempre solo porque esa búsqueda
+// vieja no lo encontró: se reintenta con la versión vigente.
+export const VERSION_ENRIQUECIMIENTO_SITIO = 2;
+
 export interface SitioReal {
   nombre: string;
   categoria: CategoriaActividad;
@@ -30,6 +37,11 @@ export interface SitioReal {
   // ya se buscó y no hay artículo (para no repetir la búsqueda);
   // undefined = todavía no se buscó.
   resumenWikipedia?: string;
+  // Con qué versión de la búsqueda (VERSION_ENRIQUECIMIENTO_SITIO) se
+  // obtuvo resumenWikipedia. undefined (viajes de antes de este campo) o
+  // distinta de la vigente = se reintenta con la estrategia actual, en
+  // vez de confiar para siempre en el resultado de una búsqueda peor.
+  versionResumen?: number;
   // Solo se busca cuando este sitio NO tiene resumenWikipedia (ni lo va a
   // tener): qué hay de verdad alrededor según OpenStreetMap — bancos,
   // heladería, baños... para no dejar la tarjeta en la categoría sola.
