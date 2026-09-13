@@ -17,7 +17,7 @@ import type { CategoriaActividad } from "./types";
 // sitio ya marcado como "" (sin artículo) bajo una versión de búsqueda
 // anterior no debe quedarse así para siempre solo porque esa búsqueda
 // vieja no lo encontró: se reintenta con la versión vigente.
-export const VERSION_ENRIQUECIMIENTO_SITIO = 3;
+export const VERSION_ENRIQUECIMIENTO_SITIO = 4;
 
 export interface SitioReal {
   nombre: string;
@@ -47,6 +47,13 @@ export interface SitioReal {
   // heladería, baños... para no dejar la tarjeta en la categoría sola.
   // Mismo patrón de cadena vacía "" / undefined que resumenWikipedia.
   entornoCercano?: string;
+  // Cuando el propio colaborador de OpenStreetMap ya enlazó este sitio a
+  // su artículo real de Wikipedia o a su entidad de Wikidata (etiquetas
+  // wikipedia=/wikidata=), se usa ESE enlace directo antes que buscar por
+  // nombre o coordenadas — no es adivinar cuál es el artículo correcto,
+  // es leer el enlace que OSM ya dejó hecho. No siempre está presente.
+  enlaceWikipedia?: string;
+  enlaceWikidata?: string;
 }
 
 export interface DiaClima {
@@ -83,7 +90,7 @@ export interface AuditoriaCapacidades {
 // número, esa investigación quedó desactualizada aunque nadie la haya
 // tocado, y conviene volver a correrla en vez de esperar a que alguien
 // recuerde tocar "Actualizar investigación real".
-export const VERSION_INVESTIGACION = 3;
+export const VERSION_INVESTIGACION = 4;
 
 export interface Investigacion {
   generadoEn: string;
@@ -275,6 +282,8 @@ function extraerSitios(findings: unknown[], dominio: string): { lugar: string; s
         horarioApertura: horarioDe(el.tags),
         url: webDe(el.tags),
         precioAprox: precioDe(el.tags),
+        enlaceWikipedia: el.tags?.wikipedia,
+        enlaceWikidata: el.tags?.wikidata,
       });
     }
     if (sitios.length) salida.push({ lugar, sitios });

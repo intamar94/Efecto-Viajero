@@ -112,6 +112,58 @@ export interface Coordenadas {
   lon: number;
 }
 
+// Cruce directo con otra fuente: muchos elementos de OpenStreetMap ya
+// vienen enlazados por sus propios colaboradores a su artículo real de
+// Wikipedia (etiqueta "wikipedia", formato "es:Título") o a su entidad de
+// Wikidata (etiqueta "wikidata", "Q123456"). Cuando existe, es la fuente
+// MÁS fiable de todas — no es "adivinar" cuál es el artículo correcto
+// por nombre o coordenadas, es leer el enlace que ya quedó hecho. Se
+// prueba antes que cualquier búsqueda o geosearch.
+export interface EnlacesOsm {
+  wikipedia?: string;
+  wikidata?: string;
+}
+
+async function resumenDeTituloConIdioma(tituloConIdioma: string): Promise<ArticuloWikipedia | null> {
+  const separador = tituloConIdioma.indexOf(":");
+  if (separador === -1) return null;
+  const idioma = tituloConIdioma.slice(0, separador).trim().toLowerCase();
+  const titulo = tituloConIdioma.slice(separador + 1).trim();
+  if ((idioma !== "es" && idioma !== "en") || !titulo) return null;
+  return obtenerResumenDeTitulo(titulo, idioma);
+}
+
+// Wikidata conecta la misma entidad real con SU artículo de Wikipedia en
+// cada idioma ("sitelinks") — útil cuando OSM enlazó a Wikidata pero no
+// directamente a un artículo de Wikipedia.
+async function resumenDesdeWikidata(qid: string): Promise<ArticuloWikipedia | null> {
+  try {
+    const url = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${encodeURIComponent(qid)}&props=sitelinks&format=json&origin=*`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const sitelinks = data?.entities?.[qid]?.sitelinks;
+    if (!sitelinks || typeof sitelinks !== "object") return null;
+    for (const [clave, idioma] of [["eswiki", "es"], ["enwiki", "en"]] as const) {
+      const titulo = sitelinks[clave]?.title;
+      if (typeof titulo === "string") {
+        const resumen = await obtenerResumenDeTitulo(titulo, idioma);
+        if (resumen) return resumen;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function obtenerResumenPorEnlaceOsm(enlaces: EnlacesOsm, maxCaracteres: number = LARGO_POR_DEFECTO): Promise<ResumenWikipedia | null> {
+  const desdeWikipedia = enlaces.wikipedia ? await resumenDeTituloConIdioma(enlaces.wikipedia) : null;
+  const completo = desdeWikipedia ?? (enlaces.wikidata ? await resumenDesdeWikidata(enlaces.wikidata) : null);
+  if (!completo) return null;
+  return { titulo: completo.titulo, extracto: acortar(completo.extractoCompleto, maxCaracteres), url: completo.url };
+}
+
 async function buscarResumen(termino: string, idioma: "es" | "en", contexto?: string, coords?: Coordenadas): Promise<ArticuloWikipedia | null> {
   // Si ya sabemos dónde está el lugar (coordenadas reales, no adivinadas),
   // se pregunta primero qué artículo hay geolocalizado justo ahí — sin
