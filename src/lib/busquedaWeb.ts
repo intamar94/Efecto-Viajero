@@ -2,9 +2,10 @@
 // enlace de OpenStreetMap, lo que hay alrededor) tiene nada sobre un
 // sitio real, se prueba una búsqueda web real (vía /api/buscar-web,
 // server-side) — blogs, foros, reseñas: lo que la gente de verdad
-// comparte sobre ese lugar. No siempre está disponible (requiere que el
-// dueño de la app configure una clave gratuita de Google Programmable
-// Search — ver /api/buscar-web/route.ts); si no lo está, esto no rompe
+// comparte sobre ese lugar. La ruta usa Google Programmable Search si el
+// dueño de la app configuró una clave gratuita (más completo), y si no,
+// cae automáticamente a DuckDuckGo (sin clave ni cuenta) — ver
+// /api/buscar-web/route.ts. Si de todos modos no hay nada, esto no rompe
 // nada, simplemente no aporta más que las fuentes de siempre.
 //
 // Se muestra como cita textual con su fuente, nunca como si fuera
