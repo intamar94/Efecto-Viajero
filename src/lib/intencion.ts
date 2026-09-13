@@ -5,17 +5,59 @@ import type { CategoriaActividad } from "./types";
 // propias palabras y esto detecta qué categorías está pidiendo. No es
 // IA generativa (no inventa lugares nuevos): filtra y prioriza lo que ya
 // investigamos de verdad, según lo que la persona pidió.
+// La gente no escribe sustantivos sueltos, escribe frases: "quiero salir
+// a bailar", "dónde cenar bien", "ir de shopping". Antes solo estaban los
+// sustantivos ("baile", "comida") más un plural regular, así que
+// "bailar", "cenar", "desayunar" o "shopping" no se entendían y la
+// petición se perdía en silencio — el usuario pedía rumba en Cali y no
+// veía nada de vida nocturna. Se listan las formas reales (infinitivos y
+// sinónimos incluidos) en vez de intentar conjugar: es un buscador por
+// palabras, y explícito es más fácil de corregir que ingenioso.
 const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
-  museo: ["museo", "historia", "historico", "cultura", "cultural", "arte", "galeria", "patrimonio"],
-  parque: ["parque", "caminar", "caminata", "pasear", "paseo", "aire libre", "mirador", "vista", "senderismo suave"],
-  restaurante: ["restaurante", "comida", "comer", "gastronomia", "gastronomico", "tipica", "tipico", "plato", "cocina", "probar"],
-  cine_teatro: ["cine", "teatro", "pelicula", "obra de teatro", "espectaculo"],
-  discoteca: ["discoteca", "fiesta", "bar", "vida nocturna", "rumba", "salsa", "baile", "noche"],
-  compras: ["compras", "comprar", "mercado", "tienda", "souvenir", "artesania"],
-  naturaleza: ["naturaleza", "montana", "senderismo", "rio", "cascada", "aventura", "excursion natural"],
-  playa: ["playa", "mar", "costa", "isla", "islas", "arena"],
-  pueblos: ["pueblo", "excursion", "cerca de la ciudad", "escapada"],
-  otro: ["feria", "evento", "festival", "fiesta popular", "espontaneo", "sorpresa", "algo diferente"],
+  museo: [
+    "museo", "historia", "historico", "cultura", "cultural", "arte", "galeria", "patrimonio",
+    "exposicion", "iglesia", "catedral", "monumento", "centro historico", "casco antiguo",
+    "ruinas", "arqueologico", "castillo",
+  ],
+  parque: [
+    "parque", "caminar", "caminata", "pasear", "paseo", "aire libre", "mirador", "vista",
+    "senderismo suave", "plaza", "jardin", "picnic", "malecon",
+  ],
+  restaurante: [
+    "restaurante", "comida", "comer", "gastronomia", "gastronomico", "tipica", "tipico",
+    "plato", "cocina", "probar", "degustar",
+    "cenar", "cena", "almorzar", "almuerzo", "desayunar", "desayuno",
+    "tapas", "picar", "comida callejera", "street food", "marisco", "vegetariano", "vegano",
+    "restaurantes tipicos", "sabor", "sabores",
+  ],
+  cine_teatro: [
+    "cine", "teatro", "pelicula", "obra de teatro", "espectaculo", "concierto", "show", "musical",
+  ],
+  discoteca: [
+    "discoteca", "disco", "fiesta", "bar", "vida nocturna", "rumba", "salsa", "baile", "noche",
+    "bailar", "bailando", "rumbear", "salir de fiesta", "salir a bailar", "copas", "trago",
+    "tomar algo", "cerveza", "reggaeton", "antro", "boliche", "after", "nocturna",
+  ],
+  compras: [
+    "compras", "comprar", "mercado", "tienda", "souvenir", "artesania",
+    "shopping", "centro comercial", "mall", "regalo", "boutique",
+  ],
+  naturaleza: [
+    "naturaleza", "montana", "senderismo", "rio", "cascada", "aventura", "excursion natural",
+    "termales", "termal", "bosque", "selva", "lago", "laguna", "volcan", "trekking", "hiking",
+    "avistamiento", "aves", "birdwatching", "reserva natural", "parque natural", "jardin botanico",
+    "finca", "cafetal",
+  ],
+  playa: [
+    "playa", "mar", "costa", "isla", "islas", "arena", "bucear", "buceo", "snorkel", "surf", "nadar",
+  ],
+  pueblos: [
+    "pueblo", "excursion", "cerca de la ciudad", "escapada", "alrededores", "afueras", "day trip",
+  ],
+  otro: [
+    "feria", "evento", "festival", "fiesta popular", "espontaneo", "sorpresa", "algo diferente",
+    "tour", "free tour",
+  ],
 };
 
 function normalizar(texto: string): string {

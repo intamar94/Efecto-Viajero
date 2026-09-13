@@ -7,6 +7,7 @@ import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { urlBuscarConsulado, urlMapsCercaDeMi, urlMapsConsulado } from "@/lib/emergencias";
 import { paisesDelViaje } from "@/lib/viaje";
+import { buscarPaisPorCodigo } from "@/lib/paises";
 
 const PROBLEMAS = [
   {
@@ -110,11 +111,18 @@ export default function ResolverPage() {
   // El consulado que sirve a cada viajero depende de SU nacionalidad, no
   // del destino: se usa la que ya está registrada en Viajeros para que la
   // búsqueda sea la correcta desde el primer clic.
-  const nacionalidad = viajeros
+  const codigoNacionalidad = viajeros
     .filter((v) => viaje.viajerosIds.includes(v.id) && v.tipo === "persona")
     .map((v) => (v.tipo === "persona" ? v.nacionalidad : undefined))
     .find(Boolean);
+  // En Viajeros la nacionalidad se guarda como código ISO ("CO"), pero el
+  // destino es un nombre ("Colombia"): mezclarlos daba textos como
+  // "Consulado de CO en Colombia". Se muestra siempre el nombre real.
+  const nacionalidad = buscarPaisPorCodigo(codigoNacionalidad)?.nombre ?? codigoNacionalidad;
   const paisDestino = paises[0]?.nombre ?? viaje.destino;
+  // Viajando dentro de tu propio país no hay consulado que te atienda:
+  // ofrecer "Consulado de Colombia en Colombia" no es un dato, es un error.
+  const viajaASuPropioPais = Boolean(nacionalidad) && nacionalidad === paisDestino;
 
   return (
     <main className="flex-1 px-5 py-8">
@@ -179,6 +187,12 @@ export default function ResolverPage() {
                   </a>
                 </li>
               ))}
+            {viajaASuPropioPais ? (
+              <li className="rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-600">
+                🛂 Viajas dentro de {paisDestino}, tu propio país: no necesitas consulado. Si pierdes la
+                documentación, acude a la autoridad local de arriba.
+              </li>
+            ) : (
             <li className="rounded-xl border border-neutral-200 px-4 py-3">
               <span className="block font-medium text-neutral-900">
                 🛂 {nacionalidad ? `Consulado de ${nacionalidad} en ${paisDestino}` : `Tu consulado en ${paisDestino}`}
@@ -207,6 +221,7 @@ export default function ResolverPage() {
                 </a>
               </div>
             </li>
+            )}
           </ul>
           <p className="mt-3 text-xs text-neutral-400">
             No guardamos teléfonos ni correos de consulados: cambian a menudo y dar uno caducado en una urgencia es peor

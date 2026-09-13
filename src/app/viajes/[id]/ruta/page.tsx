@@ -10,6 +10,7 @@ import { MapaDia } from "@/components/MapaDia";
 import { useData } from "@/lib/store";
 import { crucesDe, esCircuito, etapasDe, paisDeEtapa, destinoParaCatalogo } from "@/lib/viaje";
 import { ETIQUETA_BLOQUE, REGLA_BLOQUE } from "@/lib/paises";
+import { mediosUtilesEnCiudad } from "@/lib/transporteLocal";
 import { actividadesDe } from "@/lib/catalogo";
 import { GeneradorItinerario } from "@/lib/generador-itinerario";
 import { formatearFecha } from "@/lib/formatoFecha";
@@ -287,12 +288,21 @@ export default function RutaPage() {
                           <dd className="text-neutral-700">{pais.telefonoTurista}</dd>
                         </div>
                       )}
-                      {pais.transporteLocal && (
-                        <div className="flex gap-2">
-                          <dt className="w-28 shrink-0 text-neutral-400">Moverse</dt>
-                          <dd className="text-neutral-700">{pais.transporteLocal.medios.join(" · ")}</dd>
-                        </div>
-                      )}
+                      {(() => {
+                        if (!pais.transporteLocal) return null;
+                        // Solo lo que de verdad existe en ESTA ciudad: un
+                        // medio etiquetado para otra ciudad del país (el
+                        // Metrocable de Medellín en un viaje a Cali) no es
+                        // información, es ruido que confunde.
+                        const medios = mediosUtilesEnCiudad(pais.transporteLocal.medios, etapa.nombre);
+                        if (medios.length === 0) return null;
+                        return (
+                          <div className="flex gap-2">
+                            <dt className="w-28 shrink-0 text-neutral-400">Moverse</dt>
+                            <dd className="text-neutral-700">{medios.join(" · ")}</dd>
+                          </div>
+                        );
+                      })()}
                     </dl>
                   ) : (
                     <p className="mt-3 border-t border-neutral-100 pt-3 text-sm text-neutral-500">

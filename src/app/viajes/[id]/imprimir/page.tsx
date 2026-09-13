@@ -186,6 +186,46 @@ export default function ImprimirViajePage() {
           </section>
         )}
 
+        {/* Lo más valioso de una hoja que llevas encima sin batería ni
+            cobertura: a quién llamas si pasa algo. Antes no salía en el
+            PDF, aunque la app ya lo sabe por país. */}
+        {paises.some((p) => p.emergencias) && (
+          <section className="mb-6">
+            <h2 className="mb-2 font-semibold">Emergencias</h2>
+            <ul className="space-y-1 text-sm">
+              {paises
+                .filter((p) => p.emergencias)
+                .map((p) => (
+                  <li key={p.codigo}>
+                    <span className="font-medium">{p.nombre}:</span> {p.emergencias}
+                    {p.telefonoTurista && ` · Atención al turista: ${p.telefonoTurista}`}
+                  </li>
+                ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Una hoja con solo el nombre y las fechas no sirve para nada, y
+            callarlo hace pensar que la app falló. Se dice exactamente qué
+            falta y dónde se añade, en vez de imprimir una página vacía. */}
+        {(() => {
+          const faltantes = [
+            viaje.itinerario && viaje.itinerario.dias.length > 0 ? null : { que: "el itinerario día a día", donde: "Ruta e itinerario" },
+            viaje.transporte.length > 0 ? null : { que: "los tramos de transporte", donde: "Transporte" },
+            viaje.documentos.length > 0 ? null : { que: "las reservas y documentos", donde: "Travel Vault" },
+          ].filter((f): f is { que: string; donde: string } => f !== null);
+          if (faltantes.length === 0) return null;
+          return (
+            <section className="mb-6 rounded-lg border border-dashed border-neutral-300 p-3 text-sm text-neutral-600 print:hidden">
+              <p className="font-medium text-neutral-800">Esta hoja todavía va incompleta</p>
+              <p className="mt-1">
+                Aún no tiene {faltantes.map((f) => f.que).join(", ").replace(/, ([^,]*)$/, " ni $1")}. Se añaden desde{" "}
+                {[...new Set(faltantes.map((f) => f.donde))].join(", ")} y aparecerán aquí solos.
+              </p>
+            </section>
+          );
+        })()}
+
         <footer className="mt-8 border-t border-neutral-200 pt-3 text-xs text-neutral-400 print:mt-4">
           Generado con Efecto Viajero el {formatearFecha(new Date().toISOString().split("T")[0])}.
         </footer>

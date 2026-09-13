@@ -295,3 +295,25 @@ export function obtenerTransporteLocal(ciudad?: string): TransporteLocalDetallad
 export function ciudadesConTransporte(): string[] {
   return Object.values(TRANSPORTE_LOCAL_POR_CIUDAD).map((t) => t.ciudad);
 }
+
+// Los medios de transporte de un país vienen etiquetados con la ciudad
+// donde existen ("Metro y Metrocable (Medellín)", "TransMilenio
+// (Bogotá)"). Volcarlos tal cual en la ficha de OTRA ciudad es
+// desinformar: en un viaje a Cali salía el metro de Medellín y el
+// TransMilenio de Bogotá, que están a cientos de kilómetros.
+//
+// Se devuelve lo que de verdad sirve en ESA ciudad: primero lo que está
+// etiquetado para ella, luego lo genérico del país (taxi, colectivo,
+// autobús intermunicipal), y nunca lo etiquetado para otra ciudad.
+export function mediosUtilesEnCiudad(medios: string[], ciudad?: string): string[] {
+  const normalizada = ciudad
+    ? ciudad.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    : "";
+  return medios.filter((medio) => {
+    const etiqueta = medio.match(/\(([^)]+)\)\s*$/);
+    if (!etiqueta) return true; // Genérico del país: sirve en cualquier ciudad.
+    if (!normalizada) return false; // Sin saber la ciudad, no arriesgamos.
+    const ciudadDelMedio = etiqueta[1].toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return ciudadDelMedio.includes(normalizada) || normalizada.includes(ciudadDelMedio);
+  });
+}

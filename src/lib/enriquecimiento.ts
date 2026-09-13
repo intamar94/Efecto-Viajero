@@ -56,17 +56,29 @@ export interface LugarEnriquecido {
 
 const CATEGORIAS_GASTRONOMICAS: CategoriaActividad[] = ["restaurante", "discoteca"];
 
+// Si ninguna de las dos fuentes comerciales está configurada, la ruta lo
+// dice y no hace falta volver a preguntar por cada sitio del viaje: se
+// recuerda para el resto de la sesión. Sin esto, un viaje con 20 sitios
+// disparaba 20 llamadas que siempre iban a volver vacías.
+let comercialesConfiguradas: boolean | undefined;
+
+export function hayFuentesComerciales(): boolean {
+  return comercialesConfiguradas !== false;
+}
+
 async function obtenerDatosComerciales(
   nombre: string,
   lat: number,
   lon: number,
   esGastronomico: boolean
 ): Promise<{ foursquare?: DatoFoursquare; yelp?: DatoYelp }> {
+  if (comercialesConfiguradas === false) return {};
   try {
     const url = `/api/enriquecer-lugar?nombre=${encodeURIComponent(nombre)}&lat=${lat}&lon=${lon}${esGastronomico ? "&gastronomico=1" : ""}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) return {};
     const data = await res.json();
+    if (typeof data?.configurado === "boolean") comercialesConfiguradas = data.configurado;
     return {
       foursquare: data?.foursquare ?? undefined,
       yelp: data?.yelp ?? undefined,

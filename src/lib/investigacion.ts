@@ -66,6 +66,16 @@ export interface SitioReal {
   // "Restaurante." — pero solo se muestra si el dato existe de verdad,
   // nunca se adivina la especialidad de un sitio.
   cocina?: string;
+  // Lo que aporta el pipeline comercial (Foursquare/Yelp, ver
+  // src/lib/enriquecimiento.ts) cuando OpenStreetMap no trae horario,
+  // precio ni dirección — que es el caso más común y justo el dato que
+  // más se echa en falta al decidir si ir. Solo se rellena si esas
+  // fuentes están configuradas Y encontraron ESTE sitio (validado por
+  // nombre + coordenadas); si no, quedan sin dato, nunca inventados.
+  // Mismo patrón "" / undefined: "" = ya se consultó y no había.
+  horarioComercial?: string;
+  precioComercial?: string;
+  direccionComercial?: string;
 }
 
 export interface DiaClima {

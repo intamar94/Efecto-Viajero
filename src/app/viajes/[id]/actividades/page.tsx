@@ -13,6 +13,7 @@ import { obtenerGuiaWikivoyage, VERSION_WIKIVOYAGE, type TipoListingWikivoyage }
 import { obtenerResumenLugar, obtenerResumenSitio, type ResumenWikipedia } from "@/lib/wikipedia";
 import { entornoCercanoDe } from "@/lib/entornoCercano";
 import { buscarEnLaWeb, describirResultadoWeb, type ResultadoBusquedaWeb } from "@/lib/busquedaWeb";
+import { enriquecerLugar, hayFuentesComerciales } from "@/lib/enriquecimiento";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
 import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
@@ -563,6 +564,37 @@ export default function ActividadesPage() {
             const conFragmento = resultados.find((r) => r.fragmento);
             siguiente = { ...siguiente, resumenWeb: (conFragmento && describirResultadoWeb(conFragmento)) || "" };
           }
+          // Horario y precio reales (Foursquare/Yelp) para los sitios a
+          // los que OpenStreetMap no se los puso — que es la mayoría, y
+          // es justo el dato que hace falta para decidir si ir. Solo se
+          // pregunta si esas fuentes están configuradas; si no lo están,
+          // hayFuentesComerciales() lo sabe tras la primera respuesta y
+          // no se vuelve a preguntar por cada sitio.
+          if (
+            siguiente.lat !== undefined &&
+            siguiente.lon !== undefined &&
+            siguiente.horarioComercial === undefined &&
+            (!siguiente.horarioApertura || !siguiente.precioAprox) &&
+            hayFuentesComerciales()
+          ) {
+            const datos = await enriquecerLugar({
+              nombre: siguiente.nombre,
+              lat: siguiente.lat,
+              lon: siguiente.lon,
+              categoria: siguiente.categoria,
+              ciudad: etapa.nombre,
+            });
+            if (cancelado) return;
+            if (hayFuentesComerciales()) {
+              huboCambios = true;
+              siguiente = {
+                ...siguiente,
+                horarioComercial: datos.yelp?.horario ?? "",
+                precioComercial: datos.yelp?.rangoPrecios ?? "",
+                direccionComercial: datos.foursquare?.direccion ?? "",
+              };
+            }
+          }
           actualizados.push(siguiente);
         }
         if (huboCambios && investigacionActual) {
@@ -737,10 +769,13 @@ export default function ActividadesPage() {
         etapaId: etapa.id,
         etapaNombre: etapa.nombre,
         pais: destinoEtapa.pais,
-        notaPrecio: s.precioAprox,
+        // OpenStreetMap primero (es el dato del propio sitio); si no lo
+        // tiene, lo que trajo el pipeline comercial. Nunca se inventa: si
+        // ninguna fuente lo tiene, la tarjeta lo deja sin decir.
+        notaPrecio: s.precioAprox || s.precioComercial || undefined,
         // Ya viene formateado en español (formatearHorario, en investigacion.ts):
         // aquí no hay sintaxis cruda de OpenStreetMap que traducir.
-        horario: s.horarioApertura,
+        horario: s.horarioApertura || s.horarioComercial || undefined,
         mapaUrl: s.lat && s.lon ? `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}` : undefined,
         webUrl: s.url,
         webEsDirecta: !!s.url,
@@ -751,7 +786,9 @@ export default function ActividadesPage() {
         // pide — se reconoce también por el nombre real de la marca.
         cadenaGenerica: s.detalle === "comida rápida" || s.detalle === "cafetería" || esCadenaConocida(s.nombre),
         cocinaLocal: s.cocina ? s.cocina.split(", ").some((c) => COCINAS_LOCALES.has(c)) : false,
-        direccion: distanciaDelCentro(etapa, s.lat, s.lon),
+        // La distancia al centro ayuda a decidir, pero una dirección real
+        // (cuando alguna fuente la tiene) es lo que de verdad sirve para ir.
+        direccion: s.direccionComercial || distanciaDelCentro(etapa, s.lat, s.lon),
       }));
 
     // Guía real de Wikivoyage (nombre, dirección, horario, precio, web ya
@@ -1173,12 +1210,27 @@ export default function ActividadesPage() {
                         <p className="mb-2 text-sm font-medium text-marino-900">✨ ¿Qué te gustaría hacer en {etapa.nombre}?</p>
                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                           {categoriasDisponibles.map((c) => {
-                            const activo = categoriasBuscadas !== null && categoriasBuscadas.length === 1 && categoriasBuscadas[0] === c;
+                            // Se marca CADA categoría activa, no solo cuando
+                            // hay exactamente una: si el viaje pedía "comida
+                            // típica y salir a bailar", la lista de abajo ya
+                            // venía filtrada por esas dos y ninguna caja se
+                            // veía encendida — parecía que la ciudad solo
+                            // tenía dos sitios, en vez de que estábamos
+                            // mostrando justo lo que se pidió.
+                            const activo = categoriasBuscadas !== null && categoriasBuscadas.includes(c);
                             return (
                               <button
                                 key={c}
                                 type="button"
-                                onClick={() => setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: activo ? null : [c] }))}
+                                // Tocar la única caja encendida quita el filtro;
+                                // tocar cualquier otra (o una de varias) filtra
+                                // a esa sola, que es lo que se espera al tocarla.
+                                onClick={() =>
+                                  setCategoriasBuscadasPorEtapa((prev) => ({
+                                    ...prev,
+                                    [etapa.id]: activo && categoriasBuscadas!.length === 1 ? null : [c],
+                                  }))
+                                }
                                 className={`flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition ${
                                   activo ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white hover:border-neutral-300"
                                 }`}
@@ -1191,6 +1243,30 @@ export default function ActividadesPage() {
                             );
                           })}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Sin esto la lista salía ya filtrada por lo que la
+                        persona pidió al crear el viaje, pero nada lo decía:
+                        se leía como "en esta ciudad solo hay dos sitios",
+                        cuando en realidad estábamos respondiendo justo a lo
+                        pedido y el resto seguía ahí detrás. */}
+                    {categoriasBuscadas !== null && categoriasBuscadas.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-marino-50 px-3 py-2 text-xs text-marino-800">
+                        <span>
+                          {haySugerenciaDelViaje ? "Filtrado por lo que pediste al crear el viaje:" : "Estás viendo solo:"}{" "}
+                          <span className="font-medium">
+                            {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta.toLowerCase()).join(" y ")}
+                          </span>
+                          .
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: null }))}
+                          className="font-medium text-marino-700 underline"
+                        >
+                          Ver todo en {etapa.nombre}
+                        </button>
                       </div>
                     )}
 

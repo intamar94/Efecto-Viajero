@@ -212,11 +212,18 @@ export async function GET(req: NextRequest) {
   const esGastronomico = req.nextUrl.searchParams.get("gastronomico") === "1";
 
   if (!nombre || !Number.isFinite(lat) || !Number.isFinite(lon)) {
-    return NextResponse.json({ foursquare: null, yelp: null });
+    return NextResponse.json({ configurado: false, foursquare: null, yelp: null });
   }
 
   const foursquareKey = process.env.FOURSQUARE_API_KEY;
   const yelpKey = process.env.YELP_API_KEY;
+
+  // Sin ninguna clave no hay nada que consultar: se dice explícitamente
+  // para que el cliente deje de preguntar por cada sitio en vez de hacer
+  // una llamada por lugar que siempre va a volver vacía.
+  if (!foursquareKey && !yelpKey) {
+    return NextResponse.json({ configurado: false, foursquare: null, yelp: null });
+  }
 
   const [foursquare, yelp] = await Promise.all([
     foursquareKey ? buscarFoursquare(nombre, lat, lon, foursquareKey) : Promise.resolve(undefined),
@@ -226,5 +233,5 @@ export async function GET(req: NextRequest) {
     yelpKey && esGastronomico ? buscarYelp(nombre, lat, lon, yelpKey) : Promise.resolve(undefined),
   ]);
 
-  return NextResponse.json({ foursquare: foursquare ?? null, yelp: yelp ?? null });
+  return NextResponse.json({ configurado: true, foursquare: foursquare ?? null, yelp: yelp ?? null });
 }
