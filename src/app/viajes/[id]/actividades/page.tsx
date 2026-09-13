@@ -355,7 +355,7 @@ export default function ActividadesPage() {
         }
         setEstadoWikivoyage((prev) => ({ ...prev, [etapa.nombre]: "cargando" }));
         try {
-          const guia = await obtenerGuiaWikivoyage(etapa.nombre);
+          const guia = await obtenerGuiaWikivoyage(etapa.nombre, paisDeEtapa(etapa)?.nombre);
           if (cancelado) return;
           if (guia) {
             // Un refresco (p. ej. para traducir una guía vieja) nunca debe
@@ -410,12 +410,21 @@ export default function ActividadesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viaje?.id]);
 
-  // Un sitio real conocido (un parque grande, un museo...) a veces tiene
-  // su propio artículo de Wikipedia — con lo que de verdad hay ahí (aves,
-  // una escultura, su historia), mucho más que la categoría sola
-  // ("Parque."). Se busca solo para naturaleza y museos, las categorías
-  // donde un artículo propio es más probable y más útil, y se guarda en
-  // el propio viaje una sola vez por sitio para no repetir la búsqueda.
+  // Un sitio real conocido (un parque grande, un museo, un monumento, hasta
+  // un bar histórico) a veces tiene su propio artículo de Wikipedia — con
+  // lo que de verdad hay ahí (aves, una escultura, su historia), mucho más
+  // que la categoría sola ("Parque." / "Atracción."). Se guarda en el
+  // propio viaje una sola vez por sitio para no repetir la búsqueda.
+  //
+  // Se prueba para CUALQUIER categoría de sitio real, no solo naturaleza o
+  // museos: restringirlo por categoría hacía que la riqueza de una tarjeta
+  // dependiera de en qué cajón cayó el sitio (una atracción histórica sin
+  // categoría reconocida quedaba tan vacía como un bar cualquiera), no de
+  // si de verdad hay algo que contar. El costo de intentarlo y no
+  // encontrar nada es solo una búsqueda de más (se cachea igual, no se
+  // repite); el beneficio es no dejar sitios con contenido real (una
+  // ciudad amurallada, la casa de un prócer...) mostrando solo su
+  // etiqueta genérica por casualidad de categorización.
   //
   // Cuando NO hay artículo (el caso más común: parques chicos, plazas...),
   // en vez de resignarse a la categoría sola se cruza con otra fuente real
@@ -434,11 +443,6 @@ export default function ActividadesPage() {
         let huboCambios = false;
         const actualizados: SitioReal[] = [];
         for (const s of sitios) {
-          const categoriaElegible = s.categoria === "naturaleza" || s.categoria === "museo";
-          if (!categoriaElegible) {
-            actualizados.push(s);
-            continue;
-          }
           let siguiente = s;
           if (siguiente.resumenWikipedia === undefined) {
             const resumen = await obtenerResumenLugar(siguiente.nombre, 200, etapa.nombre);

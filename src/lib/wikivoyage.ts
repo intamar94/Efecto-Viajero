@@ -29,7 +29,7 @@ export interface WikivoyageListing {
 // añadir la traducción automática): una guía ya guardada en un viaje con
 // una versión anterior se vuelve a buscar en vez de quedarse con el
 // inglés sin traducir para siempre.
-export const VERSION_WIKIVOYAGE = 2;
+export const VERSION_WIKIVOYAGE = 3;
 
 export interface WikivoyageResumen {
   articulo: string;
@@ -140,13 +140,32 @@ function partirNombreYContenido(texto: string): { nombre: string; contenido?: st
 // todo de ciudades más pequeñas, solo tienen texto en viñetas bajo el
 // encabezado de la sección. Sin esto, esos artículos se descartaban
 // enteros aunque tuvieran contenido real y útil.
+//
+// Las ciudades grandes (justo las que más interesan) suelen subdividir
+// "==See==" o "==Eat==" por barrio con subtítulos ("=== Getsemaní ==="),
+// dentro de la misma sección de nivel superior. Antes CUALQUIER
+// encabezado (sin distinguir su profundidad) reiniciaba tipoActual —
+// como "Getsemaní" no es una clave reconocida, quedaba en null y se
+// perdían TODAS las viñetas de esa subsección entera. Resultado: un
+// pueblo chico sin subtítulos se extraía bien, pero una ciudad grande y
+// bien organizada (Cartagena, con su Ciudad Amurallada dividida en
+// barrios) podía terminar sin nada — justo al revés de lo esperado, y
+// la causa real de que la riqueza de datos pareciera depender del lugar
+// en vez de ser consistente. Se distingue la profundidad real del
+// encabezado (cuántos "=" hay, deben ser simétricos a ambos lados): un
+// encabezado de nivel superior (2) sí decide la sección; uno más
+// profundo (3+, un subtítulo dentro de esa sección) solo se ignora como
+// línea, sin tocar tipoActual — las viñetas de debajo se siguen
+// contando para la sección de la que en verdad son parte.
 function extraerListingsDeViñetas(wikitext: string): WikivoyageListing[] {
   const listings: WikivoyageListing[] = [];
   let tipoActual: TipoListingWikivoyage | null = null;
   for (const linea of wikitext.split("\n")) {
-    const encabezado = linea.match(/^==+\s*([^=]+?)\s*==+\s*$/);
+    const encabezado = linea.match(/^(=+)\s*([^=]+?)\s*\1\s*$/);
     if (encabezado) {
-      tipoActual = SECCION_A_TIPO[encabezado[1].trim().toLowerCase()] ?? null;
+      if (encabezado[1].length === 2) {
+        tipoActual = SECCION_A_TIPO[encabezado[2].trim().toLowerCase()] ?? null;
+      }
       continue;
     }
     if (!tipoActual) continue;
@@ -162,21 +181,35 @@ function extraerListings(wikitext: string): WikivoyageListing[] {
   return [...extraerListingsDePlantillas(wikitext), ...extraerListingsDeViñetas(wikitext)];
 }
 
-async function buscarArticulo(ciudad: string, idioma: "es" | "en"): Promise<string | null> {
-  const url = `https://${idioma}.wikivoyage.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(ciudad)}&format=json&origin=*&srlimit=1`;
+async function buscarTitulo(consulta: string, idioma: "es" | "en"): Promise<string | null> {
+  const url = `https://${idioma}.wikivoyage.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(consulta)}&format=json&origin=*&srlimit=1`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
-      console.warn(`Wikivoyage (${idioma}): búsqueda de "${ciudad}" respondió ${res.status}`);
+      console.warn(`Wikivoyage (${idioma}): búsqueda de "${consulta}" respondió ${res.status}`);
       return null;
     }
     const data = await res.json();
     const titulo = data?.query?.search?.[0]?.title;
     return typeof titulo === "string" ? titulo : null;
   } catch (err) {
-    console.warn(`Wikivoyage (${idioma}): fallo al buscar "${ciudad}"`, err);
+    console.warn(`Wikivoyage (${idioma}): fallo al buscar "${consulta}"`, err);
     return null;
   }
+}
+
+// Muchos nombres de ciudad se repiten entre países (Cartagena existe en
+// España Y en Colombia; lo mismo Mérida, Sucre, Córdoba, Santiago,
+// Valencia, León...). Buscar solo por el nombre es una lotería: puede
+// devolver el artículo de otro país, con otro contenido (o ninguno
+// extraíble), sin que se note el error — la app simplemente parecía "no
+// tener datos para esta ciudad" cuando en realidad buscó el lugar
+// equivocado. El país como contexto (igual que ya hace wikipedia.ts)
+// desambigua primero; si esa consulta más específica no encuentra nada,
+// se prueba con el nombre solo como respaldo.
+async function buscarArticulo(ciudad: string, idioma: "es" | "en", contexto?: string): Promise<string | null> {
+  if (!contexto) return buscarTitulo(ciudad, idioma);
+  return (await buscarTitulo(`${ciudad} ${contexto}`, idioma)) ?? (await buscarTitulo(ciudad, idioma));
 }
 
 async function obtenerWikitext(titulo: string, idioma: "es" | "en"): Promise<string | null> {
@@ -219,9 +252,11 @@ async function traducirListings(listings: WikivoyageListing[]): Promise<Wikivoya
 // Intenta primero en español (más útil para el usuario) y si ese artículo
 // no existe o no trae listings estructurados, cae al inglés: Wikivoyage en
 // inglés cubre muchísimas más ciudades que la edición en español.
-export async function obtenerGuiaWikivoyage(ciudad: string): Promise<WikivoyageResumen | null> {
+// `contexto` (el país) desambigua nombres de ciudad que se repiten entre
+// países — ver el comentario en buscarArticulo.
+export async function obtenerGuiaWikivoyage(ciudad: string, contexto?: string): Promise<WikivoyageResumen | null> {
   for (const idioma of ["es", "en"] as const) {
-    const titulo = await buscarArticulo(ciudad, idioma);
+    const titulo = await buscarArticulo(ciudad, idioma, contexto);
     if (!titulo) continue;
     const wikitext = await obtenerWikitext(titulo, idioma);
     if (!wikitext) continue;
