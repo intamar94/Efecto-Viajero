@@ -89,29 +89,39 @@ function fraseEjemplo(nombresReales: string[], pais: string | undefined): string
   if (nombresReales.length > 0) return ` Como ${nombresReales.join(" o ")}.`;
   // Sin un sitio real todavía para presumir, un plato o producto típico
   // real del país (el mismo dato curado que usa "Qué comprar") da algo
-  // concreto igual, en vez de quedarse solo en la promesa genérica.
-  if (pais) {
-    const sabores = queProbarDe(pais).map((s) => s.nombre);
-    if (sabores.length > 0) return ` Prueba ${sabores.slice(0, 2).join(" o ")}.`;
-  }
-  return "";
+  // concreto igual — pero solo el nombre no basta: decir de qué se trata
+  // es lo que hace sentir que vale la pena probarlo, no solo un nombre
+  // suelto en otro idioma.
+  if (!pais) return "";
+  const sabores = queProbarDe(pais);
+  if (sabores.length === 0) return "";
+  const [primero, segundo] = sabores;
+  // Solo la primera letra en minúscula (para que fluya tras el guion): en
+  // minúscula la frase entera también convertía nombres propios como
+  // "Portugal" en "portugal".
+  const sinPunto = primero.descripcion.replace(/\.$/, "");
+  const detalle = sinPunto.charAt(0).toLowerCase() + sinPunto.slice(1);
+  return segundo ? ` Prueba ${primero.nombre} — ${detalle} — o ${segundo.nombre}.` : ` Prueba ${primero.nombre}: ${detalle}.`;
 }
 
 // Tres tonos simples según lo que de verdad promete la ciudad (naturaleza,
 // cultura, o sin un tema claro todavía): no inventa nada sobre el lugar,
-// solo cambia cómo se presenta lo que ya sabemos que hay.
+// solo cambia cómo se presenta lo que ya sabemos que hay. Sin repetir el
+// nombre de la ciudad: ya aparece justo arriba, en la cabecera de la
+// tarjeta y otra vez al inicio del resumen de Wikipedia que sigue debajo
+// — nombrarla una tercera vez aquí era la redundancia que se notaba.
 function fraseInspiradora(etapaNombre: string, categorias: CategoriaActividad[], nombresReales: string[], pais: string | undefined): string {
   const top = categorias.slice(0, 2);
   const deseo = fraseDeseo(top);
   const ejemplo = fraseEjemplo(nombresReales, pais);
   if (top.some((c) => c === "naturaleza" || c === "playa")) {
-    return `🌴 ${etapaNombre} puede ser tu propio paraíso — con ${deseo} esperándote.${ejemplo}`;
+    return `🌴 Puede ser tu propio paraíso — con ${deseo} esperándote.${ejemplo}`;
   }
   if (top.some((c) => c === "museo" || c === "cine_teatro")) {
-    return `🏛️ ${etapaNombre} es una joya por descubrir, con ${deseo} a tu alcance.${ejemplo}`;
+    return `🏛️ Una joya por descubrir, con ${deseo} a tu alcance.${ejemplo}`;
   }
   if (top.length > 0) {
-    return `✨ ${etapaNombre} tiene ${deseo} esperando a que lo vivas.${ejemplo}`;
+    return `✨ Tiene ${deseo} esperando a que lo vivas.${ejemplo}`;
   }
   return `✨ Prepárate para descubrir ${etapaNombre}.`;
 }
@@ -470,7 +480,12 @@ export default function ActividadesPage() {
         apta: [],
         entorno: s.categoria === "naturaleza" ? "exterior" : "interior",
         admiteMascotas: false,
-        descripcion: s.detalle ?? "Lugar real cercano; confirma horario y precio antes de ir.",
+        // "playa" o "restaurante" a secas apenas cuenta como descripción:
+        // se arma una frase corta con ese mismo dato real (nunca se
+        // inventa de qué se trata el lugar más allá de su categoría de
+        // OpenStreetMap) — se reemplaza en cuanto haya algo mejor de
+        // Wikivoyage al fusionar sitios, más abajo.
+        descripcion: s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)} real cerca de aquí — confirma horario y precio antes de ir.` : "Lugar real cercano; confirma horario y precio antes de ir.",
         esPropia: false,
         esSitioReal: true,
         fuenteEtiqueta: "OpenStreetMap",
@@ -540,16 +555,47 @@ export default function ActividadesPage() {
         etapaNombre: etapa.nombre,
       }));
 
-    // El mismo lugar real puede aparecer en más de una fuente (tu propia
-    // nota, un sitio de OpenStreetMap, un listing de Wikivoyage, o la idea
-    // genérica del catálogo): se prioriza la fuente más fiable — lo que tú
-    // añadiste, luego investigación real, luego la idea orientativa — y no
-    // se repite la misma tarjeta con el mismo nombre varias veces.
+    // El mismo lugar real a veces lo trae tanto OpenStreetMap (coordenadas,
+    // categoría) como Wikivoyage (precio, horario, dirección, escrito por
+    // otros viajeros) bajo el mismo nombre. Antes se mostraba solo la
+    // primera fuente y la segunda se descartaba entera — así un
+    // restaurante con precio real en Wikivoyage podía aparecer como
+    // "Consultar precio" solo porque OpenStreetMap lo encontró primero y
+    // no traía esa etiqueta. Se combinan en una sola tarjeta con lo mejor
+    // de cada fuente en vez de quedarse con la más pobre.
+    function fusionarSitio(base: Item, extra: Item): Item {
+      return {
+        ...base,
+        notaPrecio: base.notaPrecio ?? extra.notaPrecio,
+        horario: base.horario ?? extra.horario,
+        direccion: base.direccion ?? extra.direccion,
+        webUrl: base.webEsDirecta ? base.webUrl : extra.webEsDirecta ? extra.webUrl : base.webUrl,
+        webEsDirecta: base.webEsDirecta || Boolean(extra.webEsDirecta),
+        // Una frase real de Wikivoyage (escrita por otro viajero sobre ESE
+        // lugar) vale más que la categoría genérica de OpenStreetMap
+        // ("restaurante", "playa"), así que gana cuando existe de verdad
+        // (no el texto de relleno para cuando Wikivoyage no trae nada).
+        descripcion: extra.descripcion && extra.descripcion !== "Recomendado en la guía Wikivoyage de la ciudad." ? extra.descripcion : base.descripcion,
+      };
+    }
+    const porSlugReal = new Map<string, Item>();
+    for (const it of deSitiosReales) porSlugReal.set(slug(it.nombre), it);
+    for (const it of deWikivoyage) {
+      const clave = slug(it.nombre);
+      const existente = porSlugReal.get(clave);
+      porSlugReal.set(clave, existente ? fusionarSitio(existente, it) : it);
+    }
+    const realesDeEtapa = [...porSlugReal.values()];
+
+    // El mismo lugar real puede aparecer también en tu propia nota o en la
+    // idea genérica del catálogo: se prioriza la fuente más fiable — lo
+    // que tú añadiste, luego investigación real (ya fusionada arriba),
+    // luego la idea orientativa — y no se repite la misma tarjeta con el
+    // mismo nombre varias veces.
     const nombresYaMostrados = new Set(propiasDeEtapa.map((it) => slug(it.nombre)));
     const sinDuplicar = (lista: Item[]) =>
       lista.filter((it) => !nombresYaMostrados.has(slug(it.nombre)) && nombresYaMostrados.add(slug(it.nombre)));
 
-    const realesDeEtapa = [...deSitiosReales, ...deWikivoyage];
     // Si ya hay lugares reales de una categoría, la idea genérica del
     // catálogo para esa misma categoría sobra: antes se mostraba igual, con
     // un coste inventado, junto al aviso de que no era un lugar investigado
@@ -557,7 +603,7 @@ export default function ActividadesPage() {
     const categoriasConDatosReales = new Set(realesDeEtapa.map((it) => it.categoria));
     const delCatalogoUtil = delCatalogo.filter((it) => !categoriasConDatosReales.has(it.categoria));
 
-    return [...propiasDeEtapa, ...sinDuplicar(deSitiosReales), ...sinDuplicar(deWikivoyage), ...sinDuplicar(delCatalogoUtil)];
+    return [...propiasDeEtapa, ...sinDuplicar(realesDeEtapa), ...sinDuplicar(delCatalogoUtil)];
   }
 
   function setEstado(item: Item, estado: EstadoActividad | null) {

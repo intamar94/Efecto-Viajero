@@ -237,6 +237,24 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
 const SOUVENIRS_POR_PAIS: Record<string, SouvenirDestino[]> = {
   portugal: [
     {
+      id: "portugal-sv-bifana",
+      nombre: "Bifana",
+      origen: "Portugal",
+      precioAprox: "3-6 €",
+      descripcion: "Sándwich de filete de cerdo marinado en ajo y vino blanco, uno de los bocadillos callejeros más queridos de Portugal.",
+      datoCurioso: "Se sirve en casi cualquier café o tasca, normalmente solo con mostaza — y a veces con un chorrito del propio jugo de la marinada sobre el pan.",
+      dondéComprar: "Cafés, tascas y puestos callejeros en cualquier ciudad portuguesa.",
+    },
+    {
+      id: "portugal-sv-cataplana",
+      nombre: "Cataplana algarvia",
+      origen: "Portugal",
+      precioAprox: "15-30 € el plato (para compartir)",
+      descripcion: "Guiso gastronómico de mariscos, pescado, carne y vegetales, cocinado y servido en una cataplana — la olla de cobre típica del Algarve, la región de Faro.",
+      datoCurioso: "Le da nombre tanto al plato como al recipiente: una olla redonda de cobre con bisagra que se cierra herméticamente y concentra todo el sabor al cocinar.",
+      dondéComprar: "Restaurantes de pescado y marisco en toda la costa del Algarve.",
+    },
+    {
       id: "portugal-sv-pasteis",
       nombre: "Pastéis de Nata",
       origen: "Portugal",
