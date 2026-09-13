@@ -235,6 +235,49 @@ export function actividadesDe(destino: Destino): ActividadDestino[] {
 // que en cualquier ciudad fuera del catálogo la pantalla quedaba vacía.
 // Solo usaba el país, así que ahora recibe el país y ya está.
 const SOUVENIRS_POR_PAIS: Record<string, SouvenirDestino[]> = {
+  portugal: [
+    {
+      id: "portugal-sv-pasteis",
+      nombre: "Pastéis de Nata",
+      origen: "Portugal",
+      precioAprox: "1-2 € la unidad",
+      descripcion: "El dulce gastronómico más famoso de Portugal: hojaldre relleno de crema, con la superficie quemada.",
+      datoCurioso: "La receta original nació en el Monasterio de los Jerónimos, en Lisboa; la fórmula secreta de la pastelería Pastéis de Belém la conocen solo unos pocos maestros pasteleros.",
+      avisoEquipaje: "Se echan a perder rápido: mejor comerlos en el momento que intentar llevarlos de vuelta.",
+      dondéComprar: "Pastelerías y cafés en cualquier ciudad portuguesa; busca los que anuncian que son caseros.",
+    },
+    {
+      id: "portugal-sv-vino-oporto",
+      nombre: "Vino de Oporto",
+      origen: "Portugal",
+      precioAprox: "10-40 €",
+      descripcion: "Vino generoso y dulce, uno de los símbolos más reconocidos de Portugal.",
+      datoCurioso: "Solo puede llamarse \"Porto\" el vino producido en el valle del Duero y envejecido en las bodegas de Vila Nova de Gaia, frente a la ciudad de Oporto.",
+      avisoEquipaje: "Líquido: va en la maleta facturada. En cabina el límite suele ser 100 ml por envase.",
+      historia: "Se popularizó en el siglo XVII, cuando los comerciantes británicos añadían aguardiente al vino para que aguantara el viaje por mar.",
+      dondéComprar: "Bodegas de Vila Nova de Gaia, tiendas especializadas, supermercados.",
+    },
+    {
+      id: "portugal-sv-queijo-serra",
+      nombre: "Queijo da Serra",
+      origen: "Portugal",
+      precioAprox: "8-20 €",
+      descripcion: "Queso cremoso de oveja, uno de los productos gastronómicos más reconocidos de Portugal.",
+      datoCurioso: "Se cuaja tradicionalmente con cardo silvestre en vez de cuajo animal, una técnica que se remonta a siglos atrás en la Serra da Estrela.",
+      avisoEquipaje: "Va en la maleta facturada; envuélvelo bien, es de textura blanda.",
+      dondéComprar: "Mercados locales y quesarías; también en supermercados grandes.",
+    },
+    {
+      id: "portugal-sv-azulejos",
+      nombre: "Azulejo pintado a mano",
+      origen: "Portugal",
+      precioAprox: "5-30 € la pieza",
+      descripcion: "Baldosa de cerámica pintada, una de las artesanías más identificadas con Portugal.",
+      datoCurioso: "Muchas fachadas y estaciones de tren portuguesas están cubiertas de azulejos históricos: no es solo un souvenir, es parte del paisaje urbano del país.",
+      avisoEquipaje: "Frágil: mejor en cabina, bien protegido. En la maleta facturada el riesgo de rotura es alto.",
+      dondéComprar: "Tiendas de artesanía y talleres especializados en las ciudades históricas.",
+    },
+  ],
   españa: [
     {
       id: "spain-sv-jamón",

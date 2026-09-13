@@ -72,20 +72,46 @@ function fraseDeseo(categorias: CategoriaActividad[]): string {
   return `${frases.slice(0, -1).join(", ")} y ${frases[frases.length - 1]}`;
 }
 
+// Nombrar algo genérico como "especial" no convence a nadie: lo que de
+// verdad da sensación de viaje hecho a la medida es citar sitios reales
+// que ya encontramos en ESA ciudad (nunca una idea orientativa del
+// catálogo). Para restaurantes se evita destacar una cadena de comida
+// rápida o café — real, pero no lo que alguien imagina al pensar en "una
+// experiencia gastronómica inolvidable" en un destino nuevo.
+function nombresDestacadosDe(items: Item[], categoria: CategoriaActividad): string[] {
+  const reales = items.filter((it) => it.categoria === categoria && !it.esGenerica);
+  const preferidos = categoria === "restaurante" ? reales.filter((it) => it.descripcion !== "comida rápida" && it.descripcion !== "cafetería") : reales;
+  const elegidos = preferidos.length > 0 ? preferidos : reales;
+  return elegidos.map((it) => it.nombre).slice(0, 2);
+}
+
+function fraseEjemplo(nombresReales: string[], pais: string | undefined): string {
+  if (nombresReales.length > 0) return ` Como ${nombresReales.join(" o ")}.`;
+  // Sin un sitio real todavía para presumir, un plato o producto típico
+  // real del país (el mismo dato curado que usa "Qué comprar") da algo
+  // concreto igual, en vez de quedarse solo en la promesa genérica.
+  if (pais) {
+    const sabores = queProbarDe(pais).map((s) => s.nombre);
+    if (sabores.length > 0) return ` Prueba ${sabores.slice(0, 2).join(" o ")}.`;
+  }
+  return "";
+}
+
 // Tres tonos simples según lo que de verdad promete la ciudad (naturaleza,
 // cultura, o sin un tema claro todavía): no inventa nada sobre el lugar,
 // solo cambia cómo se presenta lo que ya sabemos que hay.
-function fraseInspiradora(etapaNombre: string, categorias: CategoriaActividad[]): string {
+function fraseInspiradora(etapaNombre: string, categorias: CategoriaActividad[], nombresReales: string[], pais: string | undefined): string {
   const top = categorias.slice(0, 2);
   const deseo = fraseDeseo(top);
+  const ejemplo = fraseEjemplo(nombresReales, pais);
   if (top.some((c) => c === "naturaleza" || c === "playa")) {
-    return `🌴 ${etapaNombre} puede ser tu propio paraíso — con ${deseo} esperándote.`;
+    return `🌴 ${etapaNombre} puede ser tu propio paraíso — con ${deseo} esperándote.${ejemplo}`;
   }
   if (top.some((c) => c === "museo" || c === "cine_teatro")) {
-    return `🏛️ ${etapaNombre} es una joya por descubrir, con ${deseo} a tu alcance.`;
+    return `🏛️ ${etapaNombre} es una joya por descubrir, con ${deseo} a tu alcance.${ejemplo}`;
   }
   if (top.length > 0) {
-    return `✨ ${etapaNombre} tiene ${deseo} esperando a que lo vivas.`;
+    return `✨ ${etapaNombre} tiene ${deseo} esperando a que lo vivas.${ejemplo}`;
   }
   return `✨ Prepárate para descubrir ${etapaNombre}.`;
 }
@@ -451,7 +477,9 @@ export default function ActividadesPage() {
         etapaId: etapa.id,
         etapaNombre: etapa.nombre,
         notaPrecio: s.precioAprox,
-        horario: s.horarioApertura ? `${s.horarioApertura}${s.horarioCierre ? ` - ${s.horarioCierre}` : ""}` : undefined,
+        // Ya viene formateado en español (formatearHorario, en investigacion.ts):
+        // aquí no hay sintaxis cruda de OpenStreetMap que traducir.
+        horario: s.horarioApertura,
         mapaUrl: s.lat && s.lon ? `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}` : undefined,
         webUrl: s.url,
         webEsDirecta: !!s.url,
@@ -761,6 +789,15 @@ export default function ActividadesPage() {
               (a, b) => ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria)
             );
 
+            // Para presentar la ciudad: prioriza lo que la persona pidió al
+            // crear el viaje sobre lo que simplemente encontramos, y saca de
+            // ahí nombres reales (nunca del catálogo genérico) para que la
+            // presentación se sienta hecha para ESTA ciudad, no una frase
+            // que serviría para cualquier destino.
+            const categoriasParaTono = categoriasSugeridas.length > 0 ? categoriasSugeridas : categoriasDisponibles;
+            const nombresRealesTono = categoriasParaTono.slice(0, 2).flatMap((c) => nombresDestacadosDe(items, c)).slice(0, 2);
+            const paisEtapa = paisDeEtapa(etapa)?.nombre;
+
             return (
               <div key={etapa.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
                 <button
@@ -783,14 +820,11 @@ export default function ActividadesPage() {
                     {(() => {
                       const resumen = resumenCiudad[etapa.nombre];
                       const extracto = resumen && resumen !== "cargando" && resumen !== "sin_datos" ? resumen.extracto : undefined;
-                      // Prioriza lo que la persona pidió al crear el viaje
-                      // sobre lo que simplemente encontramos: conecta la
-                      // presentación de la ciudad con su propio deseo, no
-                      // solo con el dato frío de Wikipedia.
-                      const categoriasParaTono = categoriasSugeridas.length > 0 ? categoriasSugeridas : categoriasDisponibles;
                       return (
                         <div className="rounded-xl bg-gradient-to-br from-marino-50 to-coral-50 p-4">
-                          <p className="mb-1 text-sm font-medium text-marino-900">{fraseInspiradora(etapa.nombre, categoriasParaTono)}</p>
+                          <p className="mb-1 text-sm font-medium text-marino-900">
+                            {fraseInspiradora(etapa.nombre, categoriasParaTono, nombresRealesTono, paisEtapa)}
+                          </p>
                           {extracto ? (
                             <p className="text-sm leading-relaxed text-neutral-700">{extracto}</p>
                           ) : resumen === "cargando" ? (
@@ -823,22 +857,6 @@ export default function ActividadesPage() {
                             );
                           })}
                         </div>
-
-                        {categoriasBuscadas !== null && (
-                          <div className="mt-3 flex items-center justify-between gap-2 border-t border-marino-100 pt-3">
-                            <p className="text-xs text-neutral-500">
-                              {haySugerenciaDelViaje ? "✨ Basado en lo que describiste al crear el viaje: " : "Mostrando: "}
-                              {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta).join(", ")}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => setCategoriasBuscadasPorEtapa((prev) => ({ ...prev, [etapa.id]: null }))}
-                              className="shrink-0 text-xs text-marino-600 underline"
-                            >
-                              Ver todo
-                            </button>
-                          </div>
-                        )}
                       </div>
                     )}
 

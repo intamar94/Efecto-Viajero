@@ -164,11 +164,32 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
   return "otro";
 }
 
+// El formato crudo de "opening_hours" en OpenStreetMap es una sintaxis
+// propia (https://wiki.openstreetmap.org/wiki/Key:opening_hours), no un
+// texto pensado para leerse: mezcla la regla semanal habitual con
+// excepciones por fecha ("Jan 01 12:00-02:00; Dec 25 off"), en cualquier
+// orden. Mostrarlo tal cual es ilegible y no cabe en una etiqueta. Aquí se
+// queda solo con las reglas de días de la semana (las que de verdad
+// importan para planear una visita) y se traducen las abreviaturas al
+// español; las excepciones por fecha puntual se descartan en vez de
+// mostrarse a medias.
+const DIA_ES: Record<string, string> = { Mo: "Lu", Tu: "Ma", We: "Mi", Th: "Ju", Fr: "Vi", Sa: "Sá", Su: "Do" };
+
+function formatearHorario(raw: string): string | undefined {
+  const clausulas = raw.split(";").map((c) => c.trim()).filter(Boolean);
+  const semanales = clausulas.filter((c) => /^(Mo|Tu|We|Th|Fr|Sa|Su)([-,]|\s)/i.test(c) || /^24\/7$/i.test(c));
+  if (semanales.length === 0) return undefined;
+  return semanales
+    .slice(0, 2)
+    .map((c) => c.replace(/\b(Mo|Tu|We|Th|Fr|Sa|Su)\b/g, (m) => DIA_ES[m] ?? m))
+    .join(" / ");
+}
+
 // OSM sí trae horario, web y a veces precio para muchos sitios — no
 // leerlos era la causa real de "no hay información de valor, solo
 // 'consultar precio'": el dato existía en la fuente y no se aprovechaba.
 function horarioDe(tags: Record<string, string> = {}): string | undefined {
-  return tags.opening_hours;
+  return tags.opening_hours ? formatearHorario(tags.opening_hours) : undefined;
 }
 function webDe(tags: Record<string, string> = {}): string | undefined {
   const url = tags.website ?? tags["contact:website"];
