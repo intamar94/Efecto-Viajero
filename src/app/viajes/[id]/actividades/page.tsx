@@ -894,8 +894,13 @@ export default function ActividadesPage() {
 
             // Sin menú de categorías que abrir y cerrar: se muestra la
             // lista directa, ya sea filtrada por la búsqueda o completa.
+            // Dentro de cada categoría, una cadena genérica (McDonald's,
+            // Starbucks...) se manda al final: sigue siendo un resultado
+            // real y válido, pero lo primero que se ve al abrir
+            // "Restaurantes típicos" no debería ser justo lo que menos se
+            // busca al pedir algo típico.
             const listaMostrada = [...(categoriasBuscadas !== null ? resultadosBusqueda : items)].sort(
-              (a, b) => ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria)
+              (a, b) => ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria) || Number(Boolean(a.cadenaGenerica)) - Number(Boolean(b.cadenaGenerica))
             );
 
             // Para presentar la ciudad: prioriza lo que la persona pidió al
