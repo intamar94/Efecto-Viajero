@@ -410,6 +410,47 @@ export default function ActividadesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viaje?.id]);
 
+  // Un sitio real conocido (un parque grande, un museo...) a veces tiene
+  // su propio artículo de Wikipedia — con lo que de verdad hay ahí (aves,
+  // una escultura, su historia), mucho más que la categoría sola
+  // ("Parque."). Se busca solo para naturaleza y museos, las categorías
+  // donde un artículo propio es más probable y más útil, y se guarda en
+  // el propio viaje una sola vez por sitio para no repetir la búsqueda.
+  // Si el lugar no tiene artículo, no se inventa nada: se queda con la
+  // categoría, como antes.
+  useEffect(() => {
+    if (!viaje) return;
+    let cancelado = false;
+    (async () => {
+      let investigacionActual = viaje.investigacion;
+      for (const etapa of etapasDe(viaje)) {
+        const sitios = investigacionActual?.sitios?.[etapa.nombre];
+        if (!sitios?.length) continue;
+        let huboCambios = false;
+        const actualizados: SitioReal[] = [];
+        for (const s of sitios) {
+          const elegible = (s.categoria === "naturaleza" || s.categoria === "museo") && s.resumenWikipedia === undefined;
+          if (!elegible) {
+            actualizados.push(s);
+            continue;
+          }
+          const resumen = await obtenerResumenLugar(s.nombre, 200, etapa.nombre);
+          if (cancelado) return;
+          huboCambios = true;
+          actualizados.push({ ...s, resumenWikipedia: resumen?.extracto ?? "" });
+        }
+        if (huboCambios && investigacionActual) {
+          investigacionActual = { ...investigacionActual, sitios: { ...investigacionActual.sitios, [etapa.nombre]: actualizados } };
+          actualizarViaje(viaje.id, { investigacion: investigacionActual });
+        }
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viaje?.id, viaje?.investigacion?.version]);
+
   // Un fallo parcial (p. ej. Overpass caído justo esa vez, mientras
   // clima/moneda sí respondieron) no debe borrar sitios reales que ya
   // teníamos de una ciudad. Se compara CANTIDAD, no solo "vacío o no": una
@@ -524,13 +565,18 @@ export default function ActividadesPage() {
         apta: [],
         entorno: s.categoria === "naturaleza" ? "exterior" : "interior",
         admiteMascotas: false,
-        // Solo la categoría real de OpenStreetMap, sin relleno: decir "real"
-        // y repetir "confirma horario y precio antes de ir" en cada
+        // Si este sitio en concreto (no la ciudad) tiene su propio artículo
+        // real de Wikipedia, se usa ese extracto — cuenta qué hay de verdad
+        // ahí (aves, una escultura, su historia), no solo la categoría. Si
+        // no tiene artículo (resumenWikipedia === ""), o no hay dato de
+        // OpenStreetMap, se cae a la categoría real sin relleno: decir
+        // "real" y repetir "confirma horario y precio antes de ir" en cada
         // tarjeta era redundante con la nota general al pie de la página
         // (que ya lo dice una vez para todos los sitios reales) y no
-        // aportaba nada que el usuario no supiera ya. Se reemplaza en
-        // cuanto haya algo mejor de Wikivoyage al fusionar sitios, abajo.
-        descripcion: s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Lugar cercano.",
+        // aportaba nada que el usuario no supiera ya.
+        descripcion:
+          s.resumenWikipedia ||
+          (s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Lugar cercano."),
         esPropia: false,
         esSitioReal: true,
         fuenteEtiqueta: "OpenStreetMap",

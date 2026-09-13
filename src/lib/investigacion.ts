@@ -23,6 +23,13 @@ export interface SitioReal {
   horarioApertura?: string;
   horarioCierre?: string;
   boleteria?: string;
+  // Resumen real de Wikipedia sobre ESTE sitio en concreto (no la ciudad):
+  // solo existe si el lugar tiene su propio artículo — un parque grande y
+  // conocido puede tenerlo (y contar qué hay de verdad ahí: aves, un
+  // monumento, su historia), uno chico normalmente no. Cadena vacía "" =
+  // ya se buscó y no hay artículo (para no repetir la búsqueda);
+  // undefined = todavía no se buscó.
+  resumenWikipedia?: string;
 }
 
 export interface DiaClima {
