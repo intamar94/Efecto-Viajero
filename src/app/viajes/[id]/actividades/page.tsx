@@ -11,9 +11,10 @@ import { actividadesDe, urlBuscarActividad, urlMapsActividad, queProbarDe } from
 import { destinoParaCatalogo, destinoPrincipal, etapasDe, paisDeEtapa } from "@/lib/viaje";
 import { obtenerGuiaWikivoyage, VERSION_WIKIVOYAGE, type TipoListingWikivoyage } from "@/lib/wikivoyage";
 import { obtenerResumenLugar, type ResumenWikipedia } from "@/lib/wikipedia";
+import { entornoCercanoDe } from "@/lib/entornoCercano";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
-import { distanciaMetros } from "@/lib/geoAudio";
+import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
 import { acortarTexto } from "@/lib/texto";
 import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
 import { VERSION_INVESTIGACION, type Investigacion, type SitioReal } from "@/lib/investigacion";
@@ -57,8 +58,7 @@ function distanciaDelCentro(etapa: Etapa, lat?: number, lon?: number): string | 
   if (etapa.lat === undefined || etapa.lon === undefined || lat === undefined || lon === undefined) return undefined;
   const metros = distanciaMetros(etapa.lat, etapa.lon, lat, lon);
   if (metros < 150) return "En el centro";
-  if (metros < 1000) return `~${Math.round(metros / 50) * 50} m del centro`;
-  return `~${(metros / 1000).toFixed(1)} km del centro`;
+  return `${formatearDistancia(metros)} del centro`;
 }
 
 // Lo que cada categoría promete, en un lenguaje que invita en vez de
@@ -416,8 +416,13 @@ export default function ActividadesPage() {
   // ("Parque."). Se busca solo para naturaleza y museos, las categorías
   // donde un artículo propio es más probable y más útil, y se guarda en
   // el propio viaje una sola vez por sitio para no repetir la búsqueda.
-  // Si el lugar no tiene artículo, no se inventa nada: se queda con la
-  // categoría, como antes.
+  //
+  // Cuando NO hay artículo (el caso más común: parques chicos, plazas...),
+  // en vez de resignarse a la categoría sola se cruza con otra fuente real
+  // — OpenStreetMap, qué hay literalmente alrededor del punto (bancos,
+  // heladería, baños...) — para dar algo concreto y accionable sin que el
+  // viajero tenga que buscarlo por su cuenta. Nunca se inventa nada: si
+  // ninguna fuente tiene nada, se queda con la categoría, como antes.
   useEffect(() => {
     if (!viaje) return;
     let cancelado = false;
@@ -429,15 +434,33 @@ export default function ActividadesPage() {
         let huboCambios = false;
         const actualizados: SitioReal[] = [];
         for (const s of sitios) {
-          const elegible = (s.categoria === "naturaleza" || s.categoria === "museo") && s.resumenWikipedia === undefined;
-          if (!elegible) {
+          const categoriaElegible = s.categoria === "naturaleza" || s.categoria === "museo";
+          if (!categoriaElegible) {
             actualizados.push(s);
             continue;
           }
-          const resumen = await obtenerResumenLugar(s.nombre, 200, etapa.nombre);
-          if (cancelado) return;
-          huboCambios = true;
-          actualizados.push({ ...s, resumenWikipedia: resumen?.extracto ?? "" });
+          let siguiente = s;
+          if (siguiente.resumenWikipedia === undefined) {
+            const resumen = await obtenerResumenLugar(siguiente.nombre, 200, etapa.nombre);
+            if (cancelado) return;
+            huboCambios = true;
+            siguiente = { ...siguiente, resumenWikipedia: resumen?.extracto ?? "" };
+          }
+          // Sin artículo propio: qué hay de verdad cerca, según OSM. Un
+          // fallo de red (entornoCercanoDe lanza en ese caso) se deja tal
+          // cual está — no se marca como "ya buscado y vacío" — para poder
+          // reintentar en una próxima visita en vez de perder el dato para siempre.
+          if (!siguiente.resumenWikipedia && siguiente.entornoCercano === undefined && siguiente.lat !== undefined && siguiente.lon !== undefined) {
+            try {
+              const entorno = await entornoCercanoDe(siguiente.lat, siguiente.lon);
+              if (cancelado) return;
+              huboCambios = true;
+              siguiente = { ...siguiente, entornoCercano: entorno ?? "" };
+            } catch {
+              if (cancelado) return;
+            }
+          }
+          actualizados.push(siguiente);
         }
         if (huboCambios && investigacionActual) {
           investigacionActual = { ...investigacionActual, sitios: { ...investigacionActual.sitios, [etapa.nombre]: actualizados } };
@@ -568,15 +591,19 @@ export default function ActividadesPage() {
         // Si este sitio en concreto (no la ciudad) tiene su propio artículo
         // real de Wikipedia, se usa ese extracto — cuenta qué hay de verdad
         // ahí (aves, una escultura, su historia), no solo la categoría. Si
-        // no tiene artículo (resumenWikipedia === ""), o no hay dato de
-        // OpenStreetMap, se cae a la categoría real sin relleno: decir
-        // "real" y repetir "confirma horario y precio antes de ir" en cada
-        // tarjeta era redundante con la nota general al pie de la página
-        // (que ya lo dice una vez para todos los sitios reales) y no
-        // aportaba nada que el usuario no supiera ya.
+        // no tiene artículo, en vez de quedarse en la categoría sola se
+        // suma qué hay de verdad alrededor según OpenStreetMap (bancos,
+        // heladería, baños...). Solo si ninguna de las dos fuentes tiene
+        // nada se cae a la categoría real sin relleno: decir "real" y
+        // repetir "confirma horario y precio antes de ir" en cada tarjeta
+        // era redundante con la nota general al pie de la página (que ya lo
+        // dice una vez para todos los sitios reales) y no aportaba nada que
+        // el usuario no supiera ya.
         descripcion:
           s.resumenWikipedia ||
-          (s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Lugar cercano."),
+          [s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Lugar cercano.", s.entornoCercano]
+            .filter(Boolean)
+            .join(" "),
         esPropia: false,
         esSitioReal: true,
         fuenteEtiqueta: "OpenStreetMap",

@@ -11,6 +11,15 @@ export function distanciaMetros(lat1: number, lon1: number, lat2: number, lon2: 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Redondea a un número de metros/kilómetros fácil de leer de un vistazo,
+// en vez de una cifra falsamente precisa ("847 m") que nadie necesita al
+// caminar. Se reutiliza en cualquier sitio de la app que muestre una
+// distancia real calculada con distanciaMetros.
+export function formatearDistancia(metros: number): string {
+  if (metros < 1000) return `~${Math.round(metros / 50) * 50} m`;
+  return `~${(metros / 1000).toFixed(1)} km`;
+}
+
 export function hablar(texto: string) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();

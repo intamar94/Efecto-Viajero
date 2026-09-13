@@ -30,6 +30,11 @@ export interface SitioReal {
   // ya se buscó y no hay artículo (para no repetir la búsqueda);
   // undefined = todavía no se buscó.
   resumenWikipedia?: string;
+  // Solo se busca cuando este sitio NO tiene resumenWikipedia (ni lo va a
+  // tener): qué hay de verdad alrededor según OpenStreetMap — bancos,
+  // heladería, baños... para no dejar la tarjeta en la categoría sola.
+  // Mismo patrón de cadena vacía "" / undefined que resumenWikipedia.
+  entornoCercano?: string;
 }
 
 export interface DiaClima {
