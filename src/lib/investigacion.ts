@@ -76,6 +76,11 @@ export interface SitioReal {
   horarioComercial?: string;
   precioComercial?: string;
   direccionComercial?: string;
+  // De dónde salió este sitio. Sin marcar = OpenStreetMap (el caso
+  // normal). "wikidata" = lo trajo el descubrimiento por cercanía, que
+  // encuentra lo que está fuera del casco urbano (termales, cascadas,
+  // pueblos) y que OSM no tiene bien etiquetado a esa distancia.
+  fuente?: "wikidata";
 }
 
 export interface DiaClima {
@@ -112,7 +117,7 @@ export interface AuditoriaCapacidades {
 // número, esa investigación quedó desactualizada aunque nadie la haya
 // tocado, y conviene volver a correrla en vez de esperar a que alguien
 // recuerde tocar "Actualizar investigación real".
-export const VERSION_INVESTIGACION = 6;
+export const VERSION_INVESTIGACION = 7;
 
 export interface Investigacion {
   generadoEn: string;
@@ -123,6 +128,12 @@ export interface Investigacion {
   moneda?: CambioMoneda;
   auditoria: AuditoriaCapacidades;
   fuentes: string[];
+  // Por ciudad, con qué versión del descubrimiento por cercanía
+  // (Wikidata) se completó ya. Sirve para no repetir la consulta en cada
+  // visita y, a la vez, para volver a lanzarla sola cuando la forma de
+  // descubrir mejore — sin que nadie tenga que revisar ciudad por ciudad
+  // si le falta información.
+  descubrimiento?: Record<string, number>;
 }
 
 // Dominios cuyos resultados son sitios reales navegables (los que buscan en
@@ -166,6 +177,55 @@ const DETALLE_OSM: Record<string, string> = {
 };
 
 const MAX_POR_CATEGORIA = 8;
+
+// Franjas de distancia al centro, en metros: lo que está a mano, lo que
+// es una salida corta y lo que es la excursión del día (un pueblo vecino
+// con termales, una cascada, un parque natural).
+const FRANJAS_METROS = [3000, 15000, Infinity];
+
+// Intercala candidatos de cada franja (el más cercano de cada una, por
+// turnos) en vez de listarlos del más cercano al más lejano. Así, cuando
+// después se recorta al cupo por categoría, sobreviven sitios de las tres
+// distancias y no solo los del centro.
+function repartirPorFranjas<T extends { lat?: number; lon?: number; center?: { lat?: number; lon?: number } }>(
+  elementos: T[],
+  destLat: number,
+  destLon: number
+): T[] {
+  const grupos: T[][] = FRANJAS_METROS.map(() => []);
+  const sinCoordenadas: T[] = [];
+
+  for (const el of elementos) {
+    const lat = el.lat ?? el.center?.lat;
+    const lon = el.lon ?? el.center?.lon;
+    if (lat === undefined || lon === undefined) {
+      sinCoordenadas.push(el);
+      continue;
+    }
+    const distancia = distanciaMetros(destLat, destLon, lat, lon);
+    const indice = FRANJAS_METROS.findIndex((limite) => distancia <= limite);
+    grupos[indice === -1 ? grupos.length - 1 : indice].push(el);
+  }
+
+  for (const grupo of grupos) {
+    grupo.sort((a, b) => {
+      const distA = distanciaMetros(destLat, destLon, a.lat ?? a.center!.lat!, a.lon ?? a.center!.lon!);
+      const distB = distanciaMetros(destLat, destLon, b.lat ?? b.center!.lat!, b.lon ?? b.center!.lon!);
+      return distA - distB;
+    });
+  }
+
+  const intercalados: T[] = [];
+  const maximo = Math.max(...grupos.map((g) => g.length));
+  for (let i = 0; i < maximo; i++) {
+    for (const grupo of grupos) {
+      if (grupo[i]) intercalados.push(grupo[i]);
+    }
+  }
+  // Sin coordenadas no se puede decidir la franja, pero siguen siendo
+  // sitios reales con nombre: van al final, nunca se descartan.
+  return [...intercalados, ...sinCoordenadas];
+}
 
 interface ElementoOverpass {
   lat?: number;
@@ -358,22 +418,19 @@ function extraerSitios(findings: unknown[], dominio: string): { lugar: string; s
     let elementos = Array.isArray(resultado?.elements) ? (resultado.elements as ElementoOverpass[]) : [];
     if (!lugar || elementos.length === 0) continue;
 
-    // Ahora la búsqueda combina un radio chico y uno grande (para no
-    // perder sitios reales de un pueblo vecino cuando el centro mismo
-    // tiene poco etiquetado): con más candidatos compitiendo por el
-    // mismo cupo por categoría, se ordenan del más cercano al más
-    // lejano ANTES de aplicar el límite, para que "los primeros 8" sean
-    // de verdad los más cercanos y no un orden arbitrario de Overpass.
+    // Ordenar por pura cercanía tenía un efecto perverso: como el cupo por
+    // categoría es pequeño, los sitios del propio centro se lo comían
+    // entero y lo que está a 10-25 km no entraba NUNCA. En Pereira eso
+    // significaba cuatro parques de barrio en "naturaleza" y ni rastro de
+    // los termales de Santa Rosa, las cascadas de La Florida o los
+    // parques temáticos — que es justo a lo que va la gente.
+    //
+    // Se reparte el cupo por franjas de distancia: lo que tienes al lado,
+    // lo que está a un rato en coche y la excursión del día. Dentro de
+    // cada franja sigue mandando la cercanía, así que no se pierde el
+    // criterio, solo deja de ser lo único que decide.
     if (destLat !== undefined && destLon !== undefined) {
-      elementos = [...elementos].sort((a, b) => {
-        const latA = a.lat ?? a.center?.lat;
-        const lonA = a.lon ?? a.center?.lon;
-        const latB = b.lat ?? b.center?.lat;
-        const lonB = b.lon ?? b.center?.lon;
-        const distA = latA !== undefined && lonA !== undefined ? distanciaMetros(destLat, destLon, latA, lonA) : Infinity;
-        const distB = latB !== undefined && lonB !== undefined ? distanciaMetros(destLat, destLon, latB, lonB) : Infinity;
-        return distA - distB;
-      });
+      elementos = repartirPorFranjas(elementos, destLat, destLon);
     }
 
     const vistos = new Set<string>();

@@ -84,7 +84,17 @@ const poi: Record<string, string[]> = {
   // por ellos. Sitios reales y muy típicos de ciertas zonas (los
   // termales del eje cafetero colombiano, por ejemplo) quedaban
   // invisibles sin importar qué tan cerca estuvieran.
-  experiences: ["tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub", "amenity=biergarten", "shop=gift", "shop=souvenir", "shop=craft", "shop=art", "shop=deli"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint", "natural=hot_spring", "tourism=theme_park", "leisure=water_park"],
+  experiences: ["tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub", "amenity=biergarten", "shop=gift", "shop=souvenir", "shop=craft", "shop=art", "shop=deli"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"],   // Una cascada se etiqueta como waterway=waterfall tanto o más que como
+  // natural=waterfall, y acampar, un parque natural o un jardín botánico
+  // no estaban en la lista en absoluto: en Pereira eso dejaba fuera La
+  // Florida, los termales y el camping, y "naturaleza" se llenaba de
+  // parques de barrio del centro por pura falta de candidatos reales.
+  nature: [
+    "leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "waterway=waterfall",
+    "tourism=viewpoint", "natural=hot_spring", "natural=spring", "natural=peak", "natural=cave_entrance",
+    "tourism=theme_park", "leisure=water_park", "tourism=camp_site", "tourism=picnic_site", "tourism=zoo",
+    "leisure=garden", "boundary=national_park",
+  ],
   accommodation: ["tourism=hotel", "tourism=hostel", "tourism=guest_house", "tourism=apartment"],
 };
 

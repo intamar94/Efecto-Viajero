@@ -14,6 +14,7 @@ import { obtenerResumenLugar, obtenerResumenSitio, type ResumenWikipedia } from 
 import { entornoCercanoDe } from "@/lib/entornoCercano";
 import { buscarEnLaWeb, describirResultadoWeb, type ResultadoBusquedaWeb } from "@/lib/busquedaWeb";
 import { enriquecerLugar, hayFuentesComerciales } from "@/lib/enriquecimiento";
+import { descubrirLugaresCercanos, VERSION_DESCUBRIMIENTO } from "@/lib/descubrimientoWikidata";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
 import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
@@ -601,6 +602,58 @@ export default function ActividadesPage() {
           investigacionActual = { ...investigacionActual, sitios: { ...investigacionActual.sitios, [etapa.nombre]: actualizados } };
           actualizarViaje(viaje.id, { investigacion: investigacionActual });
         }
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viaje?.id, viaje?.investigacion?.version]);
+
+  // Completar la ciudad sin que nadie tenga que revisarla a mano.
+  //
+  // OpenStreetMap cubre bien el casco urbano, pero lo que de verdad lleva
+  // a alguien a una región suele estar fuera y mal etiquetado: los
+  // termales de Santa Rosa, las cascadas de La Florida o un parque
+  // natural cerca de Pereira no salían, y "naturaleza" se quedaba con
+  // parques de barrio. Wikidata sí conoce esos sitios por nombre y admite
+  // buscar a 30 km a la redonda, así que se consulta sola una vez por
+  // ciudad y se suma lo que falte — nunca pisa lo que OSM ya trajo.
+  useEffect(() => {
+    if (!viaje) return;
+    let cancelado = false;
+    (async () => {
+      let investigacionActual = viaje.investigacion;
+      if (!investigacionActual) return;
+      for (const etapa of etapasDe(viaje)) {
+        if (etapa.lat === undefined || etapa.lon === undefined) continue;
+        if (investigacionActual.descubrimiento?.[etapa.nombre] === VERSION_DESCUBRIMIENTO) continue;
+
+        const descubiertos = await descubrirLugaresCercanos(etapa.lat, etapa.lon, 30);
+        if (cancelado) return;
+
+        const existentes: SitioReal[] = investigacionActual.sitios?.[etapa.nombre] ?? [];
+        const yaConocidos = new Set(existentes.map((s) => s.nombre.toLowerCase()));
+        const nuevos: SitioReal[] = descubiertos
+          .filter((l) => !yaConocidos.has(l.nombre.toLowerCase()))
+          // La propia ciudad del viaje aparece en su propio radio: como
+          // "sitio que visitar" dentro de sí misma no aporta nada.
+          .filter((l) => l.nombre.toLowerCase() !== etapa.nombre.toLowerCase())
+          .map((l) => ({
+            nombre: l.nombre,
+            categoria: l.categoria,
+            detalle: l.detalle,
+            lat: l.lat,
+            lon: l.lon,
+            fuente: "wikidata" as const,
+          }));
+
+        investigacionActual = {
+          ...investigacionActual,
+          sitios: { ...investigacionActual.sitios, [etapa.nombre]: [...existentes, ...nuevos] },
+          descubrimiento: { ...investigacionActual.descubrimiento, [etapa.nombre]: VERSION_DESCUBRIMIENTO },
+        };
+        actualizarViaje(viaje.id, { investigacion: investigacionActual });
       }
     })();
     return () => {
