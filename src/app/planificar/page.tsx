@@ -106,7 +106,7 @@ export default function PlanificarPage() {
   // extra sin más función que frenar al viajero antes de llegar a su viaje
   // ya creado.
   function crearViaje(analisisData: Analisis, necesidadesData: NecesidadesViaje, tipoCalculado: TipoViaje) {
-    const limpias: Etapa[] = analisisData.locations.map((l) => ({ id: `geo-${l.id}`, nombre: l.name, paisCodigo: l.countryCode, destinoId: l.id }));
+    const limpias: Etapa[] = analisisData.locations.map((l) => ({ id: `geo-${l.id}`, nombre: l.name, paisCodigo: l.countryCode, destinoId: l.id, lat: l.latitude, lon: l.longitude }));
     const principal = limpias[0];
     const nuevo = guardarViaje({
       destino: tipoCalculado === "circuito" ? limpias.map((e) => e.nombre).join(" → ") : principal.nombre,

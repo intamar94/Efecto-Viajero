@@ -13,6 +13,7 @@ import { obtenerGuiaWikivoyage, type TipoListingWikivoyage } from "@/lib/wikivoy
 import { obtenerResumenLugar, type ResumenWikipedia } from "@/lib/wikipedia";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
+import { distanciaMetros } from "@/lib/geoAudio";
 import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
 import { VERSION_INVESTIGACION, type Investigacion, type SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
@@ -45,6 +46,33 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   pueblos: { etiqueta: "Pueblos cercanos", icono: "🏘️" },
   otro: { etiqueta: "Otros planes", icono: "✨" },
 };
+
+// Un punto de referencia real ("~800 m del centro") ayuda mucho más que
+// una dirección suelta a decidir si vale la pena ir — pero solo cuando de
+// verdad sabemos dónde está el centro de la ciudad (etapa.lat/lon, que se
+// guarda desde /planificar; los viajes creados antes de esto no lo
+// tienen, y entonces no se muestra nada en vez de adivinar).
+function distanciaDelCentro(etapa: Etapa, lat?: number, lon?: number): string | undefined {
+  if (etapa.lat === undefined || etapa.lon === undefined || lat === undefined || lon === undefined) return undefined;
+  const metros = distanciaMetros(etapa.lat, etapa.lon, lat, lon);
+  if (metros < 150) return "En el centro";
+  if (metros < 1000) return `~${Math.round(metros / 50) * 50} m del centro`;
+  return `~${(metros / 1000).toFixed(1)} km del centro`;
+}
+
+// Un listing de Wikivoyage a veces trae un párrafo entero como
+// "contenido" — demasiado para una tarjeta que se supone hay que leer de
+// un vistazo. Se recorta a las primeras frases completas que quepan en el
+// largo pedido, nunca a media palabra.
+function acortarTexto(texto: string, maxCaracteres: number): string {
+  const frases = (texto.match(/[^.!?]+[.!?]+\s*/g) ?? [texto]).map((f) => f.trim()).filter(Boolean);
+  let resultado = frases[0] ?? texto;
+  for (let i = 1; i < frases.length; i++) {
+    if (`${resultado} ${frases[i]}`.length > maxCaracteres) break;
+    resultado += ` ${frases[i]}`;
+  }
+  return resultado;
+}
 
 // Lo que cada categoría promete, en un lenguaje que invita en vez de
 // describir con frialdad: se usa para presentar la ciudad conectando lo
@@ -191,7 +219,12 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
           <p className="text-sm font-medium">{it.nombre}</p>
           <p className="text-xs text-neutral-500">{it.descripcion}</p>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTILO_ESTADO[estado]}`}>{ETIQUETA_ESTADO[estado]}</span>
+        {/* "Disponible" es el estado por defecto de todo lo que se
+            muestra: decirlo en cada tarjeta era obvio y redundante — la
+            insignia solo aporta algo para un estado que sí cambió. */}
+        {estado !== "disponible" && (
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTILO_ESTADO[estado]}`}>{ETIQUETA_ESTADO[estado]}</span>
+        )}
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -203,11 +236,16 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
         ) : (
           <span className="chip">{it.costeEstimado > 0 ? `💵 ${it.costeEstimado}€` : "🆓 Gratis"}</span>
         )}
-        {it.horario && <span className="chip">🕐 {it.horario}</span>}
-        {it.horarioHabitual && <span className="chip">🕐 {it.horarioHabitual}</span>}
         {it.admiteMascotas && <span className="chip">🐾 Mascotas</span>}
         {it.esPropia && <span className="chip">✍️ Tuya</span>}
       </div>
+
+      {/* El horario va en su propia línea, no como una etiqueta más: un
+          horario con varios días distintos es demasiado texto para una
+          píldora de una sola línea — ahí se ve todo apretado y mezclado. */}
+      {(it.horario || it.horarioHabitual) && (
+        <p className="mt-1.5 text-xs text-neutral-600">🕐 {it.horario ?? it.horarioHabitual}</p>
+      )}
 
       {it.esGenerica && (
         <p className="mt-2 text-xs text-amber-700">
@@ -486,12 +524,13 @@ export default function ActividadesPage() {
         apta: [],
         entorno: s.categoria === "naturaleza" ? "exterior" : "interior",
         admiteMascotas: false,
-        // "playa" o "restaurante" a secas apenas cuenta como descripción:
-        // se arma una frase corta con ese mismo dato real (nunca se
-        // inventa de qué se trata el lugar más allá de su categoría de
-        // OpenStreetMap) — se reemplaza en cuanto haya algo mejor de
-        // Wikivoyage al fusionar sitios, más abajo.
-        descripcion: s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)} real cerca de aquí — confirma horario y precio antes de ir.` : "Lugar real cercano; confirma horario y precio antes de ir.",
+        // Solo la categoría real de OpenStreetMap, sin relleno: decir "real"
+        // y repetir "confirma horario y precio antes de ir" en cada
+        // tarjeta era redundante con la nota general al pie de la página
+        // (que ya lo dice una vez para todos los sitios reales) y no
+        // aportaba nada que el usuario no supiera ya. Se reemplaza en
+        // cuanto haya algo mejor de Wikivoyage al fusionar sitios, abajo.
+        descripcion: s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Lugar cercano.",
         esPropia: false,
         esSitioReal: true,
         fuenteEtiqueta: "OpenStreetMap",
@@ -505,11 +544,17 @@ export default function ActividadesPage() {
         webUrl: s.url,
         webEsDirecta: !!s.url,
         cadenaGenerica: s.detalle === "comida rápida" || s.detalle === "cafetería",
+        direccion: distanciaDelCentro(etapa, s.lat, s.lon),
       }));
 
     // Guía real de Wikivoyage (nombre, dirección, horario, precio, web ya
     // escritos por otros viajeros): sustituye la búsqueda genérica en
-    // Google por datos concretos, cuando el artículo los trae.
+    // Google por datos concretos, cuando el artículo los trae. Cuando no
+    // hay artículo en español, se cae al de inglés (ver wikivoyage.ts) —
+    // así que su contenido puede venir en otro idioma; se usa igual (mejor
+    // un dato real en otro idioma que ninguno) pero se recorta a lo
+    // esencial, porque un párrafo entero sin traducir es aún más difícil
+    // de leer si encima es largo.
     const guiaWikivoyage = viaje!.wikivoyage?.[etapa.nombre];
     const idsWikivoyageYaAñadidos = idsPropiosYaAñadidos;
     const deWikivoyage: Item[] = (guiaWikivoyage?.listings ?? []).flatMap((l) => {
@@ -528,7 +573,7 @@ export default function ActividadesPage() {
           apta: [],
           entorno: "mixto" as const,
           admiteMascotas: false,
-          descripcion: l.contenido || "Recomendado en la guía Wikivoyage de la ciudad.",
+          descripcion: l.contenido ? acortarTexto(l.contenido, 160) : "Recomendado en la guía Wikivoyage de la ciudad.",
           esPropia: false,
           esSitioReal: true,
           fuenteEtiqueta: "Wikivoyage",
@@ -536,7 +581,10 @@ export default function ActividadesPage() {
           etapaNombre: etapa.nombre,
           notaPrecio: l.precio,
           horario: l.horario,
-          direccion: l.direccion,
+          // Dirección real (si Wikivoyage la trae) + distancia real al
+          // centro (si se conoce): el punto de referencia que de verdad
+          // ayuda a decidir si vale la pena ir hasta allá.
+          direccion: [l.direccion, distanciaDelCentro(etapa, l.lat, l.lon)].filter(Boolean).join(" · ") || undefined,
           mapaUrl: l.lat && l.lon ? `https://www.google.com/maps/search/?api=1&query=${l.lat},${l.lon}` : urlMapsActividad(l.nombre, etapa.nombre),
           webUrl: l.url || urlBuscarActividad(l.nombre, etapa.nombre),
           webEsDirecta: !!l.url,
@@ -575,14 +623,22 @@ export default function ActividadesPage() {
         ...base,
         notaPrecio: base.notaPrecio ?? extra.notaPrecio,
         horario: base.horario ?? extra.horario,
-        direccion: base.direccion ?? extra.direccion,
+        // La de Wikivoyage suele traer dirección real de calle además de
+        // la distancia al centro; la de OpenStreetMap (esta función) es
+        // solo la distancia — se prefiere la más completa cuando existe.
+        direccion: extra.direccion ?? base.direccion,
         webUrl: base.webEsDirecta ? base.webUrl : extra.webEsDirecta ? extra.webUrl : base.webUrl,
         webEsDirecta: base.webEsDirecta || Boolean(extra.webEsDirecta),
         // Una frase real de Wikivoyage (escrita por otro viajero sobre ESE
         // lugar) vale más que la categoría genérica de OpenStreetMap
-        // ("restaurante", "playa"), así que gana cuando existe de verdad
-        // (no el texto de relleno para cuando Wikivoyage no trae nada).
-        descripcion: extra.descripcion && extra.descripcion !== "Recomendado en la guía Wikivoyage de la ciudad." ? extra.descripcion : base.descripcion,
+        // ("restaurante", "playa") — pero solo cuando está en español: la
+        // app es en español, y mezclar una frase en inglés con el resto de
+        // la interfaz (cuando SÍ hay una alternativa clara en español, la
+        // de OpenStreetMap) es peor que quedarse con la más simple.
+        descripcion:
+          extra.descripcion && extra.descripcion !== "Recomendado en la guía Wikivoyage de la ciudad." && guiaWikivoyage?.idioma === "es"
+            ? extra.descripcion
+            : base.descripcion,
       };
     }
     const porSlugReal = new Map<string, Item>();

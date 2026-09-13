@@ -217,6 +217,11 @@ export interface Etapa {
   paisCodigo?: string;
   destinoId?: string;
   dias?: number;
+  // Coordenadas del centro de la ciudad, tal como las resolvió el buscador
+  // de destinos al crear el viaje: permiten calcular a qué distancia real
+  // queda cada sitio del centro, en vez de solo dar su dirección suelta.
+  lat?: number;
+  lon?: number;
 }
 
 export interface Viaje {
