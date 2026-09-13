@@ -588,10 +588,14 @@ export default function ActividadesPage() {
             if (cancelado) return;
             if (hayFuentesComerciales()) {
               huboCambios = true;
+              // Foursquare primero: su API nueva ya trae horario y precio,
+              // y cubre Latinoamérica bastante mejor que Yelp (que fuera
+              // de Norteamérica suele venir vacío). Yelp queda como
+              // respaldo para donde sí es fuerte.
               siguiente = {
                 ...siguiente,
-                horarioComercial: datos.yelp?.horario ?? "",
-                precioComercial: datos.yelp?.rangoPrecios ?? "",
+                horarioComercial: datos.foursquare?.horario ?? datos.yelp?.horario ?? "",
+                precioComercial: datos.foursquare?.rangoPrecios ?? datos.yelp?.rangoPrecios ?? "",
                 direccionComercial: datos.foursquare?.direccion ?? "",
               };
             }

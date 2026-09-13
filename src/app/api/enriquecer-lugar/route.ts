@@ -26,6 +26,13 @@ export interface DatoFoursquare {
   direccion?: string;
   fsqId: string;
   distanciaMetros: number;
+  // Foursquare sí trae horario y precio en su API nueva, y con mejor
+  // cobertura fuera de Norteamérica que Yelp: por eso ya no hace falta
+  // Yelp para lo que más se echaba en falta.
+  horario?: string;
+  rangoPrecios?: string;
+  telefono?: string;
+  web?: string;
 }
 
 export interface DatoYelp {
@@ -73,22 +80,59 @@ function mejorCoincidencia<T extends CandidatoConNombreYCoords>(candidatos: T[],
 interface FoursquareResultado {
   fsq_id: string;
   name: string;
+  fsq_place_id?: string;
   categories?: { name: string }[];
   location?: { formatted_address?: string };
+  // La API nueva devuelve las coordenadas sueltas; la antigua, anidadas
+  // en geocodes.main. Se aceptan las dos formas porque no podemos probar
+  // contra la API real desde aquí y el coste de tolerar ambas es nulo.
+  latitude?: number;
+  longitude?: number;
   geocodes?: { main?: { latitude: number; longitude: number } };
+  tel?: string;
+  website?: string;
+  price?: number;
+  hours?: { display?: string; open_now?: boolean };
 }
+
+// Foursquare puntúa el precio de 1 a 4. Un número suelto no dice nada a
+// quien lo lee, así que se traduce al símbolo que todo el mundo reconoce.
+function precioLegible(price?: number): string | undefined {
+  if (typeof price !== "number" || price < 1 || price > 4) return undefined;
+  return "$".repeat(Math.round(price));
+}
+
+// Foursquare retiró las claves antiguas ("Legacy API Keys", con la clave
+// cruda en la cabecera Authorization) a favor de las "Service API Key",
+// que van como Bearer y contra otro dominio, con la versión de la API
+// declarada en su propia cabecera. Se usa la nueva para no montar algo
+// sobre lo que el proveedor ya está apagando.
+const FSQ_ENDPOINT = "https://places-api.foursquare.com/places/search";
+const FSQ_VERSION = "2025-06-17";
+// Se piden explícitamente horario y precio: son justo el dato que ni
+// OpenStreetMap ni Wikidata suelen traer y sin el que no se puede decidir
+// si merece la pena ir. Sin este parámetro la API no los devuelve.
+const FSQ_CAMPOS = "fsq_place_id,name,categories,location,latitude,longitude,tel,website,price,hours";
 
 async function buscarFoursquare(nombre: string, lat: number, lon: number, apiKey: string): Promise<DatoFoursquare | undefined> {
   try {
-    const url = `https://api.foursquare.com/v3/places/search?ll=${lat}%2C${lon}&query=${encodeURIComponent(nombre)}&radius=${UMBRAL_METROS}&limit=5`;
-    const res = await fetch(url, { headers: { Authorization: apiKey, Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
+    const url = `${FSQ_ENDPOINT}?ll=${lat}%2C${lon}&query=${encodeURIComponent(nombre)}&radius=${UMBRAL_METROS}&limit=5&fields=${FSQ_CAMPOS}`;
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+        "X-Places-Api-Version": FSQ_VERSION,
+      },
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) return undefined;
     const data = await res.json();
     const resultados: FoursquareResultado[] = Array.isArray(data?.results) ? data.results : [];
     const candidatos = resultados.flatMap((r) => {
-      const g = r.geocodes?.main;
-      if (!g) return [];
-      return [{ nombre: r.name, lat: g.latitude, lon: g.longitude, raw: r }];
+      const latitud = r.latitude ?? r.geocodes?.main?.latitude;
+      const longitud = r.longitude ?? r.geocodes?.main?.longitude;
+      if (latitud === undefined || longitud === undefined) return [];
+      return [{ nombre: r.name, lat: latitud, lon: longitud, raw: r }];
     });
     const elegido = mejorCoincidencia(candidatos, nombre, lat, lon);
     if (!elegido) return undefined;
@@ -96,8 +140,12 @@ async function buscarFoursquare(nombre: string, lat: number, lon: number, apiKey
       nombre: elegido.raw.name,
       categoria: elegido.raw.categories?.[0]?.name,
       direccion: elegido.raw.location?.formatted_address,
-      fsqId: elegido.raw.fsq_id,
+      fsqId: elegido.raw.fsq_place_id ?? elegido.raw.fsq_id ?? "",
       distanciaMetros: Math.round(distanciaMetros(lat, lon, elegido.lat, elegido.lon)),
+      horario: elegido.raw.hours?.display,
+      rangoPrecios: precioLegible(elegido.raw.price),
+      telefono: elegido.raw.tel,
+      web: elegido.raw.website,
     };
   } catch {
     return undefined;
