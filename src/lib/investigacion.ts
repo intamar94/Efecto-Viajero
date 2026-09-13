@@ -136,16 +136,14 @@ function findingsDe(data: unknown): unknown[] {
 }
 
 // La categoría real de cada sitio se saca de su propia etiqueta de
-// OpenStreetMap, no de qué dominio lo buscó: antes TODO lo que encontraba
-// el dominio "nature" se guardaba como "naturaleza" genérica, así que una
-// playa real (natural=beach) nunca aparecía como "🏖️ Playa" aunque el dato
-// hubiera llegado — quedaba enterrada bajo una etiqueta más vaga. Solo se
-// cae al dominio como pista general cuando la propia etiqueta no dice nada
-// más específico.
+// OpenStreetMap, no de qué dominio lo buscó. Playas, parques, senderos y
+// reservas naturales van todos bajo "naturaleza": separarlos en cajas
+// propias (Parques / Playa / Naturaleza) fragmentaba demasiado la
+// selección para algo que el viajero piensa como un solo tipo de plan —
+// el tipo exacto (playa, parque, mirador...) se sigue viendo en el
+// detalle de cada tarjeta, solo que ya no como categoría aparte.
 function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): CategoriaActividad {
-  if (tags.natural === "beach") return "playa";
-  if (tags.leisure === "park") return "parque";
-  if (tags.leisure === "nature_reserve" || tags.tourism === "viewpoint" || tags.natural === "waterfall") return "naturaleza";
+  if (tags.natural === "beach" || tags.leisure === "park" || tags.leisure === "nature_reserve" || tags.tourism === "viewpoint" || tags.natural === "waterfall") return "naturaleza";
   if (tags.amenity === "bar" || tags.amenity === "pub" || tags.amenity === "nightclub" || tags.amenity === "biergarten") return "discoteca";
   if (tags.amenity === "restaurant" || tags.amenity === "cafe" || tags.amenity === "fast_food") return "restaurante";
   if (tags.tourism === "museum" || tags.tourism === "gallery" || tags.historic) return "museo";
@@ -154,6 +152,22 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
   if (dominio === "culture") return "museo";
   if (dominio === "nature") return "naturaleza";
   return "otro";
+}
+
+// OSM sí trae horario, web y a veces precio para muchos sitios — no
+// leerlos era la causa real de "no hay información de valor, solo
+// 'consultar precio'": el dato existía en la fuente y no se aprovechaba.
+function horarioDe(tags: Record<string, string> = {}): string | undefined {
+  return tags.opening_hours;
+}
+function webDe(tags: Record<string, string> = {}): string | undefined {
+  const url = tags.website ?? tags["contact:website"];
+  return url && /^https?:\/\//.test(url) ? url : undefined;
+}
+function precioDe(tags: Record<string, string> = {}): string | undefined {
+  if (tags.charge) return tags.charge;
+  if (tags.fee === "no") return "Gratis";
+  return undefined;
 }
 
 function extraerSitios(findings: unknown[], dominio: string): { lugar: string; sitios: SitioReal[] }[] {
@@ -190,6 +204,9 @@ function extraerSitios(findings: unknown[], dominio: string): { lugar: string; s
         detalle: detalleDe(el.tags),
         lat: el.lat ?? el.center?.lat,
         lon: el.lon ?? el.center?.lon,
+        horarioApertura: horarioDe(el.tags),
+        url: webDe(el.tags),
+        precioAprox: precioDe(el.tags),
       });
     }
     if (sitios.length) salida.push({ lugar, sitios });

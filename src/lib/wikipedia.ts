@@ -10,6 +10,14 @@ export interface ResumenWikipedia {
 
 const LARGO_POR_DEFECTO = 200;
 
+// Un dato con año explícito entre paréntesis ("67 650 habitantes (2011)")
+// es casi siempre una cifra censal que ya está desactualizada — no
+// podemos actualizarla sin inventar un número, así que la frase entera se
+// evita en vez de mostrar una estadística vieja como si fuera reciente.
+function tieneCifraDesactualizada(frase: string): boolean {
+  return /\(\s*\d{4}\s*\)/.test(frase);
+}
+
 // El extracto completo de Wikipedia suele ser el párrafo introductorio
 // entero (varias frases, a veces con datos administrativos que a nadie le
 // interesa leer antes de un viaje). Se recorta a las primeras frases que
@@ -18,13 +26,13 @@ const LARGO_POR_DEFECTO = 200;
 // así que si ni la primera frase entra en el largo pedido, se muestra
 // completa de todas formas antes que dejarla a medias.
 function acortar(texto: string, maxCaracteres: number): string {
-  const frases = texto.match(/[^.]+\.+\s*/g) ?? [texto];
-  let resultado = (frases[0] ?? texto).trim();
-  for (let i = 1; i < frases.length; i++) {
-    const siguiente = frases[i].trim();
-    if (!siguiente) continue;
-    if (`${resultado} ${siguiente}`.length > maxCaracteres) break;
-    resultado += ` ${siguiente}`;
+  const todas = (texto.match(/[^.]+\.+\s*/g) ?? [texto]).map((f) => f.trim()).filter(Boolean);
+  const frases = todas.filter((f) => !tieneCifraDesactualizada(f));
+  const candidatas = frases.length > 0 ? frases : todas;
+  let resultado = candidatas[0] ?? texto;
+  for (let i = 1; i < candidatas.length; i++) {
+    if (`${resultado} ${candidatas[i]}`.length > maxCaracteres) break;
+    resultado += ` ${candidatas[i]}`;
   }
   return resultado;
 }
