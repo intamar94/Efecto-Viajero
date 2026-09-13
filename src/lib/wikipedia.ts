@@ -3,7 +3,7 @@
 // solo con botones y enlaces, o inventar "leyendas" que no podemos
 // verificar.
 
-import { geosearchWiki, mejorCoincidenciaPorNombre } from "./wikiGeosearch";
+import { geosearchWiki, mejorCoincidenciaPorNombre, mejorTituloPorNombre } from "./wikiGeosearch";
 export interface ResumenWikipedia {
   titulo: string;
   extracto: string;
@@ -53,17 +53,42 @@ const cache = new Map<string, ArticuloWikipedia | null>();
 // encontrar el título real del artículo — sumando el país como contexto
 // cuando se conoce, que es justo lo que más ayuda a desambiguar un lugar
 // de un sustantivo común.
-async function buscarTitulo(termino: string, idioma: "es" | "en"): Promise<string | null> {
-  const url = `https://${idioma}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(termino)}&format=json&origin=*&srlimit=1`;
+//
+// Confiar en el PRIMER resultado sin más es lo que causaba las
+// descripciones sin sentido reportadas ("Mirador Valle del Cocora"
+// mostrando un resumen de "Salento", "Gimnasio Callejero" mostrando el
+// de un club deportivo argentino, un mirador cualquiera mostrando la
+// biografía de otra persona): la búsqueda por texto libre de un nombre
+// poco común (un mirador, una cascada chica) puede devolver como "más
+// relevante" un artículo que comparte alguna palabra pero no tiene nada
+// que ver. Se piden varios candidatos y solo se acepta el que de verdad
+// coincide de nombre (igual que ya se exige para el resultado de
+// geosearch) — si ninguno coincide, es más honesto no mostrar nada que
+// mostrar el contenido de otra cosa.
+async function buscarCandidatos(termino: string, idioma: "es" | "en", limite = 5): Promise<string[]> {
+  const url = `https://${idioma}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(termino)}&format=json&origin=*&srlimit=${limite}`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return null;
+    if (!res.ok) return [];
     const data = await res.json();
-    const titulo = data?.query?.search?.[0]?.title;
-    return typeof titulo === "string" ? titulo : null;
+    const items: unknown[] = Array.isArray(data?.query?.search) ? data.query.search : [];
+    return items.flatMap((it) => {
+      const titulo = (it as Record<string, unknown> | null)?.title;
+      return typeof titulo === "string" ? [titulo] : [];
+    });
   } catch {
-    return null;
+    return [];
   }
+}
+
+// `consulta` es lo que se manda a buscar (puede llevar el país sumado
+// para desambiguar: "Mirador Valle del Cocora Colombia"); `nombre` es el
+// nombre real del lugar SOLO, contra el que se valida el resultado — si
+// se validara contra la consulta completa (con el país pegado), ningún
+// título real la contendría nunca y la validación fallaría siempre.
+async function buscarTitulo(consulta: string, idioma: "es" | "en", nombre: string): Promise<string | null> {
+  const candidatos = await buscarCandidatos(consulta, idioma);
+  return mejorTituloPorNombre(candidatos, nombre) ?? null;
 }
 
 async function obtenerResumenDeTitulo(titulo: string, idioma: "es" | "en"): Promise<ArticuloWikipedia | null> {
@@ -101,7 +126,7 @@ async function buscarResumen(termino: string, idioma: "es" | "en", contexto?: st
   }
   if (!titulo) {
     const consulta = contexto ? `${termino} ${contexto}` : termino;
-    titulo = (await buscarTitulo(consulta, idioma)) ?? (contexto ? await buscarTitulo(termino, idioma) : null);
+    titulo = (await buscarTitulo(consulta, idioma, termino)) ?? (contexto ? await buscarTitulo(termino, idioma, termino) : null);
   }
   if (!titulo) return null;
   return obtenerResumenDeTitulo(titulo, idioma);

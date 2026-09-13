@@ -9,7 +9,7 @@
 
 import { acortarTexto } from "./texto";
 import { traducirAlEspanol } from "./traduccion";
-import { geosearchWiki, mejorCoincidenciaPorNombre } from "./wikiGeosearch";
+import { geosearchWiki, mejorCoincidenciaPorNombre, mejorTituloPorNombre } from "./wikiGeosearch";
 
 export type TipoListingWikivoyage = "see" | "do" | "buy" | "eat" | "drink" | "sleep";
 
@@ -30,7 +30,7 @@ export interface WikivoyageListing {
 // añadir la traducción automática): una guía ya guardada en un viaje con
 // una versión anterior se vuelve a buscar en vez de quedarse con el
 // inglés sin traducir para siempre.
-export const VERSION_WIKIVOYAGE = 4;
+export const VERSION_WIKIVOYAGE = 5;
 
 export interface WikivoyageResumen {
   articulo: string;
@@ -182,21 +182,35 @@ function extraerListings(wikitext: string): WikivoyageListing[] {
   return [...extraerListingsDePlantillas(wikitext), ...extraerListingsDeViñetas(wikitext)];
 }
 
-async function buscarTitulo(consulta: string, idioma: "es" | "en"): Promise<string | null> {
-  const url = `https://${idioma}.wikivoyage.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(consulta)}&format=json&origin=*&srlimit=1`;
+async function buscarCandidatos(consulta: string, idioma: "es" | "en", limite = 5): Promise<string[]> {
+  const url = `https://${idioma}.wikivoyage.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(consulta)}&format=json&origin=*&srlimit=${limite}`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
       console.warn(`Wikivoyage (${idioma}): búsqueda de "${consulta}" respondió ${res.status}`);
-      return null;
+      return [];
     }
     const data = await res.json();
-    const titulo = data?.query?.search?.[0]?.title;
-    return typeof titulo === "string" ? titulo : null;
+    const items: unknown[] = Array.isArray(data?.query?.search) ? data.query.search : [];
+    return items.flatMap((it) => {
+      const titulo = (it as Record<string, unknown> | null)?.title;
+      return typeof titulo === "string" ? [titulo] : [];
+    });
   } catch (err) {
     console.warn(`Wikivoyage (${idioma}): fallo al buscar "${consulta}"`, err);
-    return null;
+    return [];
   }
+}
+
+// El PRIMER resultado de la búsqueda por texto libre no siempre es el
+// artículo correcto — puede ser cualquier otra página que comparta
+// alguna palabra. Solo se acepta un candidato que de verdad coincida de
+// nombre con la ciudad buscada (`ciudad`, sin el país pegado: comparar
+// contra "Cartagena Colombia" nunca encontraría un título real que la
+// contenga entera).
+async function buscarTitulo(consulta: string, idioma: "es" | "en", ciudad: string): Promise<string | null> {
+  const candidatos = await buscarCandidatos(consulta, idioma);
+  return mejorTituloPorNombre(candidatos, ciudad) ?? null;
 }
 
 export interface Coordenadas {
@@ -222,8 +236,8 @@ async function buscarArticulo(ciudad: string, idioma: "es" | "en", contexto?: st
     const coincide = mejorCoincidenciaPorNombre(cercanos, ciudad);
     if (coincide) return coincide;
   }
-  if (!contexto) return buscarTitulo(ciudad, idioma);
-  return (await buscarTitulo(`${ciudad} ${contexto}`, idioma)) ?? (await buscarTitulo(ciudad, idioma));
+  if (!contexto) return buscarTitulo(ciudad, idioma, ciudad);
+  return (await buscarTitulo(`${ciudad} ${contexto}`, idioma, ciudad)) ?? (await buscarTitulo(ciudad, idioma, ciudad));
 }
 
 async function obtenerWikitext(titulo: string, idioma: "es" | "en"): Promise<string | null> {

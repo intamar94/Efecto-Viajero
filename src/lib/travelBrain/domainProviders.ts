@@ -78,7 +78,13 @@ const poi: Record<string, string[]> = {
   // catálogo genérico por país. Se suman aquí por el mismo motivo que la
   // vida nocturna: categoriaDeTags (investigacion.ts) ya sabe convertir
   // shop=* en "compras" a partir de la propia etiqueta.
-  experiences: ["tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub", "amenity=biergarten", "shop=gift", "shop=souvenir", "shop=craft", "shop=art", "shop=deli"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint"],
+  // Termales y parques temáticos/acuáticos no tenían ninguna etiqueta de
+  // OpenStreetMap en la lista — no es que se buscaran y no hubiera nada,
+  // es que nunca se pedían: la consulta a Overpass ni siquiera preguntaba
+  // por ellos. Sitios reales y muy típicos de ciertas zonas (los
+  // termales del eje cafetero colombiano, por ejemplo) quedaban
+  // invisibles sin importar qué tan cerca estuvieran.
+  experiences: ["tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub", "amenity=biergarten", "shop=gift", "shop=souvenir", "shop=craft", "shop=art", "shop=deli"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"], nature: ["leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "tourism=viewpoint", "natural=hot_spring", "tourism=theme_park", "leisure=water_park"],
   accommodation: ["tourism=hotel", "tourism=hostel", "tourism=guest_house", "tourism=apartment"],
 };
 

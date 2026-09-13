@@ -17,7 +17,7 @@ import type { CategoriaActividad } from "./types";
 // sitio ya marcado como "" (sin artículo) bajo una versión de búsqueda
 // anterior no debe quedarse así para siempre solo porque esa búsqueda
 // vieja no lo encontró: se reintenta con la versión vigente.
-export const VERSION_ENRIQUECIMIENTO_SITIO = 2;
+export const VERSION_ENRIQUECIMIENTO_SITIO = 3;
 
 export interface SitioReal {
   nombre: string;
@@ -83,7 +83,7 @@ export interface AuditoriaCapacidades {
 // número, esa investigación quedó desactualizada aunque nadie la haya
 // tocado, y conviene volver a correrla en vez de esperar a que alguien
 // recuerde tocar "Actualizar investigación real".
-export const VERSION_INVESTIGACION = 2;
+export const VERSION_INVESTIGACION = 3;
 
 export interface Investigacion {
   generadoEn: string;
@@ -131,6 +131,9 @@ const DETALLE_OSM: Record<string, string> = {
   craft: "artesanía",
   art: "galería de arte",
   deli: "delicatessen",
+  hot_spring: "aguas termales",
+  theme_park: "parque temático",
+  water_park: "parque acuático",
 };
 
 const MAX_POR_CATEGORIA = 8;
@@ -177,7 +180,17 @@ function findingsDe(data: unknown): unknown[] {
 // el tipo exacto (playa, parque, mirador...) se sigue viendo en el
 // detalle de cada tarjeta, solo que ya no como categoría aparte.
 function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): CategoriaActividad {
-  if (tags.natural === "beach" || tags.leisure === "park" || tags.leisure === "nature_reserve" || tags.tourism === "viewpoint" || tags.natural === "waterfall") return "naturaleza";
+  if (
+    tags.natural === "beach" ||
+    tags.leisure === "park" ||
+    tags.leisure === "nature_reserve" ||
+    tags.tourism === "viewpoint" ||
+    tags.natural === "waterfall" ||
+    tags.natural === "hot_spring" ||
+    tags.tourism === "theme_park" ||
+    tags.leisure === "water_park"
+  )
+    return "naturaleza";
   if (tags.amenity === "bar" || tags.amenity === "pub" || tags.amenity === "nightclub" || tags.amenity === "biergarten") return "discoteca";
   if (tags.amenity === "restaurant" || tags.amenity === "cafe" || tags.amenity === "fast_food") return "restaurante";
   if (tags.tourism === "museum" || tags.tourism === "gallery" || tags.historic) return "museo";

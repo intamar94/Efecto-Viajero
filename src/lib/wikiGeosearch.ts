@@ -50,18 +50,22 @@ export async function geosearchWiki(dominio: string, lat: number, lon: number, r
   }
 }
 
-// Entre lo que hay geolocalizado cerca del punto, se prefiere lo que de
-// verdad coincide de nombre con lo que buscamos (uno contiene al otro) —
-// nunca el resultado más cercano sin más: eso podría ser cualquier otra
-// cosa geoetiquetada ahí cerca (una calle, un barrio, un monumento
-// distinto), y mostrar el contenido de un lugar equivocado es peor que no
-// mostrar nada.
-export function mejorCoincidenciaPorNombre(resultados: ResultadoGeosearch[], nombre: string): string | undefined {
+// Entre varios títulos candidatos (de geosearch, o de una búsqueda por
+// texto libre), se prefiere el que de verdad coincide de nombre con lo
+// que buscamos (uno contiene al otro) — nunca "el primero" o "el más
+// cercano" sin más: eso podría ser cualquier otra cosa (geoetiquetada
+// cerca, o simplemente la más "relevante" por compartir alguna palabra),
+// y mostrar el contenido de un lugar equivocado es peor que no mostrar
+// nada.
+export function mejorTituloPorNombre(titulos: string[], nombre: string): string | undefined {
   const normal = normalizarTexto(nombre);
   if (!normal) return undefined;
-  const coincide = resultados.find((r) => {
-    const t = normalizarTexto(r.titulo);
-    return t.includes(normal) || normal.includes(t);
+  return titulos.find((t) => {
+    const tn = normalizarTexto(t);
+    return tn.includes(normal) || normal.includes(tn);
   });
-  return coincide?.titulo;
+}
+
+export function mejorCoincidenciaPorNombre(resultados: ResultadoGeosearch[], nombre: string): string | undefined {
+  return mejorTituloPorNombre(resultados.map((r) => r.titulo), nombre);
 }
