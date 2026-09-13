@@ -117,10 +117,23 @@ const SECCION_A_TIPO: Record<string, TipoListingWikivoyage> = {
   beber: "drink",
 };
 
-function nombreDeContenido(texto: string): string {
-  const corto = texto.split(/[.;:]/)[0].trim();
-  if (corto.length > 0 && corto.length <= 60) return corto;
-  return texto.length > 40 ? `${texto.slice(0, 40).trim()}…` : texto;
+// Una línea en viñeta suele empezar con el nombre del lugar, seguido de
+// ". "/"; "/": " y luego la descripción real — p. ej. "Adega Nova. Looks
+// like a pub from northern Europe." Antes `contenido` guardaba la línea
+// ENTERA (nombre incluido), así que traducir ese texto traducía también
+// el nombre propio metido al principio, mezclado con la frase real y sin
+// sentido ("Adega Nova" no es una oración en inglés que se pueda traducir
+// palabra por palabra). Se separa el nombre del resto ANTES de guardar
+// "contenido", para no repetirlo ni tener que traducirlo nunca.
+function partirNombreYContenido(texto: string): { nombre: string; contenido?: string } {
+  const separador = texto.match(/[.;:]/);
+  if (!separador || separador.index === undefined) {
+    return { nombre: texto.length > 60 ? `${texto.slice(0, 60).trim()}…` : texto, contenido: undefined };
+  }
+  const primeraClausula = texto.slice(0, separador.index).trim();
+  const resto = texto.slice(separador.index + 1).trim();
+  const nombre = primeraClausula.length > 0 && primeraClausula.length <= 60 ? primeraClausula : (texto.length > 40 ? `${texto.slice(0, 40).trim()}…` : texto);
+  return { nombre, contenido: resto.length > 0 ? resto : undefined };
 }
 
 // No todos los artículos usan plantillas {{see|do|...}}: muchos, sobre
@@ -140,7 +153,7 @@ function extraerListingsDeViñetas(wikitext: string): WikivoyageListing[] {
     const item = linea.match(/^\*+\s*(.+)$/);
     if (!item || /^\{\{/.test(item[1].trim())) continue;
     const texto = limpiarWikitext(item[1]);
-    if (texto) listings.push({ tipo: tipoActual, nombre: nombreDeContenido(texto), contenido: texto });
+    if (texto) listings.push({ tipo: tipoActual, ...partirNombreYContenido(texto) });
   }
   return listings;
 }

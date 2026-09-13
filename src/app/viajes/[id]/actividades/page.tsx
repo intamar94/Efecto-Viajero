@@ -358,7 +358,15 @@ export default function ActividadesPage() {
           const guia = await obtenerGuiaWikivoyage(etapa.nombre);
           if (cancelado) return;
           if (guia) {
-            acumulado = { ...acumulado, [etapa.nombre]: guia };
+            // Un refresco (p. ej. para traducir una guía vieja) nunca debe
+            // dejar la ciudad con MENOS de lo que ya tenía: si esta pasada
+            // trajo menos lugares que la guardada, algo salió peor de lo
+            // normal (un artículo distinto, una respuesta parcial) — se
+            // conserva la lista de lugares anterior, ya real y completa,
+            // y solo se actualiza la versión para no reintentar sin fin.
+            const anterior = acumulado[etapa.nombre];
+            const guiaFinal = anterior && anterior.listings.length > guia.listings.length ? { ...guia, listings: anterior.listings } : guia;
+            acumulado = { ...acumulado, [etapa.nombre]: guiaFinal };
             actualizarViaje(viaje.id, { wikivoyage: acumulado });
             setEstadoWikivoyage((prev) => ({ ...prev, [etapa.nombre]: "listo" }));
           } else {
@@ -404,14 +412,15 @@ export default function ActividadesPage() {
 
   // Un fallo parcial (p. ej. Overpass caído justo esa vez, mientras
   // clima/moneda sí respondieron) no debe borrar sitios reales que ya
-  // teníamos de una ciudad: se conservan los de la investigación anterior
-  // para cualquier ciudad donde la nueva pasada no trajo nada, y solo se
-  // reemplazan los que sí llegaron con datos frescos.
+  // teníamos de una ciudad. Se compara CANTIDAD, no solo "vacío o no": una
+  // pasada que trae menos sitios que antes (una respuesta parcial, no
+  // necesariamente cero) tampoco debe hacer retroceder lo que el viajero
+  // ya veía — se conserva la lista más completa, por ciudad.
   function conservarSitiosSiVacio(anterior: Investigacion | undefined, nueva: Investigacion): Investigacion {
     if (!anterior) return nueva;
     const sitios = { ...nueva.sitios };
     for (const [ciudad, previos] of Object.entries(anterior.sitios)) {
-      if (previos.length > 0 && !(sitios[ciudad]?.length > 0)) sitios[ciudad] = previos;
+      if (previos.length > (sitios[ciudad]?.length ?? 0)) sitios[ciudad] = previos;
     }
     return { ...nueva, sitios };
   }
