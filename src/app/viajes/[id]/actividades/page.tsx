@@ -9,11 +9,12 @@ import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
 import { actividadesDe, urlBuscarActividad, urlMapsActividad, queProbarDe } from "@/lib/catalogo";
 import { destinoParaCatalogo, destinoPrincipal, etapasDe, paisDeEtapa } from "@/lib/viaje";
-import { obtenerGuiaWikivoyage, type TipoListingWikivoyage } from "@/lib/wikivoyage";
+import { obtenerGuiaWikivoyage, VERSION_WIKIVOYAGE, type TipoListingWikivoyage } from "@/lib/wikivoyage";
 import { obtenerResumenLugar, type ResumenWikipedia } from "@/lib/wikipedia";
 import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
 import { distanciaMetros } from "@/lib/geoAudio";
+import { acortarTexto } from "@/lib/texto";
 import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
 import { VERSION_INVESTIGACION, type Investigacion, type SitioReal } from "@/lib/investigacion";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
@@ -58,20 +59,6 @@ function distanciaDelCentro(etapa: Etapa, lat?: number, lon?: number): string | 
   if (metros < 150) return "En el centro";
   if (metros < 1000) return `~${Math.round(metros / 50) * 50} m del centro`;
   return `~${(metros / 1000).toFixed(1)} km del centro`;
-}
-
-// Un listing de Wikivoyage a veces trae un párrafo entero como
-// "contenido" — demasiado para una tarjeta que se supone hay que leer de
-// un vistazo. Se recorta a las primeras frases completas que quepan en el
-// largo pedido, nunca a media palabra.
-function acortarTexto(texto: string, maxCaracteres: number): string {
-  const frases = (texto.match(/[^.!?]+[.!?]+\s*/g) ?? [texto]).map((f) => f.trim()).filter(Boolean);
-  let resultado = frases[0] ?? texto;
-  for (let i = 1; i < frases.length; i++) {
-    if (`${resultado} ${frases[i]}`.length > maxCaracteres) break;
-    resultado += ` ${frases[i]}`;
-  }
-  return resultado;
 }
 
 // Lo que cada categoría promete, en un lenguaje que invita en vez de
@@ -358,7 +345,11 @@ export default function ActividadesPage() {
       // pasada — al terminar solo sobrevivía la última ciudad procesada.
       let acumulado: NonNullable<typeof viaje.wikivoyage> = { ...viaje.wikivoyage };
       for (const etapa of etapasDe(viaje)) {
-        if (acumulado[etapa.nombre]) {
+        // Una guía guardada con una versión anterior (de antes de que
+        // existiera la traducción automática, por ejemplo) se vuelve a
+        // buscar — si no, un viaje ya creado se quedaría con el inglés sin
+        // traducir para siempre, aunque el código ya sepa traducirlo.
+        if (acumulado[etapa.nombre] && acumulado[etapa.nombre].version === VERSION_WIKIVOYAGE) {
           setEstadoWikivoyage((prev) => ({ ...prev, [etapa.nombre]: "listo" }));
           continue;
         }

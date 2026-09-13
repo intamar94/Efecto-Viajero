@@ -7,6 +7,9 @@
 // No inventamos nada de lo que hay aquí: si Wikivoyage no tiene el dato
 // (por ejemplo el horario), el campo queda vacío y así se muestra.
 
+import { acortarTexto } from "./texto";
+import { traducirAlEspanol } from "./traduccion";
+
 export type TipoListingWikivoyage = "see" | "do" | "buy" | "eat" | "drink" | "sleep";
 
 export interface WikivoyageListing {
@@ -22,12 +25,19 @@ export interface WikivoyageListing {
   lon?: number;
 }
 
+// Sube cada vez que cambia de raíz cómo se procesa la guía (p. ej. al
+// añadir la traducción automática): una guía ya guardada en un viaje con
+// una versión anterior se vuelve a buscar en vez de quedarse con el
+// inglés sin traducir para siempre.
+export const VERSION_WIKIVOYAGE = 2;
+
 export interface WikivoyageResumen {
   articulo: string;
   idioma: "es" | "en";
   url: string;
   listings: WikivoyageListing[];
   obtenidoEn: string;
+  version: number;
 }
 
 function limpiarWikitext(texto: string): string {
@@ -173,6 +183,26 @@ async function obtenerWikitext(titulo: string, idioma: "es" | "en"): Promise<str
   }
 }
 
+// Cuando el único artículo real disponible para una ciudad está en
+// inglés (Wikivoyage en español es mucho más chico: cubre muchas menos
+// ciudades, y con menos detalle), su contenido libre queda en inglés — se
+// traduce aquí, una sola vez por ciudad, antes de guardarlo en el viaje,
+// para que el resto de la interfaz no quede mezclada en dos idiomas. El
+// nombre y la dirección NO se traducen (son nombres propios reales); solo
+// el texto descriptivo. Si la traducción falla, `traducirAlEspanol` ya
+// devuelve el texto original tal cual, así que esto nunca se queda sin
+// contenido por un fallo del servicio de traducción.
+async function traducirListings(listings: WikivoyageListing[]): Promise<WikivoyageListing[]> {
+  return Promise.all(
+    listings.map(async (l) => {
+      if (!l.contenido) return l;
+      const recortado = acortarTexto(l.contenido, 220);
+      const traducido = await traducirAlEspanol(recortado, "en");
+      return { ...l, contenido: traducido };
+    })
+  );
+}
+
 // Intenta primero en español (más útil para el usuario) y si ese artículo
 // no existe o no trae listings estructurados, cae al inglés: Wikivoyage en
 // inglés cubre muchísimas más ciudades que la edición en español.
@@ -182,17 +212,19 @@ export async function obtenerGuiaWikivoyage(ciudad: string): Promise<WikivoyageR
     if (!titulo) continue;
     const wikitext = await obtenerWikitext(titulo, idioma);
     if (!wikitext) continue;
-    const listings = extraerListings(wikitext);
+    let listings = extraerListings(wikitext);
     if (listings.length === 0) {
       console.warn(`Wikivoyage (${idioma}): "${titulo}" no trajo listings extraíbles`);
       continue;
     }
+    if (idioma === "en") listings = await traducirListings(listings);
     return {
       articulo: titulo,
       idioma,
       url: `https://${idioma}.wikivoyage.org/wiki/${encodeURIComponent(titulo.replace(/ /g, "_"))}`,
       listings,
       obtenidoEn: new Date().toISOString(),
+      version: VERSION_WIKIVOYAGE,
     };
   }
   return null;
