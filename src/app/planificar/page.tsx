@@ -37,31 +37,6 @@ const MODOS: Array<{ id: ModoPlanificacion; icon: string; title: string; text: s
   { id: "dejarse_llevar", icon: "🧭", title: "Explorar", text: "Decidir según el momento, el lugar y las circunstancias reales." },
 ];
 
-// Solo lo que el texto libre detecta y que de verdad se usa para crear el
-// viaje (ver crearViaje(): numAdultos y presupuestoMax detectados del texto
-// NO se guardan — mandan los campos explícitos de arriba, adultos/presupuesto
-// — así que mostrarlos aquí como si contaran era confuso: si el texto decía
-// "3 adultos" y el selector tenía 2, aparecían los dos números a la vez sin
-// decir cuál se iba a usar.
-function resumen(n: NecesidadesViaje | null, hayFechasExplicitas: boolean, hayOrigenExplicito: boolean) {
-  if (!n) return [];
-  const out: string[] = [];
-  // Si ya hay fechas de salida/regreso explícitas, esas mandan y se
-  // muestran arriba: repetir aquí una duración distinta adivinada del
-  // texto (p. ej. "4 días" cuando las fechas cubren 12) es la misma
-  // confusión de dos números contradictorios que numAdultos/presupuestoMax.
-  if (n.duracionDias && !hayFechasExplicitas) out.push(`${n.duracionDias} días`);
-  n.edadesMenores.forEach((e) => out.push(`menor de ${e} años`));
-  if (n.mascota) out.push("mascota");
-  // Mismo caso: si ya se preguntó "¿desde dónde sales?" directamente, ese
-  // manda (ver crearViaje()) — repetir aquí lo que cree entender el texto
-  // libre podía mostrar dos ciudades de origen distintas a la vez.
-  if (n.ciudadOrigen && !hayOrigenExplicito) out.push(`desde ${n.ciudadOrigen}`);
-  if (n.ritmo) out.push(`ritmo ${n.ritmo}`);
-  if (n.sinConducirMucho) out.push("sin conducir mucho");
-  return [...out, ...n.intereses];
-}
-
 export default function PlanificarPage() {
   const router = useRouter();
   const { crearViaje: guardarViaje } = useData();
@@ -71,7 +46,6 @@ export default function PlanificarPage() {
   const [destinos, setDestinos] = useState<string[]>([""]);
   const [origen, setOrigen] = useState("");
   const [texto, setTexto] = useState("");
-  const [tipo, setTipo] = useState<TipoViaje>("simple");
   const [modo, setModo] = useState<ModoPlanificacion>("completo");
   const [fechaSalida, setFechaSalida] = useState("");
   const [fechaRegreso, setFechaRegreso] = useState("");
@@ -87,12 +61,7 @@ export default function PlanificarPage() {
   const [accesibilidad, setAccesibilidad] = useState<AccesibilidadViaje>({ requiereAccesibilidad: false });
   const [analizando, setAnalizando] = useState(false);
   const [tardandoMucho, setTardandoMucho] = useState(false);
-  const [analisis, setAnalisis] = useState<Analisis | null>(null);
-  const [necesidades, setNecesidades] = useState<NecesidadesViaje | null>(null);
-  const [etapas, setEtapas] = useState<LugarResuelto[]>([]);
-  const [nuevaParada, setNuevaParada] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const etiquetas = useMemo(() => resumen(necesidades, Boolean(fechaSalida && fechaRegreso), Boolean(origen.trim())), [necesidades, fechaSalida, fechaRegreso, origen]);
   const destinosLlenos = useMemo(() => destinos.map((d) => d.trim()).filter(Boolean), [destinos]);
 
   // El presupuesto se puede expresar por persona o por día, pero el
@@ -103,14 +72,9 @@ export default function PlanificarPage() {
     if (importe === undefined || Number.isNaN(importe) || importe <= 0) return undefined;
     if (presupuestoTipo === "total") return importe;
     if (presupuestoTipo === "por_persona") return importe * Math.max(adultos + ninos + bebes + personasMayores, 1);
-    // Las fechas explícitas son más precisas que una duración adivinada del
-    // texto libre, así que mandan cuando ambas existen (antes era al revés:
-    // un "4 días" detectado en el texto podía pisar un rango de fechas real
-    // de 12 días y calcular mal el presupuesto total).
-    const dias = (fechaSalida && fechaRegreso ? Math.max(diasEntre(fechaSalida, fechaRegreso), 1) : undefined) ?? necesidades?.duracionDias;
+    const dias = fechaSalida && fechaRegreso ? Math.max(diasEntre(fechaSalida, fechaRegreso), 1) : undefined;
     return dias !== undefined ? importe * dias : undefined;
-  }, [presupuesto, presupuestoTipo, adultos, ninos, bebes, personasMayores, necesidades, fechaSalida, fechaRegreso]);
-  const esCircuito = tipo === "circuito";
+  }, [presupuesto, presupuestoTipo, adultos, ninos, bebes, personasMayores, fechaSalida, fechaRegreso]);
 
   function syncChildren(next: number) {
     const count = Math.max(0, next);
@@ -137,6 +101,52 @@ export default function PlanificarPage() {
     return () => clearTimeout(id);
   }, [analizando]);
 
+  // Crear el viaje directo, sin una pantalla intermedia de "esto es lo que
+  // hemos entendido" que hubiera que revisar y confirmar: eso era un paso
+  // extra sin más función que frenar al viajero antes de llegar a su viaje
+  // ya creado.
+  function crearViaje(analisisData: Analisis, necesidadesData: NecesidadesViaje, tipoCalculado: TipoViaje) {
+    const limpias: Etapa[] = analisisData.locations.map((l) => ({ id: `geo-${l.id}`, nombre: l.name, paisCodigo: l.countryCode, destinoId: l.id }));
+    const principal = limpias[0];
+    const nuevo = guardarViaje({
+      destino: tipoCalculado === "circuito" ? limpias.map((e) => e.nombre).join(" → ") : principal.nombre,
+      destinoId: principal.destinoId,
+      paisCodigo: principal.paisCodigo,
+      tipo: tipoCalculado,
+      etapas: limpias,
+      viajerosIds: [],
+      fechaSalida: fechaSalida || undefined,
+      fechaRegreso: fechaRegreso || undefined,
+      modoPlanificacion: modo,
+      // Lo que ya se investigó viaja con el viaje: si no, se pierde al salir
+      // de esta pantalla y las consultas se habrían hecho para nada.
+      investigacion: normalizarInvestigacion(analisisData as Parameters<typeof normalizarInvestigacion>[0]),
+      contexto: {
+        presupuestoTotal: presupuestoTotalCalculado,
+        duracionDias: necesidadesData.duracionDias,
+        numAdultos: adultos,
+        edadesMenores: edadesNinos.length ? edadesNinos : undefined,
+        mascota: mascotas > 0,
+        ciudadOrigen: origen.trim() || necesidadesData.ciudadOrigen || undefined,
+        textoOriginal: texto,
+        presupuesto: { importe: presupuesto ? Number(presupuesto) : undefined, moneda: "EUR", tipo: presupuestoTipo, flexible: presupuestoFlexible },
+        viajeros: { adultos, ninos, edadesNinos: edadesNinos.length ? edadesNinos : undefined, bebes: bebes || undefined, personasMayores: personasMayores || undefined, mascotas: mascotas || undefined, accesibilidad },
+        accesibilidad,
+        intereses: necesidadesData.intereses,
+        ritmo: necesidadesData.ritmo,
+        restricciones: necesidadesData.sinConducirMucho ? ["sin conducir mucho"] : undefined,
+        fechaSalida: fechaSalida || undefined,
+        fechaRegreso: fechaRegreso || undefined,
+        explorer: { activado: modo === "dejarse_llevar" },
+      },
+    });
+    // Un destino que no se pudo ubicar no debe esconderse en silencio: se
+    // avisa una vez en la pantalla del viaje ya creado, sin bloquear la
+    // creación por eso.
+    const sinUbicar = analisisData.unresolved.map((c) => c.trim()).filter(Boolean);
+    router.push(sinUbicar.length ? `/viajes/${nuevo.id}?sinUbicar=${encodeURIComponent(sinUbicar.join(", "))}` : `/viajes/${nuevo.id}`);
+  }
+
   async function analizar(e: React.FormEvent) {
     e.preventDefault();
     if (!destinosLlenos.length || analizando) return;
@@ -146,7 +156,6 @@ export default function PlanificarPage() {
     }
     setAnalizando(true); setError(null);
     const tipoCalculado: TipoViaje = destinosLlenos.length > 1 ? "circuito" : "simple";
-    setTipo(tipoCalculado);
     // El cerebro necesita un texto para investigar (intereses, comida,
     // etc.); si el viajero no escribió peticiones especiales, se arma uno
     // simple a partir de los destinos en vez de bloquear el flujo pidiendo
@@ -175,91 +184,21 @@ export default function PlanificarPage() {
       const response = await fetch("/api/trips/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await response.json() as Analisis & { error?: string };
       if (!response.ok) throw new Error(data.error ?? "No se pudo analizar el viaje.");
-      setNecesidades(interpretarTexto(textoEnviado));
-      setAnalisis(data);
-      setEtapas(data.locations);
+      if (!data.locations.length) {
+        setError("No pudimos ubicar ninguno de los destinos que escribiste. Revisa el nombre e inténtalo de nuevo.");
+        return;
+      }
+      crearViaje(data, interpretarTexto(textoEnviado), tipoCalculado);
     } catch (e) { setError(e instanceof Error ? e.message : "No se pudo analizar el viaje."); }
     finally { setAnalizando(false); }
   }
-
-  function crearViaje() {
-    if (!necesidades || etapas.length === 0 || !analisis) return;
-    const limpias: Etapa[] = etapas.map((l) => ({ id: `geo-${l.id}`, nombre: l.name, paisCodigo: l.countryCode, destinoId: l.id }));
-    const principal = limpias[0];
-    const nuevo = guardarViaje({
-      destino: esCircuito ? limpias.map((e) => e.nombre).join(" → ") : principal.nombre,
-      destinoId: principal.destinoId,
-      paisCodigo: principal.paisCodigo,
-      tipo,
-      etapas: limpias,
-      viajerosIds: [],
-      fechaSalida: fechaSalida || undefined,
-      fechaRegreso: fechaRegreso || undefined,
-      modoPlanificacion: modo,
-      // Lo que ya se investigó viaja con el viaje: si no, se pierde al salir
-      // de esta pantalla y las consultas se habrían hecho para nada.
-      investigacion: normalizarInvestigacion(analisis as Parameters<typeof normalizarInvestigacion>[0]),
-      contexto: {
-        presupuestoTotal: presupuestoTotalCalculado,
-        duracionDias: necesidades.duracionDias,
-        numAdultos: adultos,
-        edadesMenores: edadesNinos.length ? edadesNinos : undefined,
-        mascota: mascotas > 0,
-        ciudadOrigen: origen.trim() || necesidades.ciudadOrigen || undefined,
-        textoOriginal: texto,
-        presupuesto: { importe: presupuesto ? Number(presupuesto) : undefined, moneda: "EUR", tipo: presupuestoTipo, flexible: presupuestoFlexible },
-        viajeros: { adultos, ninos, edadesNinos: edadesNinos.length ? edadesNinos : undefined, bebes: bebes || undefined, personasMayores: personasMayores || undefined, mascotas: mascotas || undefined, accesibilidad },
-        accesibilidad,
-        intereses: necesidades.intereses,
-        ritmo: necesidades.ritmo,
-        restricciones: necesidades.sinConducirMucho ? ["sin conducir mucho"] : undefined,
-        fechaSalida: fechaSalida || undefined,
-        fechaRegreso: fechaRegreso || undefined,
-        explorer: { activado: modo === "dejarse_llevar" },
-      },
-    });
-    router.push(`/viajes/${nuevo.id}`);
-  }
-
-  function agregarManual() {
-    const name = nuevaParada.trim(); if (!name) return;
-    setDestinos((prev) => [...prev, name]); setNuevaParada(""); setAnalisis(null);
-  }
-
-  if (analisis) return (
-    <main className="flex-1 px-5 py-7"><div className="mx-auto max-w-3xl">
-      <button onClick={() => setAnalisis(null)} className="mb-5 text-sm text-neutral-500 hover:text-neutral-900">← Cambiar datos</button>
-      <section className="card mb-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-600">Tu viaje</p><h1 className="mt-2 text-2xl font-semibold tracking-tight">Esto es lo que hemos entendido.</h1><p className="mt-2 text-sm leading-6 text-neutral-500">El viaje queda preparado según tus fechas, presupuesto, grupo y forma de viajar.</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="rounded-full bg-marino-50 px-3 py-1.5 text-xs font-medium text-marino-800">{MODOS.find((m) => m.id === modo)?.title}</span>
-          {fechaSalida && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">{fechaSalida}{fechaRegreso ? ` → ${fechaRegreso}` : ""}</span>}
-          {origen.trim() && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">Desde {origen.trim()}</span>}
-          {presupuesto && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">{presupuesto} € · {presupuestoTipo.replace("_", " ")}</span>}
-          <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">{adultos} adultos{ninos ? ` · ${ninos} niños` : ""}{bebes ? ` · ${bebes} bebés` : ""}</span>
-          {personasMayores > 0 && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">{personasMayores} personas mayores</span>}
-          {accesibilidad.requiereAccesibilidad && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs">Accesibilidad</span>}
-        </div>
-        {etiquetas.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{etiquetas.map((x) => <span key={x} className="rounded-full border border-neutral-200 px-3 py-1.5 text-xs text-neutral-600">{x}</span>)}</div>}
-      </section>
-
-      {modo === "dejarse_llevar" && <section className="card mb-5 border-dashed"><h2 className="font-semibold">🧭 Modo Explorador</h2><p className="mt-1 text-sm text-neutral-500">Durante el viaje podrás decir cosas como “hoy quiero playa y un día tranquilo” y el sistema buscará opciones que encajen con la situación real.</p>{analisis.explorer?.companionTips?.length ? <div className="mt-3 space-y-2">{analisis.explorer.companionTips.map((tip) => <p key={tip} className="text-sm text-neutral-700">• {tip}</p>)}</div> : null}</section>}
-
-      <section className="card mb-5"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold">Lugares del viaje</h2><p className="text-xs text-neutral-500">En el orden en que los has indicado.</p></div><span className="text-xs text-neutral-400">{etapas.length} lugares</span></div>
-        <div className="space-y-2">{etapas.map((l, i) => <div key={l.id} className="flex items-center gap-3 rounded-2xl border border-neutral-200 p-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-marino-50 text-xs font-semibold text-marino-700">{i + 1}</span><div className="min-w-0 flex-1"><p className="font-medium text-neutral-900">{l.name}</p><p className="text-xs text-neutral-500">{[l.region, l.country].filter(Boolean).join(", ")}</p></div><button type="button" onClick={() => setEtapas((p) => p.filter((x) => x.id !== l.id))} className="text-neutral-400 hover:text-red-600" aria-label={`Quitar ${l.name}`}>×</button></div>)}
-          {analisis.unresolved.length > 0 && <div className="rounded-2xl bg-amber-50 p-3 text-xs text-amber-800">Necesitan confirmación: {analisis.unresolved.join(", ")}</div>}
-        </div>
-        <div className="mt-3 flex gap-2"><input className="input flex-1" value={nuevaParada} onChange={(e) => setNuevaParada(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), agregarManual())} placeholder="Añadir otra ciudad o región" /><button type="button" onClick={agregarManual} className="btn-secondary">Añadir</button></div>
-      </section>
-      <button disabled={!etapas.length} onClick={crearViaje} className="btn-primary w-full disabled:opacity-50">Crear mi viaje →</button>
-    </div></main>
-  );
 
   return (
     <main className="flex-1 px-5 py-8"><div className="mx-auto max-w-3xl">
       <div className="mb-7"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-600">Efecto Viajero</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-950">Cuéntanos tu viaje en unas preguntas.</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">Responde lo que sepas — puedes dejar cualquier campo sin rellenar y completarlo después.</p></div>
 
       <form onSubmit={analizar} className="space-y-5">
-        <section className="card"><div className="mb-4"><h2 className="font-semibold">¿A dónde quieres ir?</h2><p className="mt-1 text-xs text-neutral-500">Un destino o varios, en el orden en que los visitarás.</p></div>
+        <section className="card"><div className="mb-4"><h2 className="font-semibold">¿A dónde quieres ir?</h2><p className="mt-1 text-xs text-neutral-500">Un destino o varios, en el orden en que los visitarás. Solo nombres de lugares aquí — lo que quieras hacer o ver va en "Peticiones especiales" más abajo.</p></div>
           <div className="space-y-2">{destinos.map((d, i) => <div key={i} className="flex gap-2"><input className="input flex-1" value={d} onChange={(e) => actualizarDestino(i, e.target.value)} placeholder={i === 0 ? "Ej. Bogotá, Japón, Roma…" : "Otra parada"} />{destinos.length > 1 && <button type="button" onClick={() => quitarDestino(i)} className="shrink-0 text-neutral-400 hover:text-red-600" aria-label="Quitar destino">×</button>}</div>)}</div>
           <button type="button" onClick={() => setDestinos((p) => [...p, ""])} className="mt-3 text-sm text-marino-700 underline hover:text-marino-900">+ Añadir otro destino</button>
           <label className="mt-4 block border-t border-neutral-100 pt-4 text-sm text-neutral-700">¿Desde dónde sales? <span className="text-neutral-400">(opcional, para buscar vuelos y rutas)</span><input className="input mt-1" value={origen} onChange={(e) => setOrigen(e.target.value)} placeholder="Ej. Madrid" /></label>
@@ -286,7 +225,7 @@ export default function PlanificarPage() {
         {error && <p className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
         <button disabled={!destinosLlenos.length || analizando} className="btn-primary flex w-full items-center justify-center gap-2 disabled:opacity-50">
           {analizando && <span aria-hidden className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-          {analizando ? "Preparando tu viaje…" : "Continuar →"}
+          {analizando ? "Creando tu viaje…" : "Crear mi viaje →"}
         </button>
         {tardandoMucho && (
           <p className="text-center text-xs text-neutral-500">

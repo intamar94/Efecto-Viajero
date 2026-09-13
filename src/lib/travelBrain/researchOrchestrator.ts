@@ -35,7 +35,18 @@ function fallbackContext(rawText: string): CanonicalTripContext { return { rawTe
 
 export async function analyzeTrip(rawText: string, context?: CanonicalTripContext, trip: { destino?: string; etapas?: Array<{ nombre: string }> } = {}) {
   const ctx = context ?? fallbackContext(rawText);
-  const candidates = unique(extractLocationCandidates(rawText).concat(ctx.destinations ?? [], trip.destino ?? "", ...(trip.etapas ?? []).map((e) => e.nombre)));
+  // Los destinos ya se preguntan directo en /planificar — un campo dedicado,
+  // sin ambigüedad. Adivinarlos ADEMÁS a partir del texto libre (que ahora es
+  // solo "peticiones especiales": intereses, ocasión, cosas a evitar) hacía
+  // que una frase como "visitar Faro, parques, la playa, la ciudad, donde
+  // haya naturaleza" se partiera por comas y cada fragmento — "parques", "la
+  // playa", "la ciudad" — se geocodificara como si fuera un lugar real,
+  // colando paradas sin sentido en un viaje que solo tenía un destino. El
+  // texto libre solo se usa para adivinar destinos como último recurso,
+  // cuando no hay ninguno explícito (p. ej. una llamada antigua sin el
+  // campo "destinations").
+  const explicitos = unique([...(ctx.destinations ?? []), trip.destino ?? "", ...(trip.etapas ?? []).map((e) => e.nombre)].filter(Boolean));
+  const candidates = explicitos.length > 0 ? explicitos : unique(extractLocationCandidates(rawText));
   const hint = countryHint(candidates);
   let countryCode: string | undefined;
   async function resolverTolerante(valor: string, code?: string) { try { return await resolveDestination(valor, code); } catch { return []; } }

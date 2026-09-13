@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { EstadoBadge } from "@/components/EstadoBadge";
 import { useData } from "@/lib/store";
@@ -54,7 +54,20 @@ function descripcionQuienViaja(c: ContextoViaje): string | null {
 export default function ViajeDetallePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { obtenerViaje, actualizarViaje, eliminarViaje, viajeros } = useData();
+  // Al crear el viaje ya no hay pantalla de confirmación previa: si algún
+  // destino escrito no se pudo ubicar, se avisa aquí una sola vez en vez de
+  // bloquear la creación por eso. El aviso viaja en la URL desde
+  // /planificar y se limpia enseguida para que no reaparezca al recargar.
+  const [avisoSinUbicar, setAvisoSinUbicar] = useState<string | null>(null);
+  useEffect(() => {
+    const valor = searchParams.get("sinUbicar");
+    if (!valor) return;
+    setAvisoSinUbicar(valor);
+    router.replace(`/viajes/${params.id}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [mostrarAjuste, setMostrarAjuste] = useState(false);
   const [editandoViajeros, setEditandoViajeros] = useState(false);
   const [editandoModo, setEditandoModo] = useState(false);
@@ -156,6 +169,15 @@ export default function ViajeDetallePage() {
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-2xl">
         <Cabecera titulo={viaje.destino} subtitulo={subtituloFechas(viaje)} volverA="/viajes" />
+
+        {avisoSinUbicar && (
+          <div className="mb-6 flex items-start justify-between gap-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+            <p>No pudimos ubicar &quot;{avisoSinUbicar}&quot; como destino real — revisa el nombre y créalo de nuevo si hacía falta.</p>
+            <button onClick={() => setAvisoSinUbicar(null)} className="shrink-0 text-amber-600 hover:text-amber-900" aria-label="Cerrar aviso">
+              ×
+            </button>
+          </div>
+        )}
 
         <div className="mb-6 flex gap-2">
           <button
