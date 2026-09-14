@@ -11,7 +11,7 @@ import { useData } from "@/lib/store";
 import { crucesDe, esCircuito, etapasDe, paisDeEtapa, destinoParaCatalogo } from "@/lib/viaje";
 import { ETIQUETA_BLOQUE, REGLA_BLOQUE } from "@/lib/paises";
 import { mediosUtilesEnCiudad } from "@/lib/transporteLocal";
-import { festivosEnRango, luzDelDia, type FestivoPais, type LuzDelDia } from "@/lib/calendarioViaje";
+import { festivosEnRango, luzDelDia, faseLunar, pronosticoAuroras, type FestivoPais, type LuzDelDia, type PronosticoAuroras } from "@/lib/calendarioViaje";
 import { actividadesDe } from "@/lib/catalogo";
 import { GeneradorItinerario } from "@/lib/generador-itinerario";
 import { formatearFecha } from "@/lib/formatoFecha";
@@ -60,6 +60,7 @@ export default function RutaPage() {
   // Por nombre de ciudad: la hora de luz depende de dónde estés, no solo
   // del día (amanece bastante distinto en Cartagena que en Bogotá).
   const [luz, setLuz] = useState<Record<string, LuzDelDia>>({});
+  const [auroras, setAuroras] = useState<Record<string, PronosticoAuroras>>({});
 
   // El viaje se hidrata desde localStorage de forma asíncrona: si se lee
   // viaje.itinerario en el useState inicial, esa lectura llega demasiado
@@ -90,6 +91,11 @@ export default function RutaPage() {
         const datos = await luzDelDia(etapa.lat, etapa.lon, viaje.fechaSalida!);
         if (cancelado) return;
         if (datos) setLuz((prev) => ({ ...prev, [etapa.nombre]: datos }));
+        // Solo donde de verdad puede haber auroras: pronosticoAuroras
+        // devuelve undefined por debajo de los 45° de latitud.
+        const aurora = await pronosticoAuroras(etapa.lat);
+        if (cancelado) return;
+        if (aurora) setAuroras((prev) => ({ ...prev, [etapa.nombre]: aurora }));
       }
     })();
     return () => {
@@ -343,6 +349,32 @@ export default function RutaPage() {
                           <dt className="w-28 shrink-0 text-neutral-400">Luz</dt>
                           <dd className="text-neutral-700">
                             ☀️ {luz[etapa.nombre].amanecer} · 🌅 {luz[etapa.nombre].atardecer}
+                          </dd>
+                        </div>
+                      )}
+                      {(() => {
+                        // La luna decide una noche de estrellas más que
+                        // cualquier otra cosa: con luna llena no se ve la
+                        // Vía Láctea ni una lluvia de meteoros.
+                        const luna = viaje.fechaSalida ? faseLunar(viaje.fechaSalida) : undefined;
+                        if (!luna) return null;
+                        return (
+                          <div className="flex gap-2">
+                            <dt className="w-28 shrink-0 text-neutral-400">Luna</dt>
+                            <dd className="text-neutral-700">
+                              🌙 {luna.nombre} ({Math.round(luna.iluminacion * 100)}%)
+                              {luna.buenaParaEstrellas && " · buena noche para ver estrellas"}
+                            </dd>
+                          </div>
+                        );
+                      })()}
+                      {auroras[etapa.nombre] && (
+                        <div className="flex gap-2">
+                          <dt className="w-28 shrink-0 text-neutral-400">Auroras</dt>
+                          <dd className={auroras[etapa.nombre].hayOportunidad ? "font-medium text-marino-800" : "text-neutral-700"}>
+                            {auroras[etapa.nombre].hayOportunidad
+                              ? `🌌 Hay opción estos días: se prevé Kp ${auroras[etapa.nombre].kpMaximo} y aquí basta con Kp ${auroras[etapa.nombre].kpNecesario}`
+                              : `🌌 Poco probable: aquí haría falta Kp ${auroras[etapa.nombre].kpNecesario} y se prevé como mucho Kp ${auroras[etapa.nombre].kpMaximo}`}
                           </dd>
                         </div>
                       )}

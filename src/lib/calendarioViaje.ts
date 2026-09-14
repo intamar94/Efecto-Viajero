@@ -86,3 +86,82 @@ export async function luzDelDia(lat: number, lon: number, fecha: string): Promis
     return undefined;
   }
 }
+
+// ── Cielo nocturno ────────────────────────────────────────────────────
+// Dos datos que deciden si una noche sirve para mirar el cielo, y que no
+// da ninguna otra fuente de la app.
+
+// La luna llena arruina una noche de estrellas: con ese brillo no se ve
+// la Vía Láctea ni una lluvia de meteoros. No hace falta ninguna API —
+// la fase lunar es cálculo puro a partir de una luna nueva conocida y la
+// duración del mes sinódico.
+const LUNA_NUEVA_REFERENCIA = Date.UTC(2000, 0, 6, 18, 14) / 86400000;
+const MES_SINODICO = 29.530588853;
+
+export interface FaseLunar {
+  nombre: string;
+  iluminacion: number; // 0 = luna nueva, 1 = llena
+  buenaParaEstrellas: boolean;
+}
+
+export function faseLunar(fecha: string): FaseLunar | undefined {
+  const dias = Date.parse(`${fecha}T00:00:00Z`) / 86400000;
+  if (Number.isNaN(dias)) return undefined;
+  const ciclo = (((dias - LUNA_NUEVA_REFERENCIA) / MES_SINODICO) % 1 + 1) % 1;
+  // Iluminación aproximada: 0 en luna nueva, 1 en llena.
+  const iluminacion = (1 - Math.cos(2 * Math.PI * ciclo)) / 2;
+  // El nombre sale de la iluminación ya calculada, no de cortes fijos del
+  // ciclo: el modelo es una media (las lunaciones reales varían casi un
+  // día), así que con cortes fijos salía "gibosa creciente" en una noche
+  // 99% iluminada, que para cualquiera es luna llena. El ciclo solo
+  // decide si va creciendo o menguando.
+  const creciente = ciclo < 0.5;
+  const nombre =
+    iluminacion >= 0.97 ? "luna llena"
+    : iluminacion <= 0.03 ? "luna nueva"
+    : Math.abs(iluminacion - 0.5) < 0.06 ? (creciente ? "cuarto creciente" : "cuarto menguante")
+    : iluminacion > 0.5 ? (creciente ? "luna gibosa creciente" : "luna gibosa menguante")
+    : creciente ? "luna creciente" : "luna menguante";
+  return { nombre, iluminacion, buenaParaEstrellas: iluminacion < 0.35 };
+}
+
+export interface PronosticoAuroras {
+  kpMaximo: number;
+  kpNecesario: number;
+  hayOportunidad: boolean;
+}
+
+// Una aurora se ve desde una latitud u otra según la actividad
+// geomagnética (índice Kp): cuanto más alto el Kp, más al sur llega. La
+// regla aceptada es que el óvalo auroral baja unos 2° de latitud por cada
+// punto de Kp desde los ~66°. Así, en Tromsø basta con Kp bajo y en
+// Berlín hace falta una tormenta fuerte.
+export function kpNecesarioEn(lat: number): number {
+  return Math.max(0, Math.round((66 - Math.abs(lat)) / 2));
+}
+
+// Solo tiene sentido preguntarlo donde de verdad puede pasar: por debajo
+// de los 45° haría falta una tormenta histórica y anunciarlo sería
+// vender humo.
+export async function pronosticoAuroras(lat: number): Promise<PronosticoAuroras | undefined> {
+  if (Math.abs(lat) < 45) return undefined;
+  try {
+    const res = await fetch("https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json", {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return undefined;
+    const filas = await res.json();
+    if (!Array.isArray(filas) || filas.length < 2) return undefined;
+    // La primera fila son las cabeceras; el Kp va en la segunda columna.
+    const valores = filas.slice(1).flatMap((f: unknown) => {
+      const kp = Number((f as unknown[])?.[1]);
+      return Number.isFinite(kp) ? [kp] : [];
+    });
+    if (valores.length === 0) return undefined;
+    const kpMaximo = Math.max(...valores);
+    const kpNecesario = kpNecesarioEn(lat);
+    return { kpMaximo, kpNecesario, hayOportunidad: kpMaximo >= kpNecesario };
+  } catch {
+    return undefined;
+  }
+}
