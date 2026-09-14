@@ -1,8 +1,9 @@
 // Traducción automática, gratis y sin clave (MyMemory: mymemory.translated.net).
 // Se usa solo para texto libre que ya es real (el contenido de un listing de
-// Wikivoyage), nunca para inventar nada — cuando el único artículo
-// disponible para una ciudad está en inglés o portugués, esto deja ese
-// mismo texto real en español, como el resto de la interfaz.
+// Wikivoyage, un resumen de Wikipedia), nunca para inventar nada — cuando
+// la única fuente real disponible para un sitio está en español o
+// portugués, esto deja ese mismo texto real en inglés, como el resto de
+// la interfaz.
 //
 // El servicio tiene un cupo diario gratuito limitado: si se agota, o si
 // falla por cualquier motivo, se devuelve el texto original sin traducir
@@ -18,7 +19,7 @@ function pareceAvisoDeCuota(texto: string): boolean {
   return /MYMEMORY WARNING|QUOTA|INVALID.*(TARGET|SOURCE)|MICROSOFT/i.test(texto);
 }
 
-export async function traducirAlEspanol(texto: string, idiomaOrigen: "en" | "pt"): Promise<string> {
+export async function traducirAlIngles(texto: string, idiomaOrigen: "es" | "pt"): Promise<string> {
   const original = texto.trim();
   if (!original) return texto;
   const clave = `${idiomaOrigen}:${original}`;
@@ -29,7 +30,7 @@ export async function traducirAlEspanol(texto: string, idiomaOrigen: "en" | "pt"
     // MyMemory limita el largo por consulta en su nivel gratuito: no hace
     // falta más para una descripción corta de una tarjeta de todas formas.
     const consulta = original.slice(0, 480);
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(consulta)}&langpair=${idiomaOrigen}|es`;
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(consulta)}&langpair=${idiomaOrigen}|en`;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) return texto;
     const data = await res.json();

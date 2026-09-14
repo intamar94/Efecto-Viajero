@@ -8,7 +8,7 @@
 // (por ejemplo el horario), el campo queda vacío y así se muestra.
 
 import { acortarTexto } from "./texto";
-import { traducirAlEspanol } from "./traduccion";
+import { traducirAlIngles } from "./traduccion";
 import { geosearchWiki, mejorCoincidenciaPorNombre, mejorTituloPorNombre } from "./wikiGeosearch";
 
 export type TipoListingWikivoyage = "see" | "do" | "buy" | "eat" | "drink" | "sleep";
@@ -29,8 +29,9 @@ export interface WikivoyageListing {
 // Sube cada vez que cambia de raíz cómo se procesa la guía (p. ej. al
 // añadir la traducción automática): una guía ya guardada en un viaje con
 // una versión anterior se vuelve a buscar en vez de quedarse con el
-// inglés sin traducir para siempre.
-export const VERSION_WIKIVOYAGE = 7;
+// contenido en español sin traducir, o con nombres fabricados a partir
+// de fragmentos de frase, para siempre.
+export const VERSION_WIKIVOYAGE = 8;
 
 export interface WikivoyageResumen {
   articulo: string;
@@ -112,14 +113,16 @@ function extraerListingsDePlantillas(wikitext: string): WikivoyageListing[] {
     // El parámetro "name" de la plantilla normalmente es un título real,
     // pero algunos colaboradores escriben ahí una frase descriptiva
     // entera en vez de un nombre corto ("Festival de Rock al Parque
-    // reconocido como el festival musical..."). Igual que en las
-    // viñetas, se separa el título real del resto cuando es
-    // sospechosamente largo — nunca se pisa un "content" ya real que la
-    // plantilla trajera aparte.
+    // reconocido como el festival musical..."). Se recorta el título
+    // real cuando es sospechosamente largo — nunca se pisa un "content"
+    // ya real que la plantilla trajera aparte. A diferencia de una
+    // viñeta suelta, aquí SÍ sabemos que el autor puso esto pensando en
+    // un nombre (es el campo "name="), así que tiene sentido recortar en
+    // vez de descartar.
     let nombre = p.name;
     let contenido = p.content;
     if (nombre && nombre.length > 60) {
-      const partido = partirNombreYContenido(nombre);
+      const partido = acortarNombreDePlantilla(nombre);
       nombre = partido.nombre;
       contenido = contenido ?? partido.contenido;
     }
@@ -152,23 +155,52 @@ const SECCION_A_TIPO: Record<string, TipoListingWikivoyage> = {
   beber: "drink",
 };
 
-// Una línea en viñeta suele empezar con el nombre del lugar, seguido de
-// ". "/"; "/": " y luego la descripción real — p. ej. "Adega Nova. Looks
-// like a pub from northern Europe." Antes `contenido` guardaba la línea
-// ENTERA (nombre incluido), así que traducir ese texto traducía también
-// el nombre propio metido al principio, mezclado con la frase real y sin
-// sentido ("Adega Nova" no es una oración en inglés que se pueda traducir
-// palabra por palabra). Se separa el nombre del resto ANTES de guardar
-// "contenido", para no repetirlo ni tener que traducirlo nunca.
-function partirNombreYContenido(texto: string): { nombre: string; contenido?: string } {
-  const separador = texto.match(/[.;:]/);
+// Un campo "name=" de plantilla ya declara su intención de ser un
+// nombre (aunque algún colaborador escriba ahí una frase larga en vez de
+// un nombre corto): aquí sí tiene sentido recortar y quedarse con algo,
+// porque sabemos que el autor quiso poner un nombre, no una frase suelta.
+function acortarNombreDePlantilla(nombre: string): { nombre: string; contenido?: string } {
+  const separador = nombre.match(/[.;:]/);
   if (!separador || separador.index === undefined) {
-    return { nombre: texto.length > 60 ? `${texto.slice(0, 60).trim()}…` : texto, contenido: undefined };
+    return { nombre: nombre.length > 60 ? `${nombre.slice(0, 60).trim()}…` : nombre, contenido: undefined };
   }
+  const primeraClausula = nombre.slice(0, separador.index).trim();
+  const resto = nombre.slice(separador.index + 1).trim();
+  const final = primeraClausula.length > 0 && primeraClausula.length <= 60 ? primeraClausula : (nombre.length > 40 ? `${nombre.slice(0, 40).trim()}…` : nombre);
+  return { nombre: final, contenido: resto.length > 0 ? resto : undefined };
+}
+
+// Una viñeta suelta (sin plantilla) no lleva ninguna etiqueta que diga
+// "esto es un nombre": aquí solo hay una corazonada sobre la forma del
+// texto, y hay que ser estrictos con ella. La convención real de
+// Wikivoyage es tres apóstrofos alrededor del nombre del sitio, seguidos
+// de la dirección y la descripción — esa negrita ES el nombre, así que se
+// busca ANTES de limpiar el wikitext (limpiarWikitext quita las comillas
+// de negrita, y con ellas se pierde la única señal fiable). Cuando no hay
+// negrita, se acepta una primera cláusula corta como nombre plausible —
+// pero si ni eso hay (la viñeta es un párrafo entero sin nombre real,
+// como "Los mejores helados los podemos encontrar en..."), se descarta
+// la viñeta entera: fabricar un nombre cortando las primeras palabras
+// con "…" no es distinto de inventar un nombre que el sitio nunca tuvo.
+const PATRON_NEGRITA_INICIAL = /^'''([^']{1,60})'''\s*[.,;:]?\s*([\s\S]*)$/;
+
+function partirNombreYContenido(rawTexto: string): { nombre: string; contenido?: string } | undefined {
+  const negrita = rawTexto.match(PATRON_NEGRITA_INICIAL);
+  if (negrita) {
+    const nombre = limpiarWikitext(negrita[1]).trim();
+    if (nombre) {
+      const contenido = limpiarWikitext(negrita[2]).trim();
+      return { nombre, contenido: contenido || undefined };
+    }
+  }
+
+  const texto = limpiarWikitext(rawTexto);
+  const separador = texto.match(/[.;:]/);
+  if (!separador || separador.index === undefined) return undefined;
   const primeraClausula = texto.slice(0, separador.index).trim();
+  if (primeraClausula.length === 0 || primeraClausula.length > 60) return undefined;
   const resto = texto.slice(separador.index + 1).trim();
-  const nombre = primeraClausula.length > 0 && primeraClausula.length <= 60 ? primeraClausula : (texto.length > 40 ? `${texto.slice(0, 40).trim()}…` : texto);
-  return { nombre, contenido: resto.length > 0 ? resto : undefined };
+  return { nombre: primeraClausula, contenido: resto.length > 0 ? resto : undefined };
 }
 
 // No todos los artículos usan plantillas {{see|do|...}}: muchos, sobre
@@ -206,8 +238,12 @@ function extraerListingsDeViñetas(wikitext: string): WikivoyageListing[] {
     if (!tipoActual) continue;
     const item = linea.match(/^\*+\s*(.+)$/);
     if (!item || /^\{\{/.test(item[1].trim())) continue;
-    const texto = limpiarWikitext(item[1]);
-    if (texto) listings.push({ tipo: tipoActual, ...partirNombreYContenido(texto) });
+    // Se pasa la viñeta CRUDA (sin limpiar todavía): partirNombreYContenido
+    // necesita ver la negrita original ('''Nombre''') antes de que
+    // limpiarWikitext se la coma, porque es la única señal fiable de que
+    // eso es un nombre y no el principio de una frase cualquiera.
+    const partido = partirNombreYContenido(item[1]);
+    if (partido) listings.push({ tipo: tipoActual, ...partido });
   }
   return listings;
 }
@@ -291,21 +327,22 @@ async function obtenerWikitext(titulo: string, idioma: "es" | "en"): Promise<str
   }
 }
 
-// Cuando el único artículo real disponible para una ciudad está en
-// inglés (Wikivoyage en español es mucho más chico: cubre muchas menos
-// ciudades, y con menos detalle), su contenido libre queda en inglés — se
-// traduce aquí, una sola vez por ciudad, antes de guardarlo en el viaje,
-// para que el resto de la interfaz no quede mezclada en dos idiomas. El
-// nombre y la dirección NO se traducen (son nombres propios reales); solo
-// el texto descriptivo. Si la traducción falla, `traducirAlEspanol` ya
-// devuelve el texto original tal cual, así que esto nunca se queda sin
-// contenido por un fallo del servicio de traducción.
-async function traducirListings(listings: WikivoyageListing[]): Promise<WikivoyageListing[]> {
+// Wikivoyage en español cubre muchas menos ciudades que el inglés, así
+// que se intenta primero en español (más contenido real para una ciudad
+// hispanohablante) y, cuando ese artículo gana, su texto libre queda en
+// español — se traduce aquí, una sola vez por ciudad, antes de guardarlo
+// en el viaje, para que el resto de la interfaz (en inglés) no quede
+// mezclada en dos idiomas. El nombre y la dirección NO se traducen (son
+// nombres propios reales); solo el texto descriptivo. Si la traducción
+// falla, `traducirAlIngles` ya devuelve el texto original tal cual, así
+// que esto nunca se queda sin contenido por un fallo del servicio de
+// traducción — un dato real sin traducir sigue siendo mejor que ninguno.
+async function traducirListings(listings: WikivoyageListing[], idiomaOrigen: "es" | "pt"): Promise<WikivoyageListing[]> {
   return Promise.all(
     listings.map(async (l) => {
       if (!l.contenido) return l;
       const recortado = acortarTexto(l.contenido, 220);
-      const traducido = await traducirAlEspanol(recortado, "en");
+      const traducido = await traducirAlIngles(recortado, idiomaOrigen);
       return { ...l, contenido: traducido };
     })
   );
@@ -327,7 +364,7 @@ export async function obtenerGuiaWikivoyage(ciudad: string, contexto?: string, c
       console.warn(`Wikivoyage (${idioma}): "${titulo}" no trajo listings extraíbles`);
       continue;
     }
-    if (idioma === "en") listings = await traducirListings(listings);
+    if (idioma !== "en") listings = await traducirListings(listings, idioma);
     return {
       articulo: titulo,
       idioma,

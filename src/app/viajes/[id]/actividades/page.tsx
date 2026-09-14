@@ -15,7 +15,6 @@ import { entornoCercanoDe } from "@/lib/entornoCercano";
 import { buscarEnLaWeb, describirResultadoWeb, type ResultadoBusquedaWeb } from "@/lib/busquedaWeb";
 import { enriquecerLugar, hayFuentesComerciales } from "@/lib/enriquecimiento";
 import { descubrirLugaresCercanos, VERSION_DESCUBRIMIENTO } from "@/lib/descubrimientoWikidata";
-import { interpretarIntencion } from "@/lib/intencion";
 import { slug } from "@/lib/puntosGeo";
 import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
 import { acortarTexto } from "@/lib/texto";
@@ -145,19 +144,19 @@ function descripcionDeSitio(s: SitioReal): string {
 // da una doble conjunción rara de leer ("su historia y su cultura y su
 // gastronomía").
 const DESEO_CATEGORIA: Partial<Record<CategoriaActividad, string>> = {
-  museo: "su patrimonio cultural",
+  museo: "its cultural heritage",
   restaurante: "its food",
-  cine_teatro: "su escena cultural",
-  discoteca: "su vida nocturna",
+  cine_teatro: "its cultural scene",
+  discoteca: "its nightlife",
   compras: "its local crafts",
-  naturaleza: "su naturaleza",
-  playa: "sus playas",
-  pueblos: "los pueblos de alrededor",
+  naturaleza: "its nature",
+  playa: "its beaches",
+  pueblos: "the villages around it",
 };
 
 function fraseDeseo(categorias: CategoriaActividad[]): string {
   const frases = categorias.map((c) => DESEO_CATEGORIA[c]).filter((f): f is string => Boolean(f));
-  if (frases.length === 0) return "todo lo que tiene para descubrir";
+  if (frases.length === 0) return "everything it has to discover";
   if (frases.length === 1) return frases[0];
   return `${frases.slice(0, -1).join(", ")} and ${frases[frases.length - 1]}`;
 }
@@ -922,13 +921,19 @@ export default function ActividadesPage() {
     // Guía real de Wikivoyage (nombre, dirección, horario, precio, web ya
     // escritos por otros viajeros): sustituye la búsqueda genérica en
     // Google por datos concretos, cuando el artículo los trae. Cuando no
-    // hay artículo en español, se cae al de inglés (ver wikivoyage.ts) —
-    // así que su contenido puede venir en otro idioma; se usa igual (mejor
-    // un dato real en otro idioma que ninguno) pero se recorta a lo
-    // esencial, porque un párrafo entero sin traducir es aún más difícil
-    // de leer si encima es largo.
+    // hay artículo en inglés, se cae al de español (ver wikivoyage.ts) y
+    // su contenido se traduce ahí antes de guardarse, para no mezclar
+    // idiomas aquí; se recorta a lo esencial, porque un párrafo entero es
+    // difícil de leer si encima es largo.
     const guiaWikivoyage = viaje!.wikivoyage?.[etapa.nombre];
-    const idsWikivoyageYaAñadidos = idsPropiosYaAñadidos;
+    // Un mismo sitio puede aparecer en más de una sección del artículo
+    // (de vista Y de comida, por ejemplo): sin llevar la cuenta de lo que
+    // ya se añadió DENTRO de este mismo recorrido, salía repetido con una
+    // categoría distinta cada vez — el mismo nombre en Naturaleza, en
+    // Museos y en Restaurantes a la vez. Se parte de lo ya añadido a mano
+    // y se va ampliando según se procesa cada listing, para que la
+    // primera aparición gane y las siguientes se descarten.
+    const idsWikivoyageYaAñadidos = new Set(idsPropiosYaAñadidos);
     const deWikivoyage: Item[] = (guiaWikivoyage?.listings ?? []).flatMap((l) => {
       const categoria = CATEGORIA_DE_LISTING[l.tipo];
       if (!categoria || !l.nombre) return [];
@@ -944,6 +949,7 @@ export default function ActividadesPage() {
       const categoriaFinal = esEvento ? ("eventos" as const) : categoria;
       const id = `wv-${etapa.id}-${slug(l.nombre)}`;
       if (idsWikivoyageYaAñadidos.has(id)) return [];
+      idsWikivoyageYaAñadidos.add(id);
       return [
         {
           id,
@@ -1259,21 +1265,15 @@ export default function ActividadesPage() {
             const categoriasConContenido = new Set(items.map((it) => it.categoria));
             const categoriasDisponibles = ORDEN_CATEGORIAS.filter((c) => categoriasConContenido.has(c));
 
-            // Lo que la persona describió al crear el viaje ("restaurantes
-            // típicos, naturaleza, museos de historia...") ya dice qué le
-            // interesa: se usa como punto de partida en cada ciudad, sin
-            // obligar a repetirlo — pero solo mientras esta etapa no tenga
-            // su propia selección (una caja tocada, o un "Ver todo" explícito).
-            const textoOriginalViaje = viaje.contexto.textoOriginal;
-            const categoriasSugeridas = (textoOriginalViaje ? interpretarIntencion(textoOriginalViaje) : []).filter((c) => categoriasConContenido.has(c));
-            const haySugerenciaDelViaje = categoriasBuscadasPorEtapa[etapa.id] === undefined && categoriasSugeridas.length > 0;
-
-            const categoriasBuscadas =
-              categoriasBuscadasPorEtapa[etapa.id] !== undefined
-                ? categoriasBuscadasPorEtapa[etapa.id]
-                : haySugerenciaDelViaje
-                  ? categoriasSugeridas
-                  : null;
+            // El viajero decide qué mirar tocando una caja: nada se
+            // preselecciona a partir de lo que escribió al crear el
+            // viaje. Antes se auto-filtraba por las categorías detectadas
+            // en ese texto, y eso escondía todo lo demás sin que nadie lo
+            // pidiera — la pantalla podía arrancar mostrando solo "Vida
+            // nocturna" en vez de dejar ver primero qué hay de todo. Ahora
+            // arranca sin filtro: todas las cajas están visibles y el
+            // contenido de abajo se llena solo cuando se toca una.
+            const categoriasBuscadas = categoriasBuscadasPorEtapa[etapa.id] ?? null;
             const resultadosBusqueda = categoriasBuscadas
               ? categoriasBuscadas.flatMap((cat) => items.filter((it) => it.categoria === cat))
               : [];
@@ -1287,19 +1287,28 @@ export default function ActividadesPage() {
             // válido, pero lo primero que se ve al abrir "Restaurantes
             // típicos" no debería ser justo lo que menos se busca al pedir
             // algo típico.
-            const listaMostrada = [...(categoriasBuscadas !== null ? resultadosBusqueda : items)].sort(
-              (a, b) =>
-                ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria) ||
-                Number(Boolean(b.cocinaLocal)) - Number(Boolean(a.cocinaLocal)) ||
-                Number(Boolean(a.cadenaGenerica)) - Number(Boolean(b.cadenaGenerica))
-            );
+            // Sin categoría tocada, la lista se queda vacía a propósito:
+            // antes se mostraba TODO mezclado por debajo de las cajas
+            // apenas se abría la ciudad, que es justo lo que las cajas
+            // deberían evitar — un restaurante, un museo y un parque
+            // revueltos en la misma lista sin que nadie lo pidiera. Ahora
+            // hay que tocar una caja para ver algo: la persona revisa cada
+            // una a su ritmo, no recibe las diez categorías de golpe.
+            const listaMostrada = categoriasBuscadas !== null
+              ? [...resultadosBusqueda].sort(
+                  (a, b) =>
+                    ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria) ||
+                    Number(Boolean(b.cocinaLocal)) - Number(Boolean(a.cocinaLocal)) ||
+                    Number(Boolean(a.cadenaGenerica)) - Number(Boolean(b.cadenaGenerica))
+                )
+              : [];
 
-            // Para presentar la ciudad: prioriza lo que la persona pidió al
-            // crear el viaje sobre lo que simplemente encontramos, y saca de
-            // ahí nombres reales (nunca del catálogo genérico) para que la
-            // presentación se sienta hecha para ESTA ciudad, no una frase
-            // que serviría para cualquier destino.
-            const categoriasParaTono = categoriasSugeridas.length > 0 ? categoriasSugeridas : categoriasDisponibles;
+            // Para presentar la ciudad: las dos categorías con más peso de
+            // lo que de verdad encontramos ahí, y de ahí nombres reales
+            // (nunca del catálogo genérico) para que la presentación se
+            // sienta hecha para ESTA ciudad, no una frase que serviría
+            // para cualquier destino.
+            const categoriasParaTono = categoriasDisponibles;
             const nombresRealesTono = categoriasParaTono.slice(0, 2).flatMap((c) => nombresDestacadosDe(items, c)).slice(0, 2);
             const paisEtapa = paisDeEtapa(etapa)?.nombre;
 
@@ -1380,17 +1389,17 @@ export default function ActividadesPage() {
                       </div>
                     )}
 
-                    {/* Sin esto la lista salía ya filtrada por lo que la
-                        persona pidió al crear el viaje, pero nada lo decía:
-                        se leía como "en esta ciudad solo hay dos sitios",
-                        cuando en realidad estábamos respondiendo justo a lo
-                        pedido y el resto seguía ahí detrás. */}
+                    {/* Solo aparece cuando la persona tocó una caja a
+                        propósito: sin esto la lista podía quedar filtrada
+                        sin que nada lo dijera, y se leía como "en esta
+                        ciudad solo hay dos sitios" en vez de "esto es lo
+                        que pediste ver". */}
                     {categoriasBuscadas !== null && categoriasBuscadas.length > 0 && (
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-marino-50 px-3 py-2 text-xs text-marino-800">
                         <span>
-                          {haySugerenciaDelViaje ? "Filtered by what you asked for when creating the trip:" : "You're only seeing:"}{" "}
+                          You&apos;re only seeing:{" "}
                           <span className="font-medium">
-                            {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta.toLowerCase()).join(" y ")}
+                            {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta.toLowerCase()).join(" and ")}
                           </span>
                           .
                         </span>
@@ -1452,7 +1461,7 @@ export default function ActividadesPage() {
                       <p className="text-sm text-neutral-400">
                         {categoriasBuscadas !== null
                           ? `We haven't researched anything like that in ${etapa.nombre} yet.`
-                          : `Add something of your own below to get started in ${etapa.nombre}.`}
+                          : `Pick a category above to see what's there in ${etapa.nombre}.`}
                       </p>
                     ) : (
                       <ul className="space-y-2">

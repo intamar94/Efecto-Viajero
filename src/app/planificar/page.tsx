@@ -21,16 +21,6 @@ type Analisis = {
   explorer?: { intent: string; searchProfile: { categories: string[]; pace: string; familyFriendly: boolean; accessibilityRequired: boolean; budgetAware: boolean }; companionTips: string[] };
 };
 
-// Ya no son ejemplos de "viaje completo" (el destino ahora se pregunta
-// aparte): son inspiración de qué tipo de cosas poner en peticiones
-// especiales, que es lo único para lo que sirve ya el texto libre.
-const EJEMPLOS_PETICIONES = [
-  "It's our honeymoon",
-  "We'd rather not walk much",
-  "We love street food",
-  "We want to avoid very touristy places",
-];
-
 const MODOS: Array<{ id: ModoPlanificacion; icon: string; title: string; text: string }> = [
   { id: "completo", icon: "🗓️", title: "Plan it all", text: "Prepare the days in advance and be able to change them." },
   { id: "poco_a_poco", icon: "🧩", title: "Bit by bit", text: "Add activities, bookings and ideas before and during the trip." },
@@ -45,7 +35,6 @@ export default function PlanificarPage() {
   // un campo dedicado no tiene ambigüedad que resolver.
   const [destinos, setDestinos] = useState<string[]>([""]);
   const [origen, setOrigen] = useState("");
-  const [texto, setTexto] = useState("");
   const [modo, setModo] = useState<ModoPlanificacion>("completo");
   const [fechaSalida, setFechaSalida] = useState("");
   const [fechaRegreso, setFechaRegreso] = useState("");
@@ -138,7 +127,7 @@ export default function PlanificarPage() {
         edadesMenores: edadesNinos.length ? edadesNinos : undefined,
         mascota: mascotas > 0,
         ciudadOrigen: origen.trim() || necesidadesData.ciudadOrigen || undefined,
-        textoOriginal: texto,
+        textoOriginal: necesidadesData.textoOriginal,
         presupuesto: { importe: presupuesto ? Number(presupuesto) : undefined, moneda: "EUR", tipo: presupuestoTipo, flexible: presupuestoFlexible },
         viajeros: { adultos, ninos, edadesNinos: edadesNinos.length ? edadesNinos : undefined, bebes: bebes || undefined, personasMayores: personasMayores || undefined, mascotas: mascotas || undefined, accesibilidad },
         accesibilidad,
@@ -167,10 +156,11 @@ export default function PlanificarPage() {
     setAnalizando(true); setError(null);
     const tipoCalculado: TipoViaje = destinosLlenos.length > 1 ? "circuito" : "simple";
     // El cerebro necesita un texto para investigar (intereses, comida,
-    // etc.); si el viajero no escribió peticiones especiales, se arma uno
-    // simple a partir de los destinos en vez de bloquear el flujo pidiendo
-    // texto que ya no hace falta.
-    const textoEnviado = texto.trim() || `Trip to ${destinosLlenos.join(", ")}.`;
+    // etc.). Ya no se le pide al viajero que lo escriba — lo que quiera
+    // hacer se explora y se filtra directo en las cajas de Actividades,
+    // no escribiéndolo aquí para que una IA lo adivine — así que se arma
+    // uno simple a partir de los destinos.
+    const textoEnviado = `Trip to ${destinosLlenos.join(", ")}.`;
     try {
       const body = {
         text: textoEnviado,
@@ -229,8 +219,6 @@ export default function PlanificarPage() {
           <div className="mt-4 border-t border-neutral-100 pt-4"><label className="flex items-center gap-2 text-sm font-medium text-neutral-800"><input type="checkbox" checked={accesibilidad.requiereAccesibilidad} onChange={(e) => setAccesibilidad((a) => ({ ...a, requiereAccesibilidad: e.target.checked }))}/> There are accessibility needs</label>{accesibilidad.requiereAccesibilidad && <div className="mt-3 grid gap-2 sm:grid-cols-2 text-sm text-neutral-700"><Check label="Reduced mobility / wheelchair" checked={accesibilidad.movilidad !== "ninguna"} onChange={(v) => setAccesibilidad((a) => ({ ...a, movilidad: v ? "movilidad_reducida" : "ninguna" }))}/><Check label="Hearing needs" checked={Boolean(accesibilidad.auditiva)} onChange={(v) => setAccesibilidad((a) => ({ ...a, auditiva: v }))}/><Check label="Visual needs" checked={Boolean(accesibilidad.visual)} onChange={(v) => setAccesibilidad((a) => ({ ...a, visual: v }))}/><Check label="Cognitive needs" checked={Boolean(accesibilidad.cognitiva)} onChange={(v) => setAccesibilidad((a) => ({ ...a, cognitiva: v }))}/></div>}</div></section>
 
         <section className="card"><div className="mb-4"><h2 className="font-semibold">How do you want to experience the trip?</h2><p className="mt-1 text-xs text-neutral-500">You can change this later without losing the trip.</p></div><div className="grid gap-3">{MODOS.map((m) => <button key={m.id} type="button" onClick={() => setModo(m.id)} className={`rounded-2xl border p-4 text-left transition ${modo === m.id ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white hover:border-neutral-300"}`}><div className="flex items-start gap-3"><span className="text-xl">{m.icon}</span><span><span className="block text-sm font-semibold text-neutral-900">{m.title}</span><span className="mt-1 block text-xs leading-5 text-neutral-500">{m.text}</span></span></div></button>)}</div>{modo === "dejarse_llevar" && <div className="mt-3 rounded-2xl bg-marino-50 p-3 text-xs leading-5 text-marino-800">Example: “Today I want beach and a quiet day”. Efecto Viajero will combine place + time + weather + distance + group + budget + local conditions before recommending.</div>}</section>
-
-        <section className="card"><div className="mb-2 flex items-center justify-between"><label className="text-sm font-medium text-neutral-800">Anything else? Special requests</label><span className="text-xs text-neutral-400">Optional</span></div><p className="mb-2 text-xs text-neutral-500">Everything above is already saved. Use this only for what doesn't fit in a question: interests, a special occasion, things to avoid…</p><textarea value={texto} onChange={(e) => setTexto(e.target.value)} className="input min-h-28 resize-y text-base leading-6" placeholder="e.g. We want to eat well, we like walking and it's our anniversary."/><div className="mt-3 flex flex-wrap gap-2">{EJEMPLOS_PETICIONES.map((ej) => <button key={ej} type="button" onClick={() => setTexto((t) => t ? `${t} ${ej}.` : `${ej}.`)} className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-left text-xs text-neutral-500 hover:border-coral-300">{ej}</button>)}</div></section>
 
         {error && <p className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
         <button disabled={!destinosLlenos.length || analizando} className="btn-primary flex w-full items-center justify-center gap-2 disabled:opacity-50">

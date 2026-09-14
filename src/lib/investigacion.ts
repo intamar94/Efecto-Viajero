@@ -17,8 +17,12 @@ import { distanciaMetros } from "./geoAudio";
 // estrategia de búsqueda mejor, no solo más categorías elegibles). Un
 // sitio ya marcado como "" (sin artículo) bajo una versión de búsqueda
 // anterior no debe quedarse así para siempre solo porque esa búsqueda
-// vieja no lo encontró: se reintenta con la versión vigente.
-export const VERSION_ENRIQUECIMIENTO_SITIO = 5;
+// vieja no lo encontró: se reintenta con la versión vigente. También sube
+// cuando cambia el tratamiento del idioma del resumen (traducir al
+// inglés en vez de dejarlo en español): un resumen ya guardado en
+// español bajo una versión anterior se vuelve a pedir en vez de quedarse
+// sin traducir para siempre.
+export const VERSION_ENRIQUECIMIENTO_SITIO = 6;
 
 export interface SitioReal {
   nombre: string;

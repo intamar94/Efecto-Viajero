@@ -4,6 +4,7 @@
 // verificar.
 
 import { geosearchWiki, mejorCoincidenciaPorNombre, mejorTituloPorNombre } from "./wikiGeosearch";
+import { traducirAlIngles } from "./traduccion";
 export interface ResumenWikipedia {
   titulo: string;
   extracto: string;
@@ -44,7 +45,7 @@ function acortar(texto: string, maxCaracteres: number): string {
   return resultado;
 }
 
-interface ArticuloWikipedia { titulo: string; extractoCompleto: string; url: string; imagen?: string }
+interface ArticuloWikipedia { titulo: string; extractoCompleto: string; url: string; imagen?: string; idioma: "es" | "en" }
 
 // Se cachea por (término, contexto, idioma): dos lugares con el mismo
 // nombre pero distinto contexto (país) no deben compartir caché.
@@ -107,6 +108,7 @@ async function obtenerResumenDeTitulo(titulo: string, idioma: "es" | "en"): Prom
       extractoCompleto: data.extract as string,
       url: (data.content_urls?.desktop?.page as string | undefined) ?? `https://${idioma}.wikipedia.org/wiki/${encodeURIComponent(titulo)}`,
       imagen: typeof data.thumbnail?.source === "string" ? (data.thumbnail.source as string) : undefined,
+      idioma,
     };
   } catch {
     return null;
@@ -163,11 +165,22 @@ async function resumenDesdeWikidata(qid: string): Promise<ArticuloWikipedia | nu
   }
 }
 
+// El extracto se recorta ANTES de traducir (menos texto para enviar al
+// servicio gratuito de traducción), y solo se traduce cuando el artículo
+// que ganó la búsqueda no está en inglés — la interfaz sí lo está, y
+// mostrar el resumen tal cual llegó era mezclar dos idiomas en la misma
+// pantalla. El título no se toca nunca: es un nombre propio real.
+async function resumenFinal(completo: ArticuloWikipedia, maxCaracteres: number): Promise<ResumenWikipedia> {
+  const extracto = acortar(completo.extractoCompleto, maxCaracteres);
+  const extractoFinal = completo.idioma === "en" ? extracto : await traducirAlIngles(extracto, completo.idioma);
+  return { titulo: completo.titulo, extracto: extractoFinal, url: completo.url, imagen: completo.imagen };
+}
+
 export async function obtenerResumenPorEnlaceOsm(enlaces: EnlacesOsm, maxCaracteres: number = LARGO_POR_DEFECTO): Promise<ResumenWikipedia | null> {
   const desdeWikipedia = enlaces.wikipedia ? await resumenDeTituloConIdioma(enlaces.wikipedia) : null;
   const completo = desdeWikipedia ?? (enlaces.wikidata ? await resumenDesdeWikidata(enlaces.wikidata) : null);
   if (!completo) return null;
-  return { titulo: completo.titulo, extracto: acortar(completo.extractoCompleto, maxCaracteres), url: completo.url, imagen: completo.imagen };
+  return resumenFinal(completo, maxCaracteres);
 }
 
 async function buscarResumen(termino: string, idioma: "es" | "en", contexto?: string, coords?: Coordenadas): Promise<ArticuloWikipedia | null> {
@@ -206,7 +219,7 @@ export async function obtenerResumenLugar(nombre: string, maxCaracteres: number 
     cache.set(clave, completo);
   }
   if (!completo) return null;
-  return { titulo: completo.titulo, extracto: acortar(completo.extractoCompleto, maxCaracteres), url: completo.url, imagen: completo.imagen };
+  return resumenFinal(completo, maxCaracteres);
 }
 
 // El mismo criterio de resolución completo (enlace directo de OSM →
