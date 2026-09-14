@@ -16,24 +16,24 @@ export interface ContactoPais {
 }
 
 export const CONTACTOS_POR_PAIS: Record<string, ContactoPais> = {
-  SI: { emergencias: "112 (emergencias) · 113 (policía)", autoridad: { nombre: "Policía de Eslovenia", url: "https://www.policija.si" } },
-  AT: { emergencias: "112 (emergencias) · 133 (policía)", autoridad: { nombre: "Policía de Austria", url: "https://www.polizei.gv.at" } },
-  DE: { emergencias: "112 (emergencias) · 110 (policía)", autoridad: { nombre: "Policía de Alemania", url: "https://www.polizei.de" } },
+  SI: { emergencias: "112 (emergencies) · 113 (police)", autoridad: { nombre: "Policía de Eslovenia", url: "https://www.policija.si" } },
+  AT: { emergencias: "112 (emergencies) · 133 (police)", autoridad: { nombre: "Policía de Austria", url: "https://www.polizei.gv.at" } },
+  DE: { emergencias: "112 (emergencies) · 110 (police)", autoridad: { nombre: "Policía de Alemania", url: "https://www.polizei.de" } },
   PT: { emergencias: "112", autoridad: { nombre: "PSP — Policía de Seguridad Pública", url: "https://www.psp.pt" } },
-  IT: { emergencias: "112 (emergencias) · 113 (policía)", autoridad: { nombre: "Polizia di Stato", url: "https://www.poliziadistato.it" } },
-  ES: { emergencias: "112 (emergencias) · 091 (policía nacional)", autoridad: { nombre: "Policía Nacional", url: "https://www.policia.es" } },
-  GR: { emergencias: "112 (emergencias) · 100 (policía)", autoridad: { nombre: "Policía Helénica", url: "https://www.astynomia.gr" } },
+  IT: { emergencias: "112 (emergencies) · 113 (police)", autoridad: { nombre: "Polizia di Stato", url: "https://www.poliziadistato.it" } },
+  ES: { emergencias: "112 (emergencies) · 091 (national police)", autoridad: { nombre: "Policía Nacional", url: "https://www.policia.es" } },
+  GR: { emergencias: "112 (emergencies) · 100 (police)", autoridad: { nombre: "Policía Helénica", url: "https://www.astynomia.gr" } },
   CR: { emergencias: "911", autoridad: { nombre: "Instituto Costarricense de Turismo", url: "https://www.ict.go.cr" } },
-  MA: { emergencias: "19 (policía) · 15 (ambulancia) · 177 (gendarmería, carretera)" },
+  MA: { emergencias: "19 (police) · 15 (ambulance) · 177 (gendarmerie, highways)" },
   TH: {
-    emergencias: "191 (policía) · 1669 (ambulancia)",
-    telefonoTurista: "1155 (policía turística, atiende en inglés)",
+    emergencias: "191 (police) · 1669 (ambulance)",
+    telefonoTurista: "1155 (tourist police, English spoken)",
     autoridad: { nombre: "Autoridad de Turismo de Tailandia", url: "https://www.tourismthailand.org" },
   },
   CO: { emergencias: "123", autoridad: { nombre: "Policía Nacional de Colombia", url: "https://www.policia.gov.co" } },
   JP: {
-    emergencias: "110 (policía) · 119 (ambulancia y bomberos)",
-    telefonoTurista: "050-3816-2787 (línea de ayuda al visitante, 24 h)",
+    emergencias: "110 (police) · 119 (ambulance and fire)",
+    telefonoTurista: "050-3816-2787 (visitor helpline, 24 h)",
     autoridad: { nombre: "Organización Nacional de Turismo de Japón", url: "https://www.jnto.go.jp" },
   },
 };

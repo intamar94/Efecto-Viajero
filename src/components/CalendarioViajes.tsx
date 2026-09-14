@@ -14,7 +14,7 @@ export function CalendarioViajes({ viajes, viajeros }: CalendarioVijesProps) {
   const [mesActual, setMesActual] = useState(new Date());
 
   const obtenerNombresMes = (fecha: Date) => {
-    return fecha.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+    return fecha.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   };
 
   const obtenerViajesdelmMes = (año: number, mes: number) => {

@@ -14,18 +14,18 @@ import type { SitioReal } from "@/lib/investigacion";
 const UNIVERSALES = [
   {
     icono: "🧴",
-    titulo: "Líquidos: facturado, no cabina",
-    texto: "Aceites, licores, mermeladas y cosmética por encima de 100 ml no pasan el control de cabina. Si el vuelo es solo con equipaje de mano, cómpralo en el aeropuerto después del control o no lo compres.",
+    titulo: "Liquids: checked bag, not carry-on",
+    texto: "Oils, spirits, jams and cosmetics over 100 ml won't pass carry-on security. If you're flying hand luggage only, buy it airside after security or don't buy it.",
   },
   {
     icono: "🛃",
-    titulo: "Lo que la aduana no deja pasar",
-    texto: "Alimentos frescos, carne, lácteos, semillas y plantas están prohibidos en muchos países al entrar. Lo artesanal con marfil, coral, caparazón o pieles de animales puede ser directamente ilegal.",
+    titulo: "What customs won't let through",
+    texto: "Fresh food, meat, dairy, seeds and plants are banned on entry in many countries. Crafts made with ivory, coral, shell or animal hides can be outright illegal.",
   },
   {
     icono: "💵",
-    titulo: "El precio de la primera tienda no es el precio",
-    texto: "En mercados y zonas turísticas, la primera cifra suele ser de partida. Pregunta en dos o tres puestos antes de comprar algo caro: la diferencia entre el primero y el tercero suele sorprender.",
+    titulo: "The first shop's price isn't the price",
+    texto: "In markets and tourist areas the first number is usually an opening bid. Ask at two or three stalls before buying anything expensive: the gap between the first and the third is often surprising.",
   },
 ];
 
@@ -38,7 +38,7 @@ export default function SouvenirsPage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
+          <Cabecera titulo="Trip not found" volverA="/viajes" />
         </div>
       </main>
     );
@@ -53,7 +53,7 @@ export default function SouvenirsPage() {
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
         <ViajeToolsNav viajeId={viaje.id} />
-        <Cabecera titulo="Qué comprar" subtitulo="Qué merece la pena, cómo saber si es auténtico y qué problemas da en la maleta." volverA={`/viajes/${viaje.id}`} />
+        <Cabecera titulo="What to buy" subtitulo="What's worth it, how to tell if it's genuine and what causes trouble in your luggage." volverA={`/viajes/${viaje.id}`} />
 
         {etapas.map((etapa) => {
           const deOsm = ((viaje.investigacion?.sitios?.[etapa.nombre] ?? []) as SitioReal[])
@@ -74,7 +74,7 @@ export default function SouvenirsPage() {
           });
           return (
             <section key={etapa.id} className="mb-6">
-              <h2 className="mb-2 font-medium text-neutral-900">🛍️ Tiendas reales cerca de {etapa.nombre}</h2>
+              <h2 className="mb-2 font-medium text-neutral-900">🛍️ Real shops near {etapa.nombre}</h2>
               {tiendas.length === 0 ? (
                 <p className="rounded-xl bg-neutral-100 px-4 py-3 text-xs text-neutral-500">
                   No encontramos tiendas de regalos, artesanía o delicatessen etiquetadas cerca de {etapa.nombre} en
@@ -95,7 +95,7 @@ export default function SouvenirsPage() {
                       <div className="mt-1 flex flex-wrap gap-3">
                         {t.lat && t.lon && (
                           <a href={`https://www.google.com/maps/search/?api=1&query=${t.lat},${t.lon}`} target="_blank" rel="noopener noreferrer" className="text-xs text-marino-600 underline">
-                            📍 Ver en el mapa
+                            📍 View on the map
                           </a>
                         )}
                         {t.url && (
@@ -141,7 +141,7 @@ export default function SouvenirsPage() {
 
                   {s.dondéComprar && (
                     <div className="mt-2 text-xs text-neutral-600">
-                      <p className="font-medium text-neutral-700">🛒 Dónde comprar:</p>
+                      <p className="font-medium text-neutral-700">🛒 Where to buy:</p>
                       <p>{s.dondéComprar}</p>
                     </div>
                   )}
@@ -156,7 +156,7 @@ export default function SouvenirsPage() {
         ))}
 
         <section>
-          <h2 className="mb-2 font-medium text-neutral-900">Sirve en cualquier destino</h2>
+          <h2 className="mb-2 font-medium text-neutral-900">Works for any destination</h2>
           <ul className="space-y-2">
             {UNIVERSALES.map((c) => (
               <li key={c.titulo} className="card">

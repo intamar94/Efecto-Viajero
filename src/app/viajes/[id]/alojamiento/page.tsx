@@ -29,7 +29,7 @@ export default function AlojamientoPage() {
   if (!viaje) {
     return (
       <main className="flex-1 px-5 py-8">
-        <div className="mx-auto max-w-xl"><Cabecera titulo="Viaje no encontrado" volverA="/viajes" /></div>
+        <div className="mx-auto max-w-xl"><Cabecera titulo="Trip not found" volverA="/viajes" /></div>
       </main>
     );
   }
@@ -39,7 +39,7 @@ export default function AlojamientoPage() {
   if (!etapa) {
     return (
       <main className="flex-1 px-5 py-8">
-        <div className="mx-auto max-w-xl"><ViajeToolsNav viajeId={viaje.id} /><Cabecera titulo="Alojamiento" subtitulo="Añade primero una ciudad en Ruta." volverA={`/viajes/${viaje.id}`} /></div>
+        <div className="mx-auto max-w-xl"><ViajeToolsNav viajeId={viaje.id} /><Cabecera titulo="Alojamiento" subtitulo="Add a city in Route first." volverA={`/viajes/${viaje.id}`} /></div>
       </main>
     );
   }
@@ -52,7 +52,7 @@ export default function AlojamientoPage() {
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
         <ViajeToolsNav viajeId={viaje.id} />
-        <Cabecera titulo="Alojamiento" subtitulo={`Dónde dormir en ${etapa.nombre}.`} volverA={`/viajes/${viaje.id}`} />
+        <Cabecera titulo="Alojamiento" subtitulo={`Where to stay in ${etapa.nombre}.`} volverA={`/viajes/${viaje.id}`} />
 
         {etapas.length > 1 && (
           <div className="mb-4 -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
@@ -66,10 +66,10 @@ export default function AlojamientoPage() {
 
         <section className="card mb-6">
           <div className="mb-1 flex items-center justify-between gap-3">
-            <h2 className="font-medium">Buscar y reservar</h2>
-            <StatusBadge status="researching" detail="Estos enlaces abren buscadores externos; todavía no representan una disponibilidad verificada." />
+            <h2 className="font-medium">Search and book</h2>
+            <StatusBadge status="researching" detail="These links open external search engines; they don't represent verified availability." />
           </div>
-          <p className="mb-4 text-xs text-neutral-400">La reserva se hace en la web del proveedor, con tu destino y fechas ya puestos.</p>
+          <p className="mb-4 text-xs text-neutral-400">The booking happens on the provider's site, with your destination and dates already filled in.</p>
           <ul className="space-y-2">
             {buscadores.map((b) => (
               <li key={b.id}>
@@ -81,16 +81,16 @@ export default function AlojamientoPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-sm text-neutral-500">Cuando confirmes, sube el documento al <Link href={`/viajes/${viaje.id}/vault`} className="text-marino-600 underline">Travel Vault</Link> y se archiva solo.</p>
+          <p className="mt-4 text-sm text-neutral-500">Once confirmed, upload the document to the <Link href={`/viajes/${viaje.id}/vault`} className="text-marino-600 underline">Travel Vault</Link> y se archiva solo.</p>
         </section>
 
         {referencias.length > 0 && (
           <section className="tip">
             <div className="mb-1 flex items-center justify-between gap-3">
               <p className="text-xs font-medium uppercase tracking-wide text-coral-700">Consejo</p>
-              <StatusBadge status="partial" detail="Son referencias orientativas por zona, no alojamientos reales ni disponibilidad." />
+              <StatusBadge status="partial" detail="These are rough per-area references, not real listings or availability." />
             </div>
-            <h2 className="mb-1 font-medium text-neutral-900">Cuánto contar por noche</h2>
+            <h2 className="mb-1 font-medium text-neutral-900">What to budget per night</h2>
             <p className="mb-4 text-sm text-neutral-600">En {destino?.nombre}, según la zona donde duermas, esto es lo que conviene presupuestar. Son cifras orientativas por zona — no son alojamientos reales ni una reserva.</p>
             <ul className="space-y-3">
               {referencias.map((o) => {
@@ -101,12 +101,12 @@ export default function AlojamientoPage() {
                       <div><p className="font-medium capitalize text-neutral-900">{o.ubicacion}</p><p className="mt-1 text-xs text-emerald-700">✓ {o.pros.join(" · ")}</p><p className="text-xs text-neutral-500">✗ {o.contras.join(" · ")}</p></div>
                       <p className="shrink-0 text-lg font-semibold tabular-nums text-neutral-900">{o.precioNoche}€<span className="block text-right text-xs font-normal text-neutral-400">por noche</span></p>
                     </div>
-                    <button onClick={() => actualizarViaje(viaje.id, { alojamientoId: usada ? undefined : o.id })} className={`mt-2 text-xs underline ${usada ? "text-marino-700" : "text-neutral-400 hover:text-neutral-900"}`}>{usada ? "✓ Contando esta zona en el presupuesto — quitar" : "Contar esta zona en mi presupuesto"}</button>
+                    <button onClick={() => actualizarViaje(viaje.id, { alojamientoId: usada ? undefined : o.id })} className={`mt-2 text-xs underline ${usada ? "text-marino-700" : "text-neutral-400 hover:text-neutral-900"}`}>{usada ? "✓ Counting this area in the budget — remove" : "Count this area in my budget"}</button>
                   </li>
                 );
               })}
             </ul>
-            {!usadaEnPresupuesto && <p className="mt-4 text-xs text-neutral-500">Elige una zona de referencia y el presupuesto del viaje empezará a contar el alojamiento.</p>}
+            {!usadaEnPresupuesto && <p className="mt-4 text-xs text-neutral-500">Pick a reference area and the trip budget will start counting accommodation.</p>}
           </section>
         )}
 

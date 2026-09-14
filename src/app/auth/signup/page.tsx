@@ -18,12 +18,12 @@ export default function SignupPage() {
     setError("");
 
     if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden");
+      setError("The passwords don't match");
       return;
     }
 
     if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
+      setError("The password must be at least 6 characters");
       return;
     }
 
@@ -33,7 +33,7 @@ export default function SignupPage() {
       await signupWithEmail(email, password);
       router.push("/");
     } catch (err: any) {
-      setError(err.message || "Error al registrarse");
+      setError(err.message || "Sign-up failed");
     } finally {
       setLoading(false);
     }
@@ -44,7 +44,7 @@ export default function SignupPage() {
       <div className="mx-auto max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-neutral-900">Efecto Viajero</h1>
-          <p className="mt-1 text-sm text-neutral-500">Crea una cuenta</p>
+          <p className="mt-1 text-sm text-neutral-500">Create an account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -61,13 +61,13 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input mt-1"
-              placeholder="tu@email.com"
+              placeholder="you@email.com"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-700">Contraseña</label>
+            <label className="block text-sm font-medium text-neutral-700">Password</label>
             <input
               type="password"
               value={password}
@@ -79,7 +79,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-700">Confirma contraseña</label>
+            <label className="block text-sm font-medium text-neutral-700">Confirm password</label>
             <input
               type="password"
               value={confirmPassword}
@@ -110,7 +110,7 @@ export default function SignupPage() {
           O continúa sin cuenta: tus viajes se guardan solo en este navegador.
         </p>
         <Link href="/" className="mt-3 block text-center text-sm text-marino-600 hover:text-marino-700">
-          ← Volver a Efecto Viajero
+          ← Back to Efecto Viajero
         </Link>
       </div>
     </main>

@@ -21,7 +21,7 @@ export default function LoginPage() {
       await loginWithEmail(email, password);
       router.push("/");
     } catch (err: any) {
-      setError(err.message || "Error al iniciar sesión");
+      setError(err.message || "Sign-in failed");
     } finally {
       setLoading(false);
     }
@@ -32,7 +32,7 @@ export default function LoginPage() {
       <div className="mx-auto max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-neutral-900">Efecto Viajero</h1>
-          <p className="mt-1 text-sm text-neutral-500">Accede a tus viajes</p>
+          <p className="mt-1 text-sm text-neutral-500">Sign in to your trips</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -49,13 +49,13 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input mt-1"
-              placeholder="tu@email.com"
+              placeholder="you@email.com"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-700">Contraseña</label>
+            <label className="block text-sm font-medium text-neutral-700">Password</label>
             <input
               type="password"
               value={password}
@@ -86,7 +86,7 @@ export default function LoginPage() {
           O continúa sin cuenta: tus viajes se guardan solo en este navegador.
         </p>
         <Link href="/" className="mt-3 block text-center text-sm text-marino-600 hover:text-marino-700">
-          ← Volver a Efecto Viajero
+          ← Back to Efecto Viajero
         </Link>
       </div>
     </main>

@@ -38,7 +38,7 @@ export function EditorItinerarioDia({ dia, onChange }: Props) {
         <div>
           <p className="font-medium">
             Día {dia.dia} ·{" "}
-            {new Date(dia.fecha).toLocaleDateString("es-ES", {
+            {new Date(dia.fecha).toLocaleDateString("en-GB", {
               weekday: "long",
               month: "short",
               day: "numeric",
@@ -60,7 +60,7 @@ export function EditorItinerarioDia({ dia, onChange }: Props) {
               <textarea
                 value={notasDia}
                 onChange={(e) => setNotasDia(e.target.value)}
-                placeholder="Notas del día de descanso..."
+                placeholder="Rest day notes..."
                 className="input text-sm"
                 rows={2}
               />
@@ -78,13 +78,13 @@ export function EditorItinerarioDia({ dia, onChange }: Props) {
               onClick={() => setEditando(true)}
               className="text-xs text-neutral-500 hover:text-neutral-700 underline"
             >
-              {notasDia ? "✏️ Editar notas" : "➕ Añadir notas"}
+              {notasDia ? "✏️ Editar notas" : "➕ Add notes"}
             </button>
           )}
         </div>
       ) : (
         <div className="card space-y-3">
-          <div className="text-sm font-medium text-neutral-900">Editar este día</div>
+          <div className="text-sm font-medium text-neutral-900">Edit this day</div>
 
           {dia.actividades.length > 0 && (
             <div className="space-y-2">
@@ -121,7 +121,7 @@ export function EditorItinerarioDia({ dia, onChange }: Props) {
               <textarea
                 value={notasDia}
                 onChange={(e) => setNotasDia(e.target.value)}
-                placeholder="Notas del día..."
+                placeholder="Notes for the day..."
                 className="input text-sm"
                 rows={2}
               />
@@ -139,7 +139,7 @@ export function EditorItinerarioDia({ dia, onChange }: Props) {
               onClick={() => setEditando(true)}
               className="text-xs text-neutral-500 hover:text-neutral-700 underline"
             >
-              {notasDia ? "✏️ Editar notas" : "➕ Añadir notas"}
+              {notasDia ? "✏️ Editar notas" : "➕ Add notes"}
             </button>
           )}
         </div>

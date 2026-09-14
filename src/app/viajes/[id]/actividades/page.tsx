@@ -25,7 +25,7 @@ import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } fro
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
   disponible: "Disponible",
-  planificada: "En tu itinerario",
+  planificada: "In your itinerary",
   reservada: "Reservada",
   realizada: "Realizada",
   descartada: "Descartada",
@@ -40,29 +40,29 @@ const ESTILO_ESTADO: Record<EstadoActividad, string> = {
 };
 
 const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: string }> = {
-  museo: { etiqueta: "Museos y cultura", icono: "🏛️" },
-  parque: { etiqueta: "Parques y paseos", icono: "🌳" },
-  restaurante: { etiqueta: "Restaurantes típicos", icono: "🍽️" },
-  cine_teatro: { etiqueta: "Cine y teatro", icono: "🎭" },
-  discoteca: { etiqueta: "Fiesta", icono: "🎶" },
-  compras: { etiqueta: "Compras", icono: "🛍️" },
-  naturaleza: { etiqueta: "Naturaleza", icono: "🌿" },
-  playa: { etiqueta: "Playa", icono: "🏖️" },
-  pueblos: { etiqueta: "Pueblos cercanos", icono: "🏘️" },
-  aventura: { etiqueta: "Aventura y deporte", icono: "🪂" },
-  bienestar: { etiqueta: "Termales y bienestar", icono: "💆" },
-  todos: { etiqueta: "Planes para todos", icono: "🎡" },
-  experiencias: { etiqueta: "Experiencias locales", icono: "🎒" },
-  eventos: { etiqueta: "Eventos y festivales", icono: "🎪" },
-  espiritual: { etiqueta: "Espiritual y religioso", icono: "⛪" },
-  fauna: { etiqueta: "Ver fauna y aves", icono: "🦜" },
-  astronomia: { etiqueta: "Estrellas y cielo", icono: "🔭" },
-  ciencia: { etiqueta: "Ciencia y libros", icono: "📚" },
-  arte_urbano: { etiqueta: "Arte urbano", icono: "🎨" },
-  memoria: { etiqueta: "Memoria e historia", icono: "🕯️" },
-  industrial: { etiqueta: "Faros, minas y trenes", icono: "🏭" },
-  nautica: { etiqueta: "Agua, barcos y pesca", icono: "🛥️" },
-  otro: { etiqueta: "Otros planes", icono: "✨" },
+  museo: { etiqueta: "Museums & culture", icono: "🏛️" },
+  parque: { etiqueta: "Parks & walks", icono: "🌳" },
+  restaurante: { etiqueta: "Local restaurants", icono: "🍽️" },
+  cine_teatro: { etiqueta: "Cinema & theatre", icono: "🎭" },
+  discoteca: { etiqueta: "Nightlife", icono: "🎶" },
+  compras: { etiqueta: "Shopping", icono: "🛍️" },
+  naturaleza: { etiqueta: "Nature", icono: "🌿" },
+  playa: { etiqueta: "Beach", icono: "🏖️" },
+  pueblos: { etiqueta: "Nearby villages", icono: "🏘️" },
+  aventura: { etiqueta: "Adventure & sport", icono: "🪂" },
+  bienestar: { etiqueta: "Hot springs & wellness", icono: "💆" },
+  todos: { etiqueta: "For all ages", icono: "🎡" },
+  experiencias: { etiqueta: "Local experiences", icono: "🎒" },
+  eventos: { etiqueta: "Events & festivals", icono: "🎪" },
+  espiritual: { etiqueta: "Spiritual & religious", icono: "⛪" },
+  fauna: { etiqueta: "Wildlife & birds", icono: "🦜" },
+  astronomia: { etiqueta: "Stars & sky", icono: "🔭" },
+  ciencia: { etiqueta: "Science & books", icono: "📚" },
+  arte_urbano: { etiqueta: "Street art", icono: "🎨" },
+  memoria: { etiqueta: "Memory & history", icono: "🕯️" },
+  industrial: { etiqueta: "Lighthouses, mines & trains", icono: "🏭" },
+  nautica: { etiqueta: "Water, boats & fishing", icono: "🛥️" },
+  otro: { etiqueta: "Other plans", icono: "✨" },
 };
 
 // Frase de búsqueda real para cuando OpenStreetMap no tiene NADA mapeado
@@ -73,29 +73,29 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
 // se usa por sitio — así Cali (famosa por su vida nocturna) puede mostrar
 // discotecas reales encontradas en blogs, en vez de solo "idea orientativa".
 const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
-  museo: "mejores museos",
-  parque: "parques imprescindibles",
-  restaurante: "restaurantes típicos recomendados",
-  cine_teatro: "cines y teatros",
-  discoteca: "mejores discotecas y bares de rumba",
-  compras: "mejores lugares para comprar",
-  naturaleza: "naturaleza y senderos",
-  playa: "mejores playas",
-  pueblos: "pueblos cercanos que visitar",
-  aventura: "deportes de aventura y adrenalina",
-  bienestar: "termales y spa",
-  todos: "planes para toda la familia",
-  experiencias: "tours y experiencias locales",
-  eventos: "conciertos, festivales y eventos",
-  espiritual: "iglesias, santuarios y sitios de peregrinación",
-  fauna: "avistamiento de aves y fauna",
-  astronomia: "observatorios y dónde ver las estrellas",
-  ciencia: "bibliotecas y centros de ciencia",
-  arte_urbano: "arte urbano y murales",
-  memoria: "memoriales y lugares con historia",
-  industrial: "faros, minas visitables y trenes históricos",
-  nautica: "buceo, alquiler de barcos, marinas y sitios de pesca",
-  otro: "planes turísticos recomendados",
+  museo: "best museums",
+  parque: "must-see parks",
+  restaurante: "best traditional local restaurants",
+  cine_teatro: "cinemas and theatres",
+  discoteca: "best nightclubs and bars",
+  compras: "best places to shop",
+  naturaleza: "nature and hiking trails",
+  playa: "best beaches",
+  pueblos: "nearby villages worth visiting",
+  aventura: "adventure sports and adrenaline",
+  bienestar: "hot springs and spa",
+  todos: "things to do for the whole family",
+  experiencias: "local tours and experiences",
+  eventos: "concerts, festivals and events",
+  espiritual: "churches, shrines and pilgrimage sites",
+  fauna: "birdwatching and wildlife spotting",
+  astronomia: "observatories and where to see the stars",
+  ciencia: "libraries and science centres",
+  arte_urbano: "street art and murals",
+  memoria: "memorials and places with history",
+  industrial: "lighthouses, visitable mines and historic trains",
+  nautica: "diving, boat rental, marinas and fishing spots",
+  otro: "recommended things to do",
 };
 
 // Un punto de referencia real ("~800 m del centro") ayuda mucho más que
@@ -106,8 +106,8 @@ const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
 function distanciaDelCentro(etapa: Etapa, lat?: number, lon?: number): string | undefined {
   if (etapa.lat === undefined || etapa.lon === undefined || lat === undefined || lon === undefined) return undefined;
   const metros = distanciaMetros(etapa.lat, etapa.lon, lat, lon);
-  if (metros < 150) return "En el centro";
-  return `${formatearDistancia(metros)} del centro`;
+  if (metros < 150) return "In the centre";
+  return `${formatearDistancia(metros)} from the centre`;
 }
 
 // Prioridad de fuentes para describir un sitio real, de la más a la
@@ -129,7 +129,7 @@ function descripcionDeSitio(s: SitioReal): string {
   // que hace falta para decidir un restaurante — "Restaurante." solo no
   // dice si es de carnes, mariscos o comida colombiana. Se suma a la
   // categoría base, nunca se inventa si el dato no está.
-  const categoriaLabel = s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Lugar cercano.";
+  const categoriaLabel = s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Nearby place.";
   const base = s.cocina ? `${categoriaLabel} Cocina: ${s.cocina}.` : categoriaLabel;
   if (s.entornoCercano) return `${base} ${s.entornoCercano}`;
   if (s.resumenWeb) return `${base} ${s.resumenWeb}`;
@@ -146,10 +146,10 @@ function descripcionDeSitio(s: SitioReal): string {
 // gastronomía").
 const DESEO_CATEGORIA: Partial<Record<CategoriaActividad, string>> = {
   museo: "su patrimonio cultural",
-  restaurante: "su gastronomía",
+  restaurante: "its food",
   cine_teatro: "su escena cultural",
   discoteca: "su vida nocturna",
-  compras: "su artesanía local",
+  compras: "its local crafts",
   naturaleza: "su naturaleza",
   playa: "sus playas",
   pueblos: "los pueblos de alrededor",
@@ -159,7 +159,7 @@ function fraseDeseo(categorias: CategoriaActividad[]): string {
   const frases = categorias.map((c) => DESEO_CATEGORIA[c]).filter((f): f is string => Boolean(f));
   if (frases.length === 0) return "todo lo que tiene para descubrir";
   if (frases.length === 1) return frases[0];
-  return `${frases.slice(0, -1).join(", ")} y ${frases[frases.length - 1]}`;
+  return `${frases.slice(0, -1).join(", ")} and ${frases[frases.length - 1]}`;
 }
 
 // Nombrar algo genérico como "especial" no convence a nadie: lo que de
@@ -176,7 +176,7 @@ function nombresDestacadosDe(items: Item[], categoria: CategoriaActividad): stri
 }
 
 function fraseEjemplo(nombresReales: string[], pais: string | undefined, ciudad: string): string {
-  if (nombresReales.length > 0) return ` Como ${nombresReales.join(" o ")}.`;
+  if (nombresReales.length > 0) return ` Like ${nombresReales.join(" or ")}.`;
   // Sin un sitio real todavía para presumir, un plato típico real de la
   // ciudad (o del país, si no hay uno propio de esta ciudad) da algo
   // concreto igual — pero solo el nombre no basta: decir de qué se trata
@@ -191,7 +191,7 @@ function fraseEjemplo(nombresReales: string[], pais: string | undefined, ciudad:
   // "Portugal" en "portugal".
   const sinPunto = primero.descripcion.replace(/\.$/, "");
   const detalle = sinPunto.charAt(0).toLowerCase() + sinPunto.slice(1);
-  return segundo ? ` Prueba ${primero.nombre} — ${detalle} — o ${segundo.nombre}.` : ` Prueba ${primero.nombre}: ${detalle}.`;
+  return segundo ? ` Try ${primero.nombre} — ${detalle} — or ${segundo.nombre}.` : ` Try ${primero.nombre}: ${detalle}.`;
 }
 
 // Tres tonos simples según lo que de verdad promete la ciudad (naturaleza,
@@ -205,15 +205,15 @@ function fraseInspiradora(etapaNombre: string, categorias: CategoriaActividad[],
   const deseo = fraseDeseo(top);
   const ejemplo = fraseEjemplo(nombresReales, pais, etapaNombre);
   if (top.some((c) => c === "naturaleza" || c === "playa")) {
-    return `🌴 Puede ser tu propio paraíso — con ${deseo} esperándote.${ejemplo}`;
+    return `🌴 This could be your own paradise — with ${deseo} waiting for you.${ejemplo}`;
   }
   if (top.some((c) => c === "museo" || c === "cine_teatro")) {
-    return `🏛️ Una joya por descubrir, con ${deseo} a tu alcance.${ejemplo}`;
+    return `🏛️ A gem to discover, with ${deseo} within reach.${ejemplo}`;
   }
   if (top.length > 0) {
-    return `✨ Tiene ${deseo} esperando a que lo vivas.${ejemplo}`;
+    return `✨ It has ${deseo} waiting for you to live it.${ejemplo}`;
   }
-  return `✨ Prepárate para descubrir ${etapaNombre}.`;
+  return `✨ Get ready to discover ${etapaNombre}.`;
 }
 
 const ORDEN_CATEGORIAS: CategoriaActividad[] = [
@@ -336,9 +336,9 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
         {it.admiteMascotas && <span className="chip">🐾 Mascotas</span>}
         {/* Solo cuando OpenStreetMap lo dice de verdad: sin etiqueta no
             se muestra nada, porque "no sabemos" no es "no accesible". */}
-        {it.accesible === "si" && <span className="chip">♿ Accesible</span>}
-        {it.accesible === "parcial" && <span className="chip">♿ Parcialmente accesible</span>}
-        {it.accesible === "no" && <span className="chip">♿ No accesible</span>}
+        {it.accesible === "si" && <span className="chip">♿ Accessible</span>}
+        {it.accesible === "parcial" && <span className="chip">♿ Partly accessible</span>}
+        {it.accesible === "no" && <span className="chip">♿ Not accessible</span>}
         {it.sendero && <span className="chip">🥾 {it.sendero}</span>}
         {it.esPropia && <span className="chip">✍️ Tuya</span>}
       </div>
@@ -368,7 +368,7 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
           para los dos. */}
       {it.categoria === "restaurante" && it.pais && platosTipicosDe(it.pais, it.etapaNombre).length > 0 && (
         <div className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2">
-          <p className="text-xs font-medium text-amber-800">🍴 Si no sabes qué pedir, prueba:</p>
+          <p className="text-xs font-medium text-amber-800">🍴 Not sure what to order? Try:</p>
           <ul className="mt-1 space-y-0.5 text-xs text-amber-700">
             {platosTipicosDe(it.pais, it.etapaNombre).map((s) => (
               <li key={s.id}>
@@ -506,7 +506,7 @@ export default function ActividadesPage() {
         } catch (err) {
           // Una ciudad con datos raros no debe tirar abajo el resto: se
           // marca sin datos y se sigue con la siguiente etapa.
-          console.warn(`Wikivoyage: error inesperado procesando "${etapa.nombre}"`, err);
+          console.warn(`Wikivoyage: unexpected error processing "${etapa.nombre}"`, err);
           if (!cancelado) setEstadoWikivoyage((prev) => ({ ...prev, [etapa.nombre]: "sin_datos" }));
         }
       }
@@ -765,10 +765,10 @@ export default function ActividadesPage() {
       if (nuevaInvestigacion) {
         actualizarViaje(viaje.id, { investigacion: conservarSitiosSiVacio(viaje.investigacion, nuevaInvestigacion) });
       } else {
-        setErrorRefresco("No encontramos nada nuevo para actualizar todavía.");
+        setErrorRefresco("We didn't find anything new to update yet.");
       }
     } catch (err) {
-      setErrorRefresco(err instanceof Error ? err.message : "No se pudo actualizar la investigación.");
+      setErrorRefresco(err instanceof Error ? err.message : "The research couldn't be updated.");
     } finally {
       setRefrescando(false);
     }
@@ -823,7 +823,7 @@ export default function ActividadesPage() {
         const sitiosDeCategoria = (viaje.investigacion?.sitios?.[etapa.nombre] ?? []).filter((s) => s.categoria === categoria);
         if (sitiosDeCategoria.length > 0) continue;
         setBusquedaWebCategoria((prev) => ({ ...prev, [clave]: "cargando" }));
-        const consulta = `${CONSULTA_WEB_CATEGORIA[categoria]} en ${etapa.nombre}`;
+        const consulta = `${CONSULTA_WEB_CATEGORIA[categoria]} in ${etapa.nombre}`;
         const resultados = await buscarEnLaWeb(consulta);
         if (cancelado) return;
         setBusquedaWebCategoria((prev) => ({ ...prev, [clave]: resultados.length > 0 ? resultados : "sin_datos" }));
@@ -839,7 +839,7 @@ export default function ActividadesPage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
+          <Cabecera titulo="Trip not found" volverA="/viajes" />
         </div>
       </main>
     );
@@ -906,10 +906,10 @@ export default function ActividadesPage() {
         webEsDirecta: !!s.url,
         // No solo por el tipo de OSM (fast_food/cafe): una cadena real de
         // restaurante normal (Crepes & Waffles, El Corral...) no queda
-        // tageada como "comida rápida" en OpenStreetMap y aun así es
+        // tageada como "fast food" en OpenStreetMap y aun así es
         // justo lo contrario de "gastronomía típica" cuando alguien lo
         // pide — se reconoce también por el nombre real de la marca.
-        cadenaGenerica: s.detalle === "comida rápida" || s.detalle === "cafetería" || esCadenaConocida(s.nombre),
+        cadenaGenerica: s.detalle === "fast food" || s.detalle === "café" || esCadenaConocida(s.nombre),
         cocinaLocal: s.cocina ? s.cocina.split(", ").some((c) => COCINAS_LOCALES.has(c)) : false,
         imagen: s.imagen || undefined,
         accesible: s.accesible,
@@ -956,10 +956,10 @@ export default function ActividadesPage() {
           entorno: "mixto" as const,
           admiteMascotas: false,
           descripcion: esEvento
-            ? `${l.contenido ? acortarTexto(l.contenido, 140) + " " : ""}Confirma la fecha antes de contar con ello: es un evento, no un sitio abierto todo el año.`
+            ? `${l.contenido ? acortarTexto(l.contenido, 140) + " " : ""}Check the date before counting on it: this is an event, not a place open all year.`
             : l.contenido
               ? acortarTexto(l.contenido, 160)
-              : "Recomendado en la guía Wikivoyage de la ciudad.",
+              : "Recommended in the city's Wikivoyage guide.",
           esPropia: false,
           esSitioReal: true,
           fuenteEtiqueta: "Wikivoyage",
@@ -990,7 +990,7 @@ export default function ActividadesPage() {
         apta: [],
         entorno: a.propia!.entorno ?? "mixto",
         admiteMascotas: a.propia!.admiteMascotas ?? false,
-        descripcion: "Actividad añadida por ti.",
+        descripcion: "Activity you added.",
         esPropia: true,
         etapaId: etapa.id,
         etapaNombre: etapa.nombre,
@@ -1022,7 +1022,7 @@ export default function ActividadesPage() {
         // la interfaz (cuando SÍ hay una alternativa clara en español, la
         // de OpenStreetMap) es peor que quedarse con la más simple.
         descripcion:
-          extra.descripcion && extra.descripcion !== "Recomendado en la guía Wikivoyage de la ciudad." && guiaWikivoyage?.idioma === "es"
+          extra.descripcion && extra.descripcion !== "Recommended in the city's Wikivoyage guide." && guiaWikivoyage?.idioma === "es"
             ? extra.descripcion
             : base.descripcion,
       };
@@ -1171,13 +1171,13 @@ export default function ActividadesPage() {
         <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
           titulo="Actividades"
-          subtitulo="Elige qué hacer en cada ciudad y súmalo directo a tu itinerario."
+          subtitulo="Pick what to do in each city and add it straight to your itinerary."
           volverA={`/viajes/${viaje.id}`}
         />
 
         <div className="mb-4 flex items-center justify-between gap-3 text-xs">
           <button onClick={actualizarInvestigacion} disabled={refrescando} className="text-neutral-400 underline hover:text-neutral-700 disabled:opacity-50">
-            {refrescando ? "🔄 Actualizando investigación real…" : "🔄 Actualizar investigación real"}
+            {refrescando ? "🔄 Refreshing real research…" : "🔄 Refresh real research"}
           </button>
         </div>
         {errorRefresco && <p className="mb-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">{errorRefresco}</p>}
@@ -1187,7 +1187,7 @@ export default function ActividadesPage() {
           <div className="flex flex-wrap gap-2">
             {(
               [
-                ["lluvia", "🌧️ Está lloviendo"],
+                ["lluvia", "🌧️ It's raining"],
                 ["cansancio", "😴 Estamos cansados"],
               ] as const
             ).map(([valor, etiqueta]) => (
@@ -1205,7 +1205,7 @@ export default function ActividadesPage() {
 
           {adaptacion === "lluvia" && (
             <ul className="mt-3 space-y-2">
-              {sugerenciasAdaptacion.length === 0 && <li className="text-sm text-neutral-400">No hay alternativas de interior claras en tu lista.</li>}
+              {sugerenciasAdaptacion.length === 0 && <li className="text-sm text-neutral-400">There are no clear indoor alternatives in your list.</li>}
               {sugerenciasAdaptacion.map((a) => (
                 <li key={a.id} className="rounded-xl bg-neutral-50 px-3 py-2 text-sm">
                   <span className="font-medium">{a.nombre}</span>
@@ -1217,9 +1217,9 @@ export default function ActividadesPage() {
 
           {adaptacion === "cansancio" && (
             <div className="mt-3 rounded-xl bg-neutral-50 px-3 py-3 text-sm">
-              <p className="mb-2 text-neutral-600">Cancela lo que no vas a poder hacer — queda como descartada, no se borra:</p>
+              <p className="mb-2 text-neutral-600">Cancel what you won't be able to do — it's marked as dropped, not deleted:</p>
               {actividadesEnCurso.length === 0 ? (
-                <p className="text-neutral-400">No tienes actividades planificadas o reservadas todavía.</p>
+                <p className="text-neutral-400">You don't have any planned or booked activities yet.</p>
               ) : (
                 <ul className="space-y-1.5">
                   {actividadesEnCurso.map((a) => (
@@ -1239,7 +1239,7 @@ export default function ActividadesPage() {
         </section>
 
         <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="font-medium">Explora por ciudad</h2>
+          <h2 className="font-medium">Explore by city</h2>
           <span className="text-xs text-neutral-400">{actividadesPendientes} en tu itinerario</span>
         </div>
 
@@ -1388,7 +1388,7 @@ export default function ActividadesPage() {
                     {categoriasBuscadas !== null && categoriasBuscadas.length > 0 && (
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-marino-50 px-3 py-2 text-xs text-marino-800">
                         <span>
-                          {haySugerenciaDelViaje ? "Filtrado por lo que pediste al crear el viaje:" : "Estás viendo solo:"}{" "}
+                          {haySugerenciaDelViaje ? "Filtered by what you asked for when creating the trip:" : "You're only seeing:"}{" "}
                           <span className="font-medium">
                             {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta.toLowerCase()).join(" y ")}
                           </span>
@@ -1451,8 +1451,8 @@ export default function ActividadesPage() {
                     {listaMostrada.length === 0 ? (
                       <p className="text-sm text-neutral-400">
                         {categoriasBuscadas !== null
-                          ? `Todavía no tenemos nada así investigado en ${etapa.nombre}.`
-                          : `Añade algo tuyo abajo para empezar en ${etapa.nombre}.`}
+                          ? `We haven't researched anything like that in ${etapa.nombre} yet.`
+                          : `Add something of your own below to get started in ${etapa.nombre}.`}
                       </p>
                     ) : (
                       <ul className="space-y-2">
@@ -1467,7 +1467,7 @@ export default function ActividadesPage() {
                     {formEtapaId === etapa.id ? (
                       <form onSubmit={(e) => anadirPropia(e, etapa)} className="rounded-xl border border-dashed border-neutral-300 p-3 space-y-2.5">
                         <p className="text-xs font-medium text-neutral-600">Añadir tu propio plan en {etapa.nombre}</p>
-                        <input className="input text-sm" placeholder="¿Qué quieres hacer?" value={nombreNueva} onChange={(e) => setNombreNueva(e.target.value)} />
+                        <input className="input text-sm" placeholder="What do you feel like doing?" value={nombreNueva} onChange={(e) => setNombreNueva(e.target.value)} />
                         <div className="grid grid-cols-2 gap-2">
                           <input type="number" step="0.5" min="0" className="input text-sm" placeholder="Horas" value={horasNueva} onChange={(e) => setHorasNueva(e.target.value)} />
                           <input type="number" min="0" className="input text-sm" placeholder="Coste €" value={costeNueva} onChange={(e) => setCosteNueva(e.target.value)} />
@@ -1480,9 +1480,9 @@ export default function ActividadesPage() {
                           ))}
                         </select>
                         <select className="input text-sm" value={entornoNueva} onChange={(e) => setEntornoNueva(e.target.value as typeof entornoNueva)}>
-                          <option value="exterior">☀️ Al aire libre</option>
+                          <option value="exterior">☀️ Outdoors</option>
                           <option value="interior">🏛️ En interior</option>
-                          <option value="mixto">🌤️ Interior y exterior</option>
+                          <option value="mixto">🌤️ Indoors and out</option>
                         </select>
                         <label className="flex items-center gap-2 text-xs text-neutral-600">
                           <input type="checkbox" checked={mascotaNueva} onChange={(e) => setMascotaNueva(e.target.checked)} />

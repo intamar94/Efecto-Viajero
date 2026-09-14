@@ -10,7 +10,7 @@ export function RutaDiaVisual({ dia }: Props) {
   if (dia.descansoTotal) {
     return (
       <div className="card bg-gradient-to-r from-emerald-50 to-emerald-100/50 border-emerald-200">
-        <p className="text-center font-medium text-emerald-900">😴 Día de descanso</p>
+        <p className="text-center font-medium text-emerald-900">😴 Rest day</p>
         {dia.notas && <p className="mt-2 text-sm text-emerald-800">{dia.notas}</p>}
       </div>
     );

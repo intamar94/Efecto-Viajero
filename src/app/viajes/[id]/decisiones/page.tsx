@@ -46,7 +46,7 @@ function construirEntradaCerebro(viaje: Viaje): BrainInput {
   const composicion = viaje.contexto.viajeros;
   const destinations = etapas.length ? etapas.map((e) => e.nombre) : [viaje.destino];
   const textoBase = viaje.contexto.textoOriginal?.trim();
-  const text = textoBase && textoBase.length > 0 ? textoBase : `Viaje a ${destinations.join(", ")}.`;
+  const text = textoBase && textoBase.length > 0 ? textoBase : `Trip to ${destinations.join(", ")}.`;
   return {
     text,
     fechaSalida: viaje.fechaSalida,
@@ -80,7 +80,7 @@ export default function DecisionesPage() {
   const [analisis, setAnalisis] = useState<Analysis | null>(null);
   const [errorAnalisis, setErrorAnalisis] = useState("");
 
-  if (!viaje) return <main className="flex-1 px-5 py-8"><div className="mx-auto max-w-xl"><Cabecera titulo="Viaje no encontrado" volverA="/viajes" /></div></main>;
+  if (!viaje) return <main className="flex-1 px-5 py-8"><div className="mx-auto max-w-xl"><Cabecera titulo="Trip not found" volverA="/viajes" /></div></main>;
 
   const documentos = viaje.documentos.length;
   const transportes = viaje.transporte.length;
@@ -88,9 +88,9 @@ export default function DecisionesPage() {
   const reservas = viaje.actividades.filter((a) => a.estado === "reservada").length;
   const itinerario = viaje.itinerario?.dias.length ?? 0;
   const pendientes = [
-    transportes === 0 ? "Añadir o investigar los tramos de transporte." : null,
-    documentos === 0 ? "Guardar documentación y reservas en Travel Vault." : null,
-    itinerario === 0 ? "Construir el itinerario día por día." : null,
+    transportes === 0 ? "Add or research the transport legs." : null,
+    documentos === 0 ? "Save documents and bookings in the Travel Vault." : null,
+    itinerario === 0 ? "Build the day-by-day itinerary." : null,
   ].filter(Boolean) as string[];
 
   async function analizarConCerebro() {
@@ -105,10 +105,10 @@ export default function DecisionesPage() {
         body: JSON.stringify(entrada),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "El cerebro no pudo completar el análisis.");
+      if (!response.ok) throw new Error(data.error ?? "The brain couldn't complete the analysis.");
       setAnalisis(data as Analysis);
     } catch (e) {
-      setErrorAnalisis(e instanceof Error ? e.message : "No se pudo analizar el viaje.");
+      setErrorAnalisis(e instanceof Error ? e.message : "We couldn't analyse the trip.");
     } finally {
       setAnalizando(false);
     }
@@ -128,13 +128,13 @@ export default function DecisionesPage() {
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
         <ViajeToolsNav viajeId={viaje.id} />
-        <Cabecera titulo="Centro de decisiones" subtitulo="Lo importante para avanzar en tu viaje, sin tener que revisar todo." volverA={`/viajes/${viaje.id}`} />
+        <Cabecera titulo="Decision centre" subtitulo="What matters to move your trip forward, without reviewing everything." volverA={`/viajes/${viaje.id}`} />
 
         <section className="card mb-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">Estado del viaje</p>
-              <h2 className="mt-1 text-xl font-semibold text-neutral-900">{pendientes.length ? "Hay cosas por cerrar" : "Base del viaje completa"}</h2>
+              <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">Trip status</p>
+              <h2 className="mt-1 text-xl font-semibold text-neutral-900">{pendientes.length ? "There are things to close out" : "Trip foundations complete"}</h2>
             </div>
             <span className={`rounded-full px-3 py-1 text-xs font-medium ${pendientes.length ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>{pendientes.length} pendientes</span>
           </div>
@@ -149,7 +149,7 @@ export default function DecisionesPage() {
         </section>
 
         <section className="card mb-5">
-          <h2 className="font-medium text-neutral-900">Qué está listo</h2>
+          <h2 className="font-medium text-neutral-900">What's ready</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             <Estado ok={actividades > 0} texto="Actividades" />
             <Estado ok={transportes > 0} texto="Transporte" />
@@ -159,8 +159,8 @@ export default function DecisionesPage() {
         </section>
 
         <section className="card mb-5">
-          <h2 className="font-medium text-neutral-900">Siguiente acción</h2>
-          <p className="mt-1 text-sm text-neutral-500">No necesitas revisar todo. Empieza por lo que puede bloquear el viaje.</p>
+          <h2 className="font-medium text-neutral-900">Next action</h2>
+          <p className="mt-1 text-sm text-neutral-500">You don't need to review everything. Start with what could block the trip.</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {transportes === 0 && <Link href={`/viajes/${viaje.id}/transporte`} className="btn-primary">Revisar transporte</Link>}
             {documentos === 0 && <Link href={`/viajes/${viaje.id}/vault`} className="btn-secondary">Abrir Travel Vault</Link>}
@@ -178,14 +178,14 @@ export default function DecisionesPage() {
         <section className="card mb-5">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-marino-600">El cerebro</p>
-              <h2 className="mt-1 text-xl font-semibold text-neutral-900">Análisis profundo de tu viaje</h2>
+              <p className="text-xs font-semibold uppercase tracking-wide text-marino-600">The brain</p>
+              <h2 className="mt-1 text-xl font-semibold text-neutral-900">Deep analysis of your trip</h2>
             </div>
             <button onClick={analizarConCerebro} disabled={analizando} className="btn-primary shrink-0 disabled:opacity-60">
               {analizando ? "Analizando…" : analisis ? "🔄 Repetir" : "▶ Analizar"}
             </button>
           </div>
-          <p className="mt-2 text-sm text-neutral-500">Reparte tu viaje entre departamentos (transporte, alojamiento, clima, cultura, requisitos…), cada uno con sus propios agentes, y solo te avisa de lo que de verdad quedó sin resolver.</p>
+          <p className="mt-2 text-sm text-neutral-500">It splits your trip across departments (transport, accommodation, weather, culture, requirements…), each with its own agents, and only flags what genuinely stayed unresolved.</p>
 
           {errorAnalisis && <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{errorAnalisis}</p>}
 
@@ -200,14 +200,14 @@ export default function DecisionesPage() {
 
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Ahora mismo</p>
-                <p className="mt-1 font-medium">{next ? `${label(next.type)} · ${label(next.target)}` : "No hay una acción inmediata"}</p>
-                <p className="mt-1 text-sm text-neutral-500">{brain.decision?.rationale ?? "Todavía no hay suficiente estado para explicar una decisión."}</p>
+                <p className="mt-1 font-medium">{next ? `${label(next.type)} · ${label(next.target)}` : "Nothing needs doing right now"}</p>
+                <p className="mt-1 text-sm text-neutral-500">{brain.decision?.rationale ?? "There isn't enough state yet to explain a decision."}</p>
                 <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-medium ${tone(brain.phase)}`}>{label(brain.phase)}</span>
               </div>
 
               {(analisis?.unresolved?.length || blockers.length) ? (
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Qué falta</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">What's missing</p>
                   <div className="mt-2 space-y-1.5">
                     {[...new Set([...(analisis?.unresolved ?? []), ...blockers.map((b) => b.target ?? "").filter(Boolean)])].slice(0, 8).map((item) => (
                       <div key={item} className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-900">{item}</div>
@@ -215,7 +215,7 @@ export default function DecisionesPage() {
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-neutral-500">No hay faltantes globales registrados.</p>
+                <p className="text-sm text-neutral-500">No global gaps recorded.</p>
               )}
 
               {conflicts.length > 0 && (

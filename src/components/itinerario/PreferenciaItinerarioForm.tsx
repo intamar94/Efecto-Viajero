@@ -32,10 +32,10 @@ export function PreferenciaItinerarioForm({ inicial, onGenerar, cargando }: Prop
 
   return (
     <form onSubmit={handleSubmit} className="card space-y-4">
-      <h3 className="font-medium">Cómo generar tu itinerario</h3>
+      <h3 className="font-medium">How to build your itinerary</h3>
 
       <div>
-        <label className="block text-sm font-medium mb-2">Ritmo del viaje</label>
+        <label className="block text-sm font-medium mb-2">Trip pace</label>
         <div className="flex gap-2">
           {(["tranquilo", "normal", "intenso"] as const).map((r) => (
             <button
@@ -86,11 +86,11 @@ export function PreferenciaItinerarioForm({ inicial, onGenerar, cargando }: Prop
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium mb-1">Hora de llegada</label>
+          <label className="block text-xs font-medium mb-1">Arrival time</label>
           <HoraSelect value={horaLlegada} onChange={setHoraLlegada} />
         </div>
         <div>
-          <label className="block text-xs font-medium mb-1">Última actividad</label>
+          <label className="block text-xs font-medium mb-1">Last activity</label>
           <HoraSelect value={horaSalida} onChange={setHoraSalida} />
         </div>
       </div>

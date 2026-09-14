@@ -12,14 +12,14 @@ export default function EjemploPage() {
   function handleCargar() {
     cargarEjemploBase();
     setCargado(true);
-    setMensaje("✓ Ejemplo cargado en localStorage. Recarga la página para verlo.");
+    setMensaje("✓ Sample loaded into localStorage. Reload the page to see it.");
     setTimeout(() => setMensaje(""), 3000);
   }
 
   function handleLimpiar() {
     limpiarEjemploBase();
     setCargado(false);
-    setMensaje("✓ Datos de ejemplo eliminados. Recarga la página.");
+    setMensaje("✓ Sample data deleted. Reload the page.");
     setTimeout(() => setMensaje(""), 3000);
   }
 
@@ -29,13 +29,13 @@ export default function EjemploPage() {
         <Cabecera titulo="Cargar ejemplo base" volverA="/" />
 
         <div className="card mb-6">
-          <h2 className="mb-3 font-medium">Datos de ejemplo</h2>
+          <h2 className="mb-3 font-medium">Sample data</h2>
           <p className="mb-4 text-sm text-neutral-600">
             Carga un viaje completo con datos realistas para revisar toda la interfaz sin tener que rellenar datos cada vez.
           </p>
           <p className="mb-4 text-xs text-neutral-500">
-            <strong>Viaje:</strong> Colombia (circuito 3 ciudades, 15 días)<br/>
-            <strong>Viajeros:</strong> Ana García y Carlos López<br/>
+            <strong>Trip:</strong> Colombia (3-city loop, 15 days)<br/>
+            <strong>Travellers:</strong> Ana García and Carlos López<br/>
             <strong>Incluye:</strong> Transporte, actividades, hotel, seguro, clima, cambio de moneda
           </p>
           <div className="flex gap-2">
@@ -61,22 +61,22 @@ export default function EjemploPage() {
         )}
 
         <div className="card">
-          <h3 className="mb-3 font-medium">Qué puedes revisar:</h3>
+          <h3 className="mb-3 font-medium">What you can look at:</h3>
           <ul className="space-y-2 text-sm text-neutral-600">
-            <li>✓ <Link href="/viajes" className="underline text-marino-600">Mis viajes</Link> - Lista con el viaje de ejemplo</li>
-            <li>✓ <Link href={`/viajes/${VIAJE_EJEMPLO.id}`} className="underline text-marino-600">Hub del viaje</Link> - Todas las secciones</li>
+            <li>✓ <Link href="/viajes" className="underline text-marino-600">My trips</Link> — list with the sample trip</li>
+            <li>✓ <Link href={`/viajes/${VIAJE_EJEMPLO.id}`} className="underline text-marino-600">Trip hub</Link> — every section</li>
             <li>✓ Transporte, Alojamiento, Actividades, Vault, Recuerdos</li>
-            <li>✓ Presupuesto en vivo (con documentos del Vault)</li>
-            <li>✓ Requisitos (documentación, visado, salud)</li>
-            <li>✓ Qué sabemos del viaje (auditoría de capacidades)</li>
-            <li>✓ Botón de compartir viaje</li>
-            <li>✓ Ruta con clima y monedas</li>
+            <li>✓ Live budget (using Vault documents)</li>
+            <li>✓ Requirements (documents, visa, health)</li>
+            <li>✓ What we know about the trip (capability audit)</li>
+            <li>✓ Share-trip button</li>
+            <li>✓ Route with weather and currencies</li>
           </ul>
         </div>
 
         <div className="mt-6 text-xs text-neutral-500 border-t border-neutral-100 pt-4">
-          <p>💡 El ejemplo se guarda en localStorage de tu navegador. No requiere Supabase configurado.</p>
-          <p>🔄 Puedes limpiar y recargar cuando quieras para volver a empezar.</p>
+          <p>💡 The sample is stored in your browser's localStorage. It doesn't need Supabase configured.</p>
+          <p>🔄 You can clear and reload whenever you want to start again.</p>
         </div>
       </div>
     </main>

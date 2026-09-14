@@ -21,7 +21,7 @@ const ICONO_MODO: Record<string, string> = {
 
 const ETIQUETA_DOCUMENTO: Record<string, string> = {
   vuelo: "Vuelo",
-  tren_bus: "Tren / Autobús",
+  tren_bus: "Train / Bus",
   alojamiento: "Alojamiento",
   transporte_local: "Transporte local",
   entrada: "Entrada",
@@ -39,7 +39,7 @@ export default function ImprimirViajePage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
+          <Cabecera titulo="Trip not found" volverA="/viajes" />
         </div>
       </main>
     );
@@ -77,9 +77,9 @@ export default function ImprimirViajePage() {
 
       <div className="mx-auto max-w-2xl print:max-w-none">
         <div className="print:hidden">
-          <Cabecera titulo="Imprimir viaje" subtitulo="Un resumen completo para llevar o mostrar en migración." volverA={`/viajes/${viaje.id}`} />
+          <Cabecera titulo="Print trip" subtitulo="A complete summary to carry or show at immigration." volverA={`/viajes/${viaje.id}`} />
           <button onClick={() => window.print()} className="btn-primary mb-6 w-full">
-            🖨️ Imprimir o guardar como PDF
+            🖨️ Print or save as PDF
           </button>
         </div>
 
@@ -87,7 +87,7 @@ export default function ImprimirViajePage() {
         <header className="mb-6 border-b-2 border-neutral-900 pb-4">
           <h1 className="text-2xl font-bold">{viaje.destino}</h1>
           <p className="text-neutral-600">
-            {viaje.fechaSalida && viaje.fechaRegreso ? formatearRangoFechas(viaje.fechaSalida, viaje.fechaRegreso) : "Fechas por confirmar"}
+            {viaje.fechaSalida && viaje.fechaRegreso ? formatearRangoFechas(viaje.fechaSalida, viaje.fechaRegreso) : "Dates to be confirmed"}
           </p>
           <p className="mt-1 text-sm text-neutral-500">
             Ruta: {etapas.map((e) => e.nombre).join(" → ")}
@@ -96,7 +96,7 @@ export default function ImprimirViajePage() {
         </header>
 
         <section className="mb-6">
-          <h2 className="mb-2 font-semibold">Viajeros</h2>
+          <h2 className="mb-2 font-semibold">Travellers</h2>
           <ul className="space-y-1 text-sm">
             {viajerosDelViaje.map((v) => (
               <li key={v.id} className="flex flex-wrap items-baseline gap-x-2">
@@ -111,13 +111,13 @@ export default function ImprimirViajePage() {
                 )}
               </li>
             ))}
-            {viajerosDelViaje.length === 0 && <li className="text-neutral-400">Sin viajeros asignados.</li>}
+            {viajerosDelViaje.length === 0 && <li className="text-neutral-400">No travellers assigned.</li>}
           </ul>
         </section>
 
         {alojamientoElegido && (
           <section className="mb-6">
-            <h2 className="mb-2 font-semibold">Alojamiento de referencia</h2>
+            <h2 className="mb-2 font-semibold">Reference accommodation</h2>
             <p className="text-sm">{alojamientoElegido.nombre} — {alojamientoElegido.ubicacion}</p>
           </section>
         )}
@@ -141,9 +141,9 @@ export default function ImprimirViajePage() {
 
         {viaje.documentos.length > 0 && (
           <section className="mb-6">
-            <h2 className="mb-2 font-semibold">Reservas y documentos (Travel Vault)</h2>
+            <h2 className="mb-2 font-semibold">Bookings and documents (Travel Vault)</h2>
             <p className="mb-2 text-xs text-neutral-500">
-              Esto es justo lo que suele pedir un agente migratorio: referencia de reserva, proveedor y fechas.
+              This is exactly what an immigration officer usually asks for: booking reference, provider and dates.
             </p>
             <ul className="space-y-1 text-sm">
               {viaje.documentos.map((d) => (
@@ -161,7 +161,7 @@ export default function ImprimirViajePage() {
 
         {viaje.itinerario && viaje.itinerario.dias.length > 0 && (
           <section className="mb-6">
-            <h2 className="mb-2 font-semibold">Itinerario día a día</h2>
+            <h2 className="mb-2 font-semibold">Day-by-day itinerary</h2>
             <div className="space-y-3">
               {viaje.itinerario.dias.map((dia) => (
                 <div key={dia.fecha} className="break-inside-avoid rounded-lg border border-neutral-200 p-3 text-sm">
@@ -198,7 +198,7 @@ export default function ImprimirViajePage() {
                 .map((p) => (
                   <li key={p.codigo}>
                     <span className="font-medium">{p.nombre}:</span> {p.emergencias}
-                    {p.telefonoTurista && ` · Atención al turista: ${p.telefonoTurista}`}
+                    {p.telefonoTurista && ` · Tourist helpline: ${p.telefonoTurista}`}
                   </li>
                 ))}
             </ul>
@@ -210,16 +210,16 @@ export default function ImprimirViajePage() {
             falta y dónde se añade, en vez de imprimir una página vacía. */}
         {(() => {
           const faltantes = [
-            viaje.itinerario && viaje.itinerario.dias.length > 0 ? null : { que: "el itinerario día a día", donde: "Ruta e itinerario" },
+            viaje.itinerario && viaje.itinerario.dias.length > 0 ? null : { que: "the day-by-day itinerary", donde: "Ruta e itinerario" },
             viaje.transporte.length > 0 ? null : { que: "los tramos de transporte", donde: "Transporte" },
             viaje.documentos.length > 0 ? null : { que: "las reservas y documentos", donde: "Travel Vault" },
           ].filter((f): f is { que: string; donde: string } => f !== null);
           if (faltantes.length === 0) return null;
           return (
             <section className="mb-6 rounded-lg border border-dashed border-neutral-300 p-3 text-sm text-neutral-600 print:hidden">
-              <p className="font-medium text-neutral-800">Esta hoja todavía va incompleta</p>
+              <p className="font-medium text-neutral-800">This sheet is still incomplete</p>
               <p className="mt-1">
-                Aún no tiene {faltantes.map((f) => f.que).join(", ").replace(/, ([^,]*)$/, " ni $1")}. Se añaden desde{" "}
+                It still doesn't have {faltantes.map((f) => f.que).join(", ").replace(/, ([^,]*)$/, " or $1")}. You add them from{" "}
                 {[...new Set(faltantes.map((f) => f.donde))].join(", ")} y aparecerán aquí solos.
               </p>
             </section>

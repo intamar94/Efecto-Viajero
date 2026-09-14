@@ -115,7 +115,7 @@ export function HoraSelect({ value, onChange }: Props) {
         type="button"
         onClick={() => setModoTexto((v) => !v)}
         className="text-xs text-neutral-400 hover:text-neutral-700"
-        title={modoTexto ? "Usar la rueda" : "Escribir la hora"}
+        title={modoTexto ? "Use the wheel" : "Type the time"}
       >
         {modoTexto ? "🎡" : "✏️"}
       </button>

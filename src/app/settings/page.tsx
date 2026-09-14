@@ -32,7 +32,7 @@ export default function SettingsPage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Necesitas iniciar sesión" volverA="/viajes" />
+          <Cabecera titulo="You need to sign in" volverA="/viajes" />
         </div>
       </main>
     );
@@ -42,8 +42,8 @@ export default function SettingsPage() {
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
         <Cabecera
-          titulo="Configuración"
-          subtitulo="Tu cuenta y preferencias"
+          titulo="Settings"
+          subtitulo="Your account and preferences"
           volverA="/viajes"
         />
 
@@ -61,7 +61,7 @@ export default function SettingsPage() {
                   {user.email_confirmed_at ? (
                     <span className="text-green-600">✓ Confirmado</span>
                   ) : (
-                    <span className="text-amber-600">⏳ Pendiente confirmación</span>
+                    <span className="text-amber-600">⏳ Pending confirmation</span>
                   )}
                 </dd>
               </div>
@@ -71,7 +71,7 @@ export default function SettingsPage() {
           <section className="card">
             <h2 className="font-medium text-neutral-900">Privacidad</h2>
             <p className="mt-2 text-sm text-neutral-600">
-              Tus viajes son privados. Solo tú (o quién invites) puede verlos.
+              Your trips are private. Only you (and anyone you invite) can see them.
             </p>
             <p className="mt-3 text-xs text-neutral-500">
               Los datos se sincronizan en Supabase bajo Row Level Security.

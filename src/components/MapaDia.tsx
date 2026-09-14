@@ -78,10 +78,10 @@ export function MapaDia({ puntos }: Props) {
           const legs = (ruta.legs ?? []) as { distance: number; duration: number }[];
           setTramos(legs.map((l) => ({ distanciaM: l.distance, duracionS: l.duration })));
         } else {
-          setErrorRuta("No se pudo calcular la ruta a pie entre estas paradas.");
+          setErrorRuta("We couldn't work out a walking route between these stops.");
         }
       } catch {
-        if (!cancelado) setErrorRuta("No se pudo calcular la ruta a pie ahora mismo.");
+        if (!cancelado) setErrorRuta("We couldn't work out the walking route right now.");
       } finally {
         if (!cancelado) setCargandoRuta(false);
       }
@@ -100,7 +100,7 @@ export function MapaDia({ puntos }: Props) {
   }, []);
 
   if (puntos.length === 0) {
-    return <p className="text-sm text-neutral-400">Ninguna actividad de este día tiene ubicación exacta todavía.</p>;
+    return <p className="text-sm text-neutral-400">No activity on this day has an exact location yet.</p>;
   }
 
   const distanciaTotal = tramos?.reduce((a, t) => a + t.distanciaM, 0) ?? null;
@@ -116,7 +116,7 @@ export function MapaDia({ puntos }: Props) {
           🚶 {(distanciaTotal / 1000).toFixed(1)} km en total · ~{Math.round(duracionTotal / 60)} min caminando
         </p>
       )}
-      <p className="mt-1 text-xs text-neutral-400">Ruta orientativa (OpenStreetMap + OSRM): confírmala con tu propio GPS al caminar.</p>
+      <p className="mt-1 text-xs text-neutral-400">Indicative route (OpenStreetMap + OSRM): check it against your own GPS as you walk.</p>
     </div>
   );
 }

@@ -11,7 +11,7 @@ export default function ViajerosPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-2xl">
-        <Cabecera titulo="Viajeros" subtitulo="Personas y mascotas. Estos datos se reutilizan en todos los viajes." />
+        <Cabecera titulo="Travellers" subtitulo="People and pets. This information is reused across every trip." />
 
         <Link
           href="/viajeros/nuevo"
@@ -43,7 +43,7 @@ export default function ViajerosPage() {
                       </span>
                       <span className="block text-sm text-neutral-500">
                         {v.tipo === "persona"
-                          ? [edad !== null ? `${edad} años` : null, v.nacionalidad].filter(Boolean).join(" · ") || "Sin datos adicionales"
+                          ? [edad !== null ? `${edad} years old` : null, v.nacionalidad].filter(Boolean).join(" · ") || "No extra details"
                           : [v.especie, v.raza].filter(Boolean).join(" · ") || "Mascota"}
                       </span>
                     </span>

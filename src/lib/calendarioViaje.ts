@@ -64,7 +64,7 @@ export interface LuzDelDia {
 function horaLocal(iso: string): string | undefined {
   const fecha = new Date(iso);
   if (Number.isNaN(fecha.getTime())) return undefined;
-  return fecha.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return fecha.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 // formatted=0 devuelve las horas en UTC ISO, que el navegador convierte

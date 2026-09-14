@@ -5,7 +5,7 @@ export const PRESENTATION_STATUS: Record<PresentationStatus, { label: string; ic
   available: { label: "Disponible", icon: "●", className: "bg-emerald-50 text-emerald-700" },
   partial: { label: "Parcial", icon: "◐", className: "bg-amber-50 text-amber-700" },
   researching: { label: "Investigando", icon: "⌕", className: "bg-sky-50 text-sky-700" },
-  pending: { label: "Por verificar", icon: "!", className: "bg-amber-50 text-amber-700" },
+  pending: { label: "To verify", icon: "!", className: "bg-amber-50 text-amber-700" },
   idea: { label: "Idea", icon: "💡", className: "bg-neutral-100 text-neutral-600" },
   incompatible: { label: "No compatible", icon: "×", className: "bg-red-50 text-red-700" },
   unavailable: { label: "No disponible", icon: "—", className: "bg-neutral-100 text-neutral-500" },

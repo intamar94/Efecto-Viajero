@@ -52,7 +52,7 @@ export default function NuevoViajeroPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
-        <Cabecera titulo="Añadir viajero" volverA="/viajeros" />
+        <Cabecera titulo="Add traveller" volverA="/viajeros" />
 
         <div className="mb-6 inline-flex rounded-xl border border-neutral-200 bg-white p-1">
           {(["persona", "mascota"] as Tipo[]).map((op) => (
@@ -70,7 +70,7 @@ export default function NuevoViajeroPage() {
         </div>
 
         <form onSubmit={guardar} className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6">
-          <Campo etiqueta="Nombre" requerido>
+          <Campo etiqueta="Name" requerido>
             <input className="input" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
           </Campo>
 
@@ -79,14 +79,14 @@ export default function NuevoViajeroPage() {
               <Campo etiqueta="Apellido">
                 <input className="input" value={apellido} onChange={(e) => setApellido(e.target.value)} />
               </Campo>
-              <Campo etiqueta="Fecha de nacimiento">
+              <Campo etiqueta="Date of birth">
                 <input type="date" className="input" value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} />
               </Campo>
               <Campo etiqueta="Nacionalidad">
-                <input className="input" placeholder="ej. España" value={nacionalidad} onChange={(e) => setNacionalidad(e.target.value)} />
+                <input className="input" placeholder="e.g. Spain" value={nacionalidad} onChange={(e) => setNacionalidad(e.target.value)} />
               </Campo>
               <Campo etiqueta="Residencia">
-                <input className="input" placeholder="ej. España" value={residencia} onChange={(e) => setResidencia(e.target.value)} />
+                <input className="input" placeholder="e.g. Spain" value={residencia} onChange={(e) => setResidencia(e.target.value)} />
               </Campo>
             </>
           ) : (
@@ -97,7 +97,7 @@ export default function NuevoViajeroPage() {
               <Campo etiqueta="Raza">
                 <input className="input" value={raza} onChange={(e) => setRaza(e.target.value)} />
               </Campo>
-              <Campo etiqueta="Fecha de nacimiento">
+              <Campo etiqueta="Date of birth">
                 <input type="date" className="input" value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} />
               </Campo>
               <Campo etiqueta="Peso (kg)">

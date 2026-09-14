@@ -23,7 +23,7 @@ export default function RecuerdosPage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
+          <Cabecera titulo="Trip not found" volverA="/viajes" />
         </div>
       </main>
     );
@@ -50,7 +50,7 @@ export default function RecuerdosPage() {
       );
       actualizarViaje(viaje.id, { recuerdos: [...viaje.recuerdos, ...nuevos] });
     } catch {
-      setErrorFotos("No hemos podido procesar alguna de las fotos. Prueba con otra o añade el momento a mano.");
+      setErrorFotos("We couldn't process one of the photos. Try another or add the moment by hand.");
     } finally {
       setProcesandoFotos(false);
     }
@@ -78,23 +78,24 @@ export default function RecuerdosPage() {
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
         <ViajeToolsNav viajeId={viaje.id} />
-        <Cabecera titulo="Recuerdos" subtitulo="Tus fotos reales, ordenadas solas en una línea de tiempo." volverA={`/viajes/${viaje.id}`} />
+        <Cabecera titulo="Recuerdos" subtitulo="Your real photos, arranged into a timeline on their own." volverA={`/viajes/${viaje.id}`} />
 
         <section className="card mb-6">
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">Elige fotos de tu dispositivo</span>
+            <span className="mb-1 block text-sm font-medium text-neutral-700">Pick photos from your device</span>
             <input type="file" accept="image/*" multiple onChange={importarFotos} disabled={procesandoFotos} className="input" />
           </label>
           <p className="mt-2 text-xs text-neutral-400">
-            Se procesan en tu navegador (miniatura ligera, no la foto original) y se ordenan por fecha automáticamente. La selección
-            automática de las mejores fotos, el vídeo editado y el álbum para imprimir no están construidos en esta versión.
+            They're processed in your browser (a light thumbnail, not the original photo) and sorted by date
+            automatically. Automatically picking the best photos needs image processing — that isn't built in
+            this version.
           </p>
           {procesandoFotos && <p className="mt-2 text-sm text-neutral-500">Procesando fotos…</p>}
           {errorFotos && <p className="mt-2 text-sm text-amber-600">{errorFotos}</p>}
         </section>
 
         {ordenados.length === 0 ? (
-          <p className="mb-6 text-sm text-neutral-500">Todavía no hay momentos guardados.</p>
+          <p className="mb-6 text-sm text-neutral-500">No moments saved yet.</p>
         ) : (
           <ol className="mb-6 space-y-3 border-l border-neutral-200 pl-4">
             {ordenados.map((r) => (
@@ -120,12 +121,12 @@ export default function RecuerdosPage() {
         )}
 
         <form onSubmit={agregar} className="card space-y-3">
-          <p className="text-sm font-medium text-neutral-700">O añade un momento sin foto</p>
-          <input className="input" placeholder="¿Qué pasó?" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          <p className="text-sm font-medium text-neutral-700">Or add a moment without a photo</p>
+          <input className="input" placeholder="What happened?" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
           <input type="date" className="input" value={fecha} onChange={(e) => setFecha(e.target.value)} />
           <textarea className="input min-h-20" placeholder="Nota (opcional)" value={nota} onChange={(e) => setNota(e.target.value)} />
           <button type="submit" className="btn-primary w-full">
-            + Guardar momento
+            + Save moment
           </button>
         </form>
       </div>

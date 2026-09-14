@@ -17,7 +17,7 @@ export default function ViajesPage() {
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-2xl">
-        <Cabecera titulo="Mis viajes" subtitulo="Viajes creados, con sus requisitos y estado." />
+        <Cabecera titulo="My trips" subtitulo="Trips you've created, with their requirements and status." />
 
         <div className="mb-6 flex items-center gap-3">
           <Link href="/planificar" className="btn-primary flex-1">
@@ -68,8 +68,8 @@ export default function ViajesPage() {
                         {viaje.fechaSalida && viaje.fechaRegreso
                           ? formatearRangoFechas(viaje.fechaSalida, viaje.fechaRegreso)
                           : viaje.contexto.duracionDias
-                            ? `~${viaje.contexto.duracionDias} días · sin fechas`
-                            : "Sin fechas"}
+                            ? `~${viaje.contexto.duracionDias} days · no dates`
+                            : "No dates"}
                       </p>
                     </div>
                     <p className="mt-1 text-sm text-neutral-500">

@@ -13,33 +13,33 @@ const PROBLEMAS = [
   {
     id: "pasaporte",
     icono: "🛂",
-    titulo: "Perdí el pasaporte o el DNI",
+    titulo: "I lost my passport or ID",
     pasos: [
-      "Denuncia la pérdida o robo en la policía local y guarda la copia de la denuncia.",
-      "Contacta con tu embajada o consulado para un documento de viaje de emergencia (enlace arriba).",
-      "Revisa si tu seguro de viaje cubre gestiones o gastos asociados.",
+      "Report the loss or theft to the local police and keep a copy of the report.",
+      "Contact your embassy or consulate for an emergency travel document (link above).",
+      "Check whether your travel insurance covers the paperwork or related costs.",
     ],
-    buscarCerca: { etiqueta: "🚓 Comisaría cerca de mí", consulta: "comisaría de policía" },
+    buscarCerca: { etiqueta: "🚓 Police station near me", consulta: "police station" },
   },
   {
     id: "vuelo",
     icono: "✈️",
     titulo: "Cancelaron mi vuelo",
     pasos: [
-      "Pide a la aerolínea el motivo por escrito y las opciones de reubicación o reembolso.",
-      "Dentro de la UE, comprueba si aplica compensación según el motivo y el aviso previo.",
-      "Busca alternativas (otro vuelo, tren, autobús) mientras esperas respuesta.",
-      "Guarda todos los justificantes por si necesitas reclamar después.",
+      "Ask the airline for the reason in writing and your rebooking or refund options.",
+      "Within the EU, check whether compensation applies given the reason and the notice given.",
+      "Look for alternatives (another flight, train, bus) while you wait for an answer.",
+      "Keep every receipt in case you need to claim later.",
     ],
   },
   {
     id: "transporte",
     icono: "🚆",
-    titulo: "Perdí el tren o el autobús",
+    titulo: "I missed my train or bus",
     pasos: [
-      "Acude al mostrador o a la app del operador: puede haber el siguiente servicio sin coste extra.",
-      "Si el trayecto conecta con otra reserva, valora un transporte alternativo.",
-      "Avisa a tu alojamiento si el check-in se va a retrasar.",
+      "Go to the desk or the operator's app: the next service may be free of charge.",
+      "If this leg connects to another booking, consider alternative transport.",
+      "Let your accommodation know if check-in will be late.",
     ],
   },
   {
@@ -47,44 +47,44 @@ const PROBLEMAS = [
     icono: "🚨",
     titulo: "Me robaron algo",
     pasos: [
-      "Denuncia en la comisaría más cercana y pide una copia.",
-      "Bloquea tus tarjetas si te robaron la cartera.",
-      "Contacta con tu seguro de viaje si tienes cobertura de robo.",
-      "Si te robaron el pasaporte, sigue también los pasos de esa sección.",
+      "Report it at the nearest police station and ask for a copy.",
+      "Block your cards if your wallet was stolen.",
+      "Contact your travel insurer if you have theft cover.",
+      "If your passport was stolen, follow the steps in that section too.",
     ],
-    buscarCerca: { etiqueta: "🚓 Comisaría cerca de mí", consulta: "comisaría de policía" },
+    buscarCerca: { etiqueta: "🚓 Police station near me", consulta: "police station" },
   },
   {
     id: "alojamiento",
     icono: "🏨",
-    titulo: "Problema con el alojamiento",
+    titulo: "Problem with the accommodation",
     pasos: [
-      "Habla primero con el propietario o la recepción para resolverlo in situ.",
-      "Si reservaste por una plataforma, contacta con su atención al cliente 24h.",
-      "Documenta el problema con fotos antes de reclamar.",
+      "Talk to the owner or reception first to sort it out on the spot.",
+      "If you booked through a platform, contact their 24h customer support.",
+      "Document the problem with photos before you complain.",
     ],
   },
   {
     id: "mascota",
     icono: "🐾",
-    titulo: "Mi mascota necesita un veterinario",
+    titulo: "My pet needs a vet",
     pasos: [
-      "Busca \"veterinario de urgencias\" en la ciudad donde estás.",
-      "Lleva la documentación veterinaria de tu mascota (ficha en Viajeros).",
-      "Contacta con tu seguro si cubre a la mascota.",
+      "Busca \"veterinario de urgencias\" in the city you're in.",
+      "Bring your pet's veterinary paperwork (their record is in Travellers).",
+      "Contact your insurer if your pet is covered.",
     ],
-    buscarCerca: { etiqueta: "🐾 Veterinario cerca de mí", consulta: "veterinario de urgencias" },
+    buscarCerca: { etiqueta: "🐾 Vet near me", consulta: "veterinario de urgencias" },
   },
   {
     id: "medico",
     icono: "⚕️",
-    titulo: "Necesito un médico",
+    titulo: "I need a doctor",
     pasos: [
-      "Dentro de la UE, la Tarjeta Sanitaria Europea da acceso a asistencia pública si la tienes.",
-      "Fuera de la UE, revisa tu seguro de viaje y su teléfono de asistencia.",
-      "Para una urgencia grave, usa el número de emergencias de arriba.",
+      "Within the EU, the European Health Insurance Card gives access to public care if you have one.",
+      "Outside the EU, check your travel insurance and its assistance phone number.",
+      "For a serious emergency, use the emergency number above.",
     ],
-    buscarCerca: { etiqueta: "🏥 Hospital o clínica cerca de mí", consulta: "hospital o clínica de urgencias" },
+    buscarCerca: { etiqueta: "🏥 Hospital or clinic near me", consulta: "hospital or emergency clinic" },
   },
 ];
 
@@ -98,7 +98,7 @@ export default function ResolverPage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
+          <Cabecera titulo="Trip not found" volverA="/viajes" />
         </div>
       </main>
     );
@@ -130,7 +130,7 @@ export default function ResolverPage() {
         <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
           titulo="Necesito ayuda"
-          subtitulo="Pasos orientativos. En una urgencia real, llama primero al número de emergencias."
+          subtitulo="These are guidance steps. In a real emergency, call the emergency number first."
           volverA={`/viajes/${viaje.id}`}
         />
 
@@ -139,7 +139,7 @@ export default function ResolverPage() {
             <p className="mb-1 text-xs font-medium uppercase tracking-wide text-red-700">Emergencias</p>
             <p className="text-sm text-red-800">
               Aún no sabemos en qué país está tu destino, así que no podemos darte el número correcto. Dínoslo en{" "}
-              <strong>Ruta</strong> y aparecerá aquí. Mientras tanto: en la UE el número único es <strong>112</strong>;
+              <strong>Ruta</strong> and it will show up here. Meanwhile: across the EU the single number is <strong>112</strong>;
               en casi toda América, <strong>911</strong>. Confírmalo al llegar.
             </p>
           </section>
@@ -152,7 +152,7 @@ export default function ResolverPage() {
                   <p className="text-xl font-semibold text-red-900">{pais.emergencias}</p>
                   {pais.telefonoTurista && (
                     <p className="mt-1 text-sm text-red-800">
-                      <span className="font-medium">Atención al turista:</span> {pais.telefonoTurista}
+                      <span className="font-medium">Tourist helpline:</span> {pais.telefonoTurista}
                     </p>
                   )}
                 </>
@@ -167,7 +167,7 @@ export default function ResolverPage() {
         )}
 
         <section className="card mb-6">
-          <h2 className="mb-3 font-medium">Autoridades y consulado</h2>
+          <h2 className="mb-3 font-medium">Authorities and consulate</h2>
           <ul className="space-y-2 text-sm">
             {paises
               .filter((p) => p.autoridad)
@@ -181,7 +181,7 @@ export default function ResolverPage() {
                   >
                     <span>
                       <span className="block font-medium text-neutral-900">🏛️ {pais.autoridad!.nombre}</span>
-                      <span className="block text-xs text-neutral-500">Web oficial: denuncias, comisarías y avisos.</span>
+                      <span className="block text-xs text-neutral-500">Official site: reports, police stations and alerts.</span>
                     </span>
                     <span className="text-neutral-300">↗</span>
                   </a>
@@ -195,12 +195,12 @@ export default function ResolverPage() {
             ) : (
             <li className="rounded-xl border border-neutral-200 px-4 py-3">
               <span className="block font-medium text-neutral-900">
-                🛂 {nacionalidad ? `Consulado de ${nacionalidad} en ${paisDestino}` : `Tu consulado en ${paisDestino}`}
+                🛂 {nacionalidad ? `${nacionalidad} consulate in ${paisDestino}` : `Your consulate in ${paisDestino}`}
               </span>
               <span className="mt-0.5 block text-xs text-neutral-500">
                 {nacionalidad
-                  ? "Elige dónde buscarlo: el mapa suele traer teléfono y dirección directos."
-                  : "Añade la nacionalidad en Viajeros y la búsqueda saldrá directa."}
+                  ? "Choose where to look: the map usually has the phone number and address directly."
+                  : "Add the nationality under Travellers and the search will go straight there."}
               </span>
               <div className="mt-3 flex flex-wrap gap-2">
                 <a
@@ -209,7 +209,7 @@ export default function ResolverPage() {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-marino-600 px-3 py-2 text-xs font-medium text-white hover:bg-marino-700"
                 >
-                  📍 Ver en el mapa (teléfono y dirección) ↗
+                  📍 View on the map (teléfono y dirección) ↗
                 </a>
                 <a
                   href={urlBuscarConsulado(paisDestino, nacionalidad)}
@@ -217,19 +217,19 @@ export default function ResolverPage() {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 hover:border-marino-500"
                 >
-                  🔎 Buscar la web oficial ↗
+                  🔎 Find the official site ↗
                 </a>
               </div>
             </li>
             )}
           </ul>
           <p className="mt-3 text-xs text-neutral-400">
-            No guardamos teléfonos ni correos de consulados: cambian a menudo y dar uno caducado en una urgencia es peor
-            que no dar ninguno. Los enlaces te llevan a la información vigente.
+            We don't store consulate phone numbers or emails: they change often, and giving an out-of-date one in
+            an emergency is worse than giving none. The links take you to the current official search.
           </p>
         </section>
 
-        <h2 className="mb-2 font-medium">¿Qué te ha pasado?</h2>
+        <h2 className="mb-2 font-medium">What's happened?</h2>
         <ul className="space-y-2">
           {PROBLEMAS.map((p) => (
             <li key={p.id} className="rounded-2xl border border-neutral-200 bg-white p-4">

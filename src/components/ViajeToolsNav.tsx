@@ -8,7 +8,7 @@ const HERRAMIENTAS = [
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
   { href: "actividades", icono: "🎒", titulo: "Actividades" },
-  { href: "guia", icono: "🎧", titulo: "Modo Guía" },
+  { href: "guia", icono: "🎧", titulo: "Guide mode" },
   { href: "vault", icono: "📁", titulo: "Travel Vault" },
   { href: "souvenirs", icono: "🎁", titulo: "Qué comprar" },
   { href: "compartido", icono: "👥", titulo: "Compartido" },

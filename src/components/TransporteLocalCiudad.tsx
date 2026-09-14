@@ -12,9 +12,9 @@ interface TransporteLocalCiudadProps {
   ciudad?: string;
 }
 
-// Paradas y líneas reales cercanas (OpenStreetMap), independientes del
+// Real nearby stops and lines (OpenStreetMap), independientes del
 // catálogo curado a mano: antes, cualquier ciudad fuera de ese puñado
-// curado no mostraba absolutamente nada en "Moverte en cada ciudad".
+// curado no mostraba absolutamente nada en "Getting around each city".
 function ParadasReales({ ciudad }: { ciudad: string }) {
   const [datos, setDatos] = useState<TransportePublicoCercano | "cargando" | "sin_datos">("cargando");
 
@@ -38,8 +38,8 @@ function ParadasReales({ ciudad }: { ciudad: string }) {
 
   return (
     <div className="mb-5">
-      <h3 className="mb-2 text-sm font-medium text-marino-900">Paradas y líneas reales cercanas</h3>
-      {datos === "cargando" && <p className="text-xs text-neutral-400 animate-pulse">🔎 Buscando paradas de transporte público…</p>}
+      <h3 className="mb-2 text-sm font-medium text-marino-900">Real nearby stops and lines</h3>
+      {datos === "cargando" && <p className="text-xs text-neutral-400 animate-pulse">🔎 Finding public transport stops…</p>}
       {datos === "sin_datos" && (
         <p className="text-xs text-neutral-500">
           No encontramos paradas o líneas etiquetadas en OpenStreetMap cerca de {ciudad}. No significa que no haya
@@ -63,7 +63,7 @@ function ParadasReales({ ciudad }: { ciudad: string }) {
                 <li key={p.nombre} className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
                   <span>{ICONO_TIPO[p.tipo]} {p.nombre}</span>
                   <a href={`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}`} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-marino-600 underline">
-                    Ver en el mapa
+                    View on the map
                   </a>
                 </li>
               ))}
@@ -89,7 +89,7 @@ export function TransporteLocalCiudad({ ciudad }: TransporteLocalCiudadProps) {
   if (!transporte) {
     return (
       <section className="mb-6 rounded-2xl border border-marino-200 bg-marino-50 p-5">
-        <h2 className="mb-1 font-medium text-marino-900">Cómo moverte por {ciudad}</h2>
+        <h2 className="mb-1 font-medium text-marino-900">Getting around {ciudad}</h2>
         <p className="mb-4 text-xs text-marino-700/70">
           No tenemos una guía redactada a mano para {ciudad} todavía, pero sí lo que hay realmente mapeado cerca.
         </p>
@@ -100,8 +100,8 @@ export function TransporteLocalCiudad({ ciudad }: TransporteLocalCiudadProps) {
 
   return (
     <section className="mb-6 rounded-2xl border border-marino-200 bg-marino-50 p-5">
-      <h2 className="mb-1 font-medium text-marino-900">Cómo moverte por {transporte.ciudad}</h2>
-      <p className="mb-4 text-xs text-marino-700/70">Transporte local: qué hay, cómo funciona y precios.</p>
+      <h2 className="mb-1 font-medium text-marino-900">Getting around {transporte.ciudad}</h2>
+      <p className="mb-4 text-xs text-marino-700/70">Local transport: what there is, how it works and prices.</p>
 
       {/* Medios de transporte */}
       <div className="mb-5">
@@ -128,17 +128,17 @@ export function TransporteLocalCiudad({ ciudad }: TransporteLocalCiudadProps) {
         </div>
       </div>
 
-      {/* Tarjetas y abonos */}
+      {/* Cards and passes */}
       {transporte.tarjetasYAbonos.length > 0 && (
         <div className="mb-5">
-          <h3 className="mb-2 text-sm font-medium text-marino-900">Tarjetas y abonos</h3>
+          <h3 className="mb-2 text-sm font-medium text-marino-900">Cards and passes</h3>
           <div className="space-y-2">
             {transporte.tarjetasYAbonos.map((tarjeta, idx) => (
               <div key={idx} className="rounded-lg bg-white px-3 py-2.5">
                 <p className="font-medium text-marino-900">{tarjeta.nombre}</p>
                 <dl className="mt-1 space-y-1 text-xs text-neutral-700">
                   <div>
-                    <dt className="font-medium text-marino-700">Dónde:</dt>
+                    <dt className="font-medium text-marino-700">Where:</dt>
                     <dd>{tarjeta.donde}</dd>
                   </div>
                   {tarjeta.precio && (
@@ -167,13 +167,13 @@ export function TransporteLocalCiudad({ ciudad }: TransporteLocalCiudadProps) {
           <dl className="space-y-2 text-sm text-neutral-700">
             {transporte.precios.viajeSencillo && (
               <div>
-                <dt className="font-medium text-marino-900">Viaje sencillo</dt>
+                <dt className="font-medium text-marino-900">Single ride</dt>
                 <dd>{transporte.precios.viajeSencillo}</dd>
               </div>
             )}
             {transporte.precios.abonoDescargas && (
               <div>
-                <dt className="font-medium text-marino-900">Abono / 10 viajes</dt>
+                <dt className="font-medium text-marino-900">Pass / 10 rides</dt>
                 <dd>{transporte.precios.abonoDescargas}</dd>
               </div>
             )}
@@ -189,7 +189,7 @@ export function TransporteLocalCiudad({ ciudad }: TransporteLocalCiudadProps) {
       {/* Apps: enlace real a cada una, no solo el nombre en texto. */}
       {transporte.apps && transporte.apps.length > 0 && (
         <div className="mb-5">
-          <h3 className="mb-2 text-sm font-medium text-marino-900">Apps útiles</h3>
+          <h3 className="mb-2 text-sm font-medium text-marino-900">Useful apps</h3>
           <div className="flex flex-wrap gap-2">
             {transporte.apps.map((app) => (
               <a
@@ -231,7 +231,7 @@ export function TransporteLocalCiudad({ ciudad }: TransporteLocalCiudadProps) {
       {/* Aviso importante */}
       {transporte.aviso && (
         <div className="rounded-lg border-l-4 border-coral-400 bg-coral-50 px-3 py-2.5">
-          <p className="text-xs font-medium text-coral-900">⚠️ Ojo con esto:</p>
+          <p className="text-xs font-medium text-coral-900">⚠️ Watch out for this:</p>
           <p className="mt-1 text-xs text-coral-800">{transporte.aviso}</p>
         </div>
       )}

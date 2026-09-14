@@ -21,7 +21,7 @@ const SECCIONES = [
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
   { href: "actividades", icono: "🎒", titulo: "Actividades" },
-  { href: "guia", icono: "🎧", titulo: "Modo Guía" },
+  { href: "guia", icono: "🎧", titulo: "Guide mode" },
   { href: "vault", icono: "📁", titulo: "Travel Vault" },
   { href: "souvenirs", icono: "🎁", titulo: "Qué comprar" },
   { href: "compartido", icono: "👥", titulo: "Compartido" },
@@ -38,15 +38,15 @@ const NIVEL_ESTILO: Record<string, string> = {
 
 function subtituloFechas(viaje: Viaje): string {
   if (viaje.fechaSalida && viaje.fechaRegreso) return formatearRangoFechas(viaje.fechaSalida, viaje.fechaRegreso);
-  if (viaje.fechaSalida) return `Desde ${viaje.fechaSalida}`;
-  if (viaje.contexto.duracionDias) return `~${viaje.contexto.duracionDias} días · fechas por confirmar`;
-  return "Fechas por confirmar";
+  if (viaje.fechaSalida) return `From ${viaje.fechaSalida}`;
+  if (viaje.contexto.duracionDias) return `~${viaje.contexto.duracionDias} days · dates to be confirmed`;
+  return "Dates to be confirmed";
 }
 
 function descripcionQuienViaja(c: ContextoViaje): string | null {
   const partes: string[] = [];
   if (c.numAdultos) partes.push(`${c.numAdultos} adulto${c.numAdultos > 1 ? "s" : ""}`);
-  for (const edad of c.edadesMenores ?? []) partes.push(`1 menor de ${edad} años`);
+  for (const edad of c.edadesMenores ?? []) partes.push(`1 child under ${edad}`);
   if (c.mascota) partes.push("mascota");
   return partes.length > 0 ? partes.join(", ") : null;
 }
@@ -97,7 +97,7 @@ export default function ViajeDetallePage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
+          <Cabecera titulo="Trip not found" volverA="/viajes" />
         </div>
       </main>
     );
@@ -111,19 +111,19 @@ export default function ViajeDetallePage() {
   const paises = paisesDelViaje(viaje);
 
   const estadoTexto: Record<(typeof SECCIONES)[number]["href"], string> = {
-    transporte: viaje.transporte.length > 0 ? `${viaje.transporte.length} tramo(s)` : "Sin definir",
-    alojamiento: alojamientoElegido ? alojamientoElegido.nombre : "Sin elegir",
+    transporte: viaje.transporte.length > 0 ? `${viaje.transporte.length} leg(s)` : "Not set",
+    alojamiento: alojamientoElegido ? alojamientoElegido.nombre : "Not chosen",
     actividades:
       numActividadesDisponibles > 0
         ? `${numActividadesEnMarcha} en marcha · ${numActividadesDisponibles} disponibles`
         : `${numActividadesEnMarcha} en marcha`,
-    guia: "GPS + audio del lugar",
-    vault: viaje.documentos.length > 0 ? `${viaje.documentos.length} documento(s)` : "Vacío",
-    souvenirs: "Consejos de compras",
-    compartido: viaje.participantes.length > 0 ? `${viaje.participantes.length} participante(s)` : "Solo tú",
-    recuerdos: viaje.recuerdos.length > 0 ? `${viaje.recuerdos.length} momento(s)` : "Sin momentos aún",
-    resolver: "Emergencias y contactos",
-    imprimir: "Itinerario + reservas en un PDF",
+    guia: "GPS + audio about the place",
+    vault: viaje.documentos.length > 0 ? `${viaje.documentos.length} document(s)` : "Empty",
+    souvenirs: "Shopping tips",
+    compartido: viaje.participantes.length > 0 ? `${viaje.participantes.length} participant(s)` : "Just you",
+    recuerdos: viaje.recuerdos.length > 0 ? `${viaje.recuerdos.length} moment(s)` : "No moments yet",
+    resolver: "Emergencies and contacts",
+    imprimir: "Itinerary + bookings as a PDF",
   };
 
   function toggleViajeroEnViaje(id: string) {
@@ -145,7 +145,7 @@ export default function ViajeDetallePage() {
 
   function borrarViaje() {
     if (!viaje) return;
-    if (!confirm(`¿Eliminar el viaje a ${viaje.destino}?`)) return;
+    if (!confirm(`Delete the trip to ${viaje.destino}?`)) return;
     eliminarViaje(viaje.id);
     router.push("/viajes");
   }
@@ -158,8 +158,8 @@ export default function ViajeDetallePage() {
       setEmailACompartir("");
       setMostrarCompartir(false);
     } catch (err) {
-      console.error("Error compartiendo viaje:", err);
-      alert("No se pudo compartir el viaje. Verifica el email e intenta de nuevo.");
+      console.error("Error sharing trip:", err);
+      alert("Couldn't share the trip. Check the email address and try again.");
     } finally {
       setCompartiendo(false);
     }
@@ -189,7 +189,7 @@ export default function ViajeDetallePage() {
         </div>
 
         <section className="mb-6">
-          <h2 className="mb-4 font-medium">Elementos del viaje</h2>
+          <h2 className="mb-4 font-medium">Trip sections</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {SECCIONES.map((s) => (
               <Link
@@ -207,7 +207,7 @@ export default function ViajeDetallePage() {
 
         {mostrarCompartir && (
           <div className="mb-6 rounded-xl border border-marino-200 bg-marino-50 p-4">
-            <p className="mb-3 text-sm font-medium">Compartir viaje con alguien</p>
+            <p className="mb-3 text-sm font-medium">Share this trip with someone</p>
             <div className="flex gap-2">
               <input
                 type="email"
@@ -255,11 +255,11 @@ export default function ViajeDetallePage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-marino-900">
-                {circuito ? `🧭 Ruta de ${etapas.length} paradas` : "🧭 Tu destino"}
+                {circuito ? `🧭 Route with ${etapas.length} stops` : "🧭 Your destination"}
               </p>
               <p className="mt-0.5 text-xs text-marino-700/80">
                 {etapas.map((e) => e.nombre).join(" → ")}
-                {paises.length > 1 && ` · ${paises.length} países`}
+                {paises.length > 1 && ` · ${paises.length} countries`}
               </p>
             </div>
             <span className="shrink-0 text-marino-400">→</span>
@@ -277,7 +277,7 @@ export default function ViajeDetallePage() {
 
         <section className="card mb-6">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-medium">Viajeros</h2>
+            <h2 className="font-medium">Travellers</h2>
             <button onClick={() => setEditandoViajeros((v) => !v)} className="text-sm text-neutral-500 hover:text-neutral-900">
               {editandoViajeros ? "Listo" : viajerosDelViaje.length > 0 ? "Editar" : "Añadir"}
             </button>
@@ -296,8 +296,8 @@ export default function ViajeDetallePage() {
           {viajerosDelViaje.length === 0 && !editandoViajeros && (
             <p className="text-sm text-neutral-500">
               {descripcionQuienViaja(viaje.contexto)
-                ? `${descripcionQuienViaja(viaje.contexto)} — todavía sin nombres. Añádelos cuando quieras.`
-                : "Todavía no has dicho quién viaja."}
+                ? `${descripcionQuienViaja(viaje.contexto)} — no names yet. Add them whenever you like.`
+                : "You haven't said who's travelling yet."}
             </p>
           )}
 
@@ -330,9 +330,9 @@ export default function ViajeDetallePage() {
         <section className="card mb-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="font-medium">Cómo se organiza</h2>
+              <h2 className="font-medium">How it's organised</h2>
               <p className="mt-0.5 text-sm text-neutral-500">
-                {MODOS.find((m) => m.valor === viaje.modoPlanificacion)?.etiqueta ?? "Todavía sin decidir"}
+                {MODOS.find((m) => m.valor === viaje.modoPlanificacion)?.etiqueta ?? "Not decided yet"}
               </p>
             </div>
             <button onClick={() => setEditandoModo((v) => !v)} className="shrink-0 text-sm text-neutral-500 hover:text-neutral-900">
@@ -383,7 +383,7 @@ export default function ViajeDetallePage() {
             {presupuesto.excedido && (() => {
               const sugerencia = sugerirAjustePresupuesto(viaje, destino);
               if (!sugerencia) {
-                return <p className="mt-3 text-sm text-neutral-500">No hay un ajuste automático disponible: revisa transporte o actividades a mano.</p>;
+                return <p className="mt-3 text-sm text-neutral-500">No automatic adjustment available: check transport or activities by hand.</p>;
               }
               return mostrarAjuste ? (
                 <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm">
@@ -418,7 +418,7 @@ export default function ViajeDetallePage() {
           </div>
 
           {viajerosDelViaje.length === 0 ? (
-            <p className="text-sm text-neutral-500">Añade quién viaja para ver la documentación, el visado y la salud de cada uno.</p>
+            <p className="text-sm text-neutral-500">Add who's travelling to see each person's documents, visa and health requirements.</p>
           ) : (
             <>
               <p className="mb-4 text-xs text-neutral-400">

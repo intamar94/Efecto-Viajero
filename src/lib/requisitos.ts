@@ -7,7 +7,7 @@ import type { CategoriaRequisito, ResultadoRequisito, Viaje, Viajero } from "./t
 // fuente) — NO sustituye consulta de fuentes oficiales, que cambian con
 // frecuencia y dependen de nacionalidad, residencia y fecha exacta del viaje.
 const FUENTE_ORIENTATIVA =
-  "Estimación de Efecto Viajero (no oficial) — verificar en la fuente oficial del país de destino antes de viajar.";
+  "Efecto Viajero estimate (unofficial) — verify with the destination country's official source before travelling.";
 
 function hoyISO() {
   return new Date().toISOString();
@@ -46,7 +46,7 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
         "documentacion",
         "amarillo",
         "Documento de viaje no registrado",
-        "No hay pasaporte ni DNI guardado en la ficha de este viajero. Añádelo para poder comprobar vigencia."
+        "No passport or ID card saved on this traveller's file. Add one so we can check it's still valid."
       )
     );
   } else if (pasaporte?.fechaVencimiento && viaje.fechaRegreso) {
@@ -59,8 +59,8 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
           viajero,
           "documentacion",
           "rojo",
-          "Pasaporte podría no tener validez suficiente",
-          "Muchos países exigen al menos 6 meses de validez tras la fecha de regreso. Revisa la fecha de vencimiento del pasaporte."
+          "Passport may not have enough validity",
+          "Many countries require at least 6 months' validity beyond your return date. Check the passport's expiry date."
         )
       );
     } else {
@@ -81,7 +81,7 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
         "documentacion",
         "amarillo",
         "Falta fecha de vencimiento del pasaporte",
-        "Hay un pasaporte registrado pero sin fecha de vencimiento. Complétala para validar automáticamente."
+        "There's a passport on file but no expiry date. Fill it in so we can check it automatically."
       )
     );
   } else {
@@ -104,7 +104,7 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
         "visado",
         "verde",
         "Sin visado detectado para este destino",
-        "Destino dentro del espacio Schengen: sin necesidad de visado para la mayoría de nacionalidades europeas."
+        "Destination inside the Schengen area: no visa needed for most European nationalities."
       )
     );
   } else if (paisCodigo) {
@@ -137,7 +137,7 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
         "salud",
         "amarillo",
         "Revisar vacunas recomendadas",
-        "Este destino puede tener vacunas recomendadas u obligatorias según itinerario y procedencia. Revisa con un centro de vacunación internacional."
+        "This destination may have recommended or mandatory vaccines depending on your itinerary and where you're coming from. Check with an international vaccination centre."
       )
     );
   }
@@ -149,8 +149,8 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
         viajero,
         "documentacion",
         "rojo",
-        "Comprobar documentación específica de bebé",
-        "Los bebés suelen necesitar pasaporte propio y, en algunos casos, autorización adicional. Revisa el requisito específico del destino."
+        "Check baby-specific documents",
+        "Babies usually need their own passport and, in some cases, extra authorisation. Check the destination's specific requirement."
       )
     );
   } else if (edad !== null && edad < 18) {
@@ -159,8 +159,8 @@ function evaluarPersona(viajero: import("./types").PersonaViajero, viaje: Viaje,
         viajero,
         "documentacion",
         "amarillo",
-        "Comprobar documentación de menor",
-        "Si el menor viaja sin ambos progenitores, algunos países exigen autorización de viaje. Revisa el requisito del destino."
+        "Check the child's documents",
+        "If the child travels without both parents, some countries require a travel authorisation. Check the destination's requirement."
       )
     );
   }
@@ -178,7 +178,7 @@ function evaluarMascota(viajero: import("./types").MascotaViajero, destinoMascot
         "mascota",
         "rojo",
         "Microchip no registrado",
-        "El microchip identificativo es obligatorio para viajar con mascota en la mayoría de países. Añádelo a la ficha."
+        "An identifying microchip is mandatory to travel with a pet in most countries. Add it to their record."
       )
     );
   } else {
@@ -202,8 +202,8 @@ function evaluarMascota(viajero: import("./types").MascotaViajero, destinoMascot
         viajero,
         "mascota",
         "amarillo",
-        "Revisar vacuna antirrábica",
-        "No hay vacuna antirrábica registrada. Suele exigirse al menos 21 días antes del viaje. Compruébalo y regístrala."
+        "Check rabies vaccination",
+        "No rabies vaccination recorded. It's usually required at least 21 days before travel. Check and record it."
       )
     );
   } else {
@@ -212,8 +212,8 @@ function evaluarMascota(viajero: import("./types").MascotaViajero, destinoMascot
         viajero,
         "mascota",
         "verde",
-        "Vacuna antirrábica registrada",
-        "Hay una vacuna antirrábica registrada en la ficha de la mascota."
+        "Rabies vaccination recorded",
+        "A rabies vaccination is recorded on the pet's file."
       )
     );
   }
@@ -225,7 +225,7 @@ function evaluarMascota(viajero: import("./types").MascotaViajero, destinoMascot
         "mascota",
         "amarillo",
         "Certificado veterinario adicional",
-        "Fuera del espacio Schengen suele exigirse certificado veterinario oficial adicional. Revisa el requisito del destino con antelación."
+        "Outside the Schengen area an additional official veterinary certificate is usually required. Check the destination's requirement in advance."
       )
     );
   }

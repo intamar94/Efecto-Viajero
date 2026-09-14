@@ -158,96 +158,96 @@ const DOMINIOS_CON_SITIOS = new Set(["gastronomy", "culture", "nature", "experie
 // que se entienden sin contexto: el resto no se muestra en vez de
 // enseñar una clave técnica.
 const DETALLE_OSM: Record<string, string> = {
-  restaurant: "restaurante",
-  cafe: "cafetería",
-  fast_food: "comida rápida",
+  restaurant: "restaurant",
+  cafe: "café",
+  fast_food: "fast food",
   bar: "bar",
-  museum: "museo",
-  gallery: "galería",
-  attraction: "atracción",
-  viewpoint: "mirador",
-  park: "parque",
-  nature_reserve: "reserva natural",
-  beach: "playa",
-  waterfall: "cascada",
-  artwork: "obra de arte",
-  monument: "monumento",
+  museum: "museum",
+  gallery: "gallery",
+  attraction: "attraction",
+  viewpoint: "viewpoint",
+  park: "park",
+  nature_reserve: "nature reserve",
+  beach: "beach",
+  waterfall: "waterfall",
+  artwork: "artwork",
+  monument: "monument",
   memorial: "memorial",
-  castle: "castillo",
-  ruins: "ruinas",
-  archaeological_site: "yacimiento arqueológico",
+  castle: "castle",
+  ruins: "ruins",
+  archaeological_site: "archaeological site",
   pub: "pub",
-  nightclub: "discoteca",
-  biergarten: "terraza / jardín de cerveza",
-  gift: "tienda de regalos",
-  souvenir: "tienda de souvenirs",
-  craft: "artesanía",
-  art: "galería de arte",
-  deli: "delicatessen",
-  hot_spring: "aguas termales",
-  theme_park: "parque temático",
-  water_park: "parque acuático",
-  aquarium: "acuario",
-  zoo: "zoológico",
+  nightclub: "nightclub",
+  biergarten: "beer garden",
+  gift: "gift shop",
+  souvenir: "souvenir shop",
+  craft: "crafts",
+  art: "art gallery",
+  deli: "deli",
+  hot_spring: "hot spring",
+  theme_park: "theme park",
+  water_park: "water park",
+  aquarium: "aquarium",
+  zoo: "zoo",
   spa: "spa",
   sauna: "sauna",
-  public_bath: "baños termales",
-  horse_riding: "cabalgatas",
-  climbing_adventure: "parque de aventura",
-  sports_centre: "centro deportivo",
-  fishing: "pesca",
-  winery: "bodega de vino",
-  brewery: "cervecería",
-  distillery: "destilería",
-  marketplace: "mercado",
-  farm: "granja",
-  camp_site: "camping",
-  picnic_site: "zona de picnic",
-  spring: "manantial",
-  peak: "cima",
-  cave_entrance: "cueva",
-  garden: "jardín",
-  swimming_pool: "piscina",
-  swimming_area: "zona de baño",
-  bowling_alley: "bolos",
-  ice_rink: "pista de patinaje",
+  public_bath: "thermal baths",
+  horse_riding: "horse riding",
+  climbing_adventure: "adventure park",
+  sports_centre: "sports centre",
+  fishing: "fishing",
+  winery: "winery",
+  brewery: "brewery",
+  distillery: "distillery",
+  marketplace: "market",
+  farm: "farm",
+  camp_site: "campsite",
+  picnic_site: "picnic area",
+  spring: "spring",
+  peak: "peak",
+  cave_entrance: "cave",
+  garden: "garden",
+  swimming_pool: "swimming pool",
+  swimming_area: "swimming area",
+  bowling_alley: "bowling",
+  ice_rink: "ice rink",
   miniature_golf: "minigolf",
-  planetarium: "planetario",
-  beach_resort: "balneario",
-  place_of_worship: "sitio de culto",
-  monastery: "monasterio",
-  wayside_shrine: "santuario",
-  events_venue: "recinto de eventos",
-  conference_centre: "centro de convenciones",
-  stadium: "estadio",
-  bird_hide: "observatorio de aves",
-  wildlife_hide: "observatorio de fauna",
-  theatre: "teatro",
-  wilderness_hut: "refugio de montaña",
-  telescope: "observatorio",
-  library: "biblioteca",
-  archive: "archivo histórico",
-  battlefield: "campo de batalla",
-  tomb: "tumba histórica",
-  lighthouse: "faro",
-  mine: "mina visitable",
-  mine_shaft: "mina",
-  watermill: "molino de agua",
-  windmill: "molino de viento",
-  boat_rental: "alquiler de botes",
-  boat_sharing: "botes compartidos",
-  marina: "marina / puerto deportivo",
-  slipway: "rampa para botes",
-  pier: "muelle",
-  alpine_hut: "refugio de montaña",
-  glacier: "glaciar",
-  cliff: "acantilado",
-  volcano: "volcán",
-  geyser: "géiser",
-  arch: "arco natural",
-  bay: "bahía",
-  hiking: "sendero señalizado",
-  foot: "sendero",
+  planetarium: "planetarium",
+  beach_resort: "beach resort",
+  place_of_worship: "place of worship",
+  monastery: "monastery",
+  wayside_shrine: "shrine",
+  events_venue: "events venue",
+  conference_centre: "conference centre",
+  stadium: "stadium",
+  bird_hide: "bird hide",
+  wildlife_hide: "wildlife hide",
+  theatre: "theatre",
+  wilderness_hut: "mountain hut",
+  telescope: "observatory",
+  library: "library",
+  archive: "historic archive",
+  battlefield: "battlefield",
+  tomb: "historic tomb",
+  lighthouse: "lighthouse",
+  mine: "visitable mine",
+  mine_shaft: "mine",
+  watermill: "watermill",
+  windmill: "windmill",
+  boat_rental: "boat rental",
+  boat_sharing: "boat sharing",
+  marina: "marina",
+  slipway: "boat ramp",
+  pier: "pier",
+  alpine_hut: "alpine hut",
+  glacier: "glacier",
+  cliff: "cliff",
+  volcano: "volcano",
+  geyser: "geyser",
+  arch: "natural arch",
+  bay: "bay",
+  hiking: "waymarked trail",
+  foot: "footpath",
 };
 
 const MAX_POR_CATEGORIA = 8;
@@ -316,28 +316,28 @@ interface ElementoOverpass {
 // Nombre legible del deporte: sin esto, un sitio de parapente salía como
 // "Atracción." y no se entendía qué se hace ahí.
 const DEPORTE_ES: Record<string, string> = {
-  climbing: "escalada",
-  paragliding: "parapente",
-  hang_gliding: "ala delta",
+  climbing: "climbing",
+  paragliding: "paragliding",
+  hang_gliding: "hang gliding",
   rafting: "rafting",
-  canyoning: "torrentismo",
-  surfing: "surf",
-  scuba_diving: "buceo",
-  kitesurfing: "kitesurf",
-  canoe: "kayak / canoa",
-  horse_riding: "cabalgatas",
-  cycling: "ciclismo",
-  caving: "espeleología",
-  quad: "cuatrimotos",
-  bungee_jumping: "puenting",
-  ballooning: "globo aerostático",
-  skiing: "esquí",
-  free_flying: "vuelo libre",
-  fishing: "pesca",
-  snorkelling: "snorkel",
-  diving: "buceo",
-  sailing: "vela",
-  rowing: "remo",
+  canyoning: "canyoning",
+  surfing: "surfing",
+  scuba_diving: "scuba diving",
+  kitesurfing: "kitesurfing",
+  canoe: "kayak / canoe",
+  horse_riding: "horse riding",
+  cycling: "cycling",
+  caving: "caving",
+  quad: "quad biking",
+  bungee_jumping: "bungee jumping",
+  ballooning: "hot air ballooning",
+  skiing: "skiing",
+  free_flying: "free flying",
+  fishing: "fishing",
+  snorkelling: "snorkelling",
+  diving: "diving",
+  sailing: "sailing",
+  rowing: "rowing",
 };
 
 // La escala SAC es el estándar con el que OpenStreetMap gradúa un
@@ -347,12 +347,12 @@ const DEPORTE_ES: Record<string, string> = {
 // equipo. Solo se traducen los seis grados reales; cualquier otro valor
 // se descarta en vez de enseñarlo crudo.
 const SAC_ES: Record<string, string> = {
-  hiking: "sendero fácil",
-  mountain_hiking: "sendero de montaña",
-  demanding_mountain_hiking: "sendero exigente",
-  alpine_hiking: "sendero alpino",
-  demanding_alpine_hiking: "alpino exigente",
-  difficult_alpine_hiking: "alpino difícil",
+  hiking: "easy trail",
+  mountain_hiking: "mountain trail",
+  demanding_mountain_hiking: "demanding trail",
+  alpine_hiking: "alpine trail",
+  demanding_alpine_hiking: "demanding alpine",
+  difficult_alpine_hiking: "difficult alpine",
 };
 
 function senderoDe(tags: Record<string, string> = {}): string | undefined {
@@ -377,18 +377,18 @@ function accesibilidadDe(tags: Record<string, string> = {}): SitioReal["accesibl
 }
 
 function detalleDe(tags: Record<string, string> = {}): string | undefined {
-  if (tags["garden:type"] === "botanical") return "jardín botánico";
+  if (tags["garden:type"] === "botanical") return "botanical garden";
   // Alquilar una casa flotante es un plan en sí mismo, no "un bote más":
   // OpenStreetMap lo marca con houseboat_rental=yes sobre el alquiler, o
   // listando "houseboat" entre los tipos de rental=. Antes de decir solo
   // "alquiler de botes", se mira si de verdad hay casas flotantes.
   const tiposAlquiler = `${tags.rental ?? ""};${tags["boat:rental"] ?? ""}`;
-  if (tags.houseboat_rental === "yes" || /houseboat/i.test(tiposAlquiler)) return "alquiler de casas flotantes";
-  if (tags.rental === "boat" || tags["boat:rental"] || tags.shop === "boat") return "alquiler de botes";
+  if (tags.houseboat_rental === "yes" || /houseboat/i.test(tiposAlquiler)) return "houseboat rental";
+  if (tags.rental === "boat" || tags["boat:rental"] || tags.shop === "boat") return "boat rental";
   const deporte = tags.sport ? DEPORTE_ES[tags.sport] : undefined;
   if (deporte) return deporte;
   if (tags.artwork_type === "mural" || tags.artwork_type === "street_art") return "mural";
-  if (tags.artwork_type === "graffiti") return "grafiti";
+  if (tags.artwork_type === "graffiti") return "graffiti";
   for (const clave of ["amenity", "tourism", "leisure", "natural", "historic", "shop", "craft", "waterway", "man_made", "route"]) {
     const valor = tags[clave];
     if (valor && DETALLE_OSM[valor]) return DETALLE_OSM[valor];
@@ -577,7 +577,7 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
 // importan para planear una visita) y se traducen las abreviaturas al
 // español; las excepciones por fecha puntual se descartan en vez de
 // mostrarse a medias.
-const DIA_ES: Record<string, string> = { Mo: "Lu", Tu: "Ma", We: "Mi", Th: "Ju", Fr: "Vi", Sa: "Sá", Su: "Do" };
+const DIA_ES: Record<string, string> = { Mo: "Mon", Tu: "Tue", We: "Wed", Th: "Thu", Fr: "Fri", Sa: "Sat", Su: "Sun" };
 
 function formatearHorario(raw: string): string | undefined {
   const clausulas = raw.split(";").map((c) => c.trim()).filter(Boolean);
@@ -601,7 +601,7 @@ function webDe(tags: Record<string, string> = {}): string | undefined {
 }
 function precioDe(tags: Record<string, string> = {}): string | undefined {
   if (tags.charge) return tags.charge;
-  if (tags.fee === "no") return "Gratis";
+  if (tags.fee === "no") return "Free";
   return undefined;
 }
 
@@ -611,40 +611,40 @@ function precioDe(tags: Record<string, string> = {}): string | undefined {
 // ";". Solo se traducen las que se entienden sin contexto; el resto se
 // descarta en vez de mostrar la clave cruda.
 const CUISINE_ES: Record<string, string> = {
-  colombian: "colombiana",
+  colombian: "Colombian",
   regional: "regional",
   local: "local",
-  latin_american: "latinoamericana",
-  international: "internacional",
-  grill: "parrilla",
-  steak_house: "carnes",
-  seafood: "mariscos",
-  fish: "pescado",
-  vegetarian: "vegetariana",
-  vegan: "vegana",
+  latin_american: "Latin American",
+  international: "international",
+  grill: "grill",
+  steak_house: "steakhouse",
+  seafood: "seafood",
+  fish: "fish",
+  vegetarian: "vegetarian",
+  vegan: "vegan",
   pizza: "pizza",
-  italian: "italiana",
-  mexican: "mexicana",
-  peruvian: "peruana",
-  argentinian: "argentina",
-  venezuelan: "venezolana",
-  spanish: "española",
-  french: "francesa",
-  chinese: "china",
-  japanese: "japonesa",
+  italian: "Italian",
+  mexican: "Mexican",
+  peruvian: "Peruvian",
+  argentinian: "Argentinian",
+  venezuelan: "Venezuelan",
+  spanish: "Spanish",
+  french: "French",
+  chinese: "Chinese",
+  japanese: "Japanese",
   sushi: "sushi",
-  asian: "asiática",
-  thai: "tailandesa",
-  indian: "india",
-  american: "estadounidense",
-  burger: "hamburguesas",
-  chicken: "pollo",
-  sandwich: "sándwiches",
-  breakfast: "desayunos",
-  coffee_shop: "café",
-  bakery: "panadería",
-  dessert: "postres",
-  ice_cream: "helados",
+  asian: "Asian",
+  thai: "Thai",
+  indian: "Indian",
+  american: "American",
+  burger: "burgers",
+  chicken: "chicken",
+  sandwich: "sandwiches",
+  breakfast: "breakfast",
+  coffee_shop: "coffee shop",
+  bakery: "bakery",
+  dessert: "desserts",
+  ice_cream: "ice cream",
   arepa: "arepas",
   empanada: "empanadas",
 };
@@ -660,8 +660,8 @@ function cocinaDe(tags: Record<string, string> = {}): string | undefined {
   return unicas.length > 0 ? unicas.join(", ") : undefined;
 }
 
-// Los nombres de cadena real (no la etiqueta OSM de "comida rápida" o
-// "cafetería", que ya se usaba, sino la marca en sí) tampoco deberían
+// Los nombres de cadena real (no la etiqueta OSM de "fast food" o
+// "café", que ya se usaba, sino la marca en sí) tampoco deberían
 // ser lo primero que se destaca al pedir algo "típico": una cadena
 // puede estar tageada como restaurante normal en OSM (Crepes & Waffles,
 // por ejemplo, no es "fast_food") y aun así ser justo lo contrario de

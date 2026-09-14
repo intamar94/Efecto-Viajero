@@ -22,7 +22,7 @@ export default function CompartidoPage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
+          <Cabecera titulo="Trip not found" volverA="/viajes" />
         </div>
       </main>
     );
@@ -70,14 +70,14 @@ export default function CompartidoPage() {
         <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
           titulo="Compartido"
-          subtitulo="Participantes y decisiones en grupo, en este dispositivo. Compartir el mismo viaje entre varios móviles necesita cuenta y backend — no está construido en esta versión."
+          subtitulo="Participants and group decisions, on this device. Sharing the same trip across several phones needs an account and a backend — that isn't built in this version."
           volverA={`/viajes/${viaje.id}`}
         />
 
         <section className="card mb-6">
           <h2 className="mb-3 font-medium">Participantes</h2>
           {viaje.participantes.length === 0 ? (
-            <p className="mb-3 text-sm text-neutral-500">Solo estás tú por ahora.</p>
+            <p className="mb-3 text-sm text-neutral-500">It's just you for now.</p>
           ) : (
             <div className="mb-3 flex flex-wrap gap-2">
               {viaje.participantes.map((p) => (
@@ -99,7 +99,7 @@ export default function CompartidoPage() {
         </section>
 
         <section className="card mb-6">
-          <h2 className="mb-3 font-medium">Decisiones del grupo</h2>
+          <h2 className="mb-3 font-medium">Group decisions</h2>
 
           <ul className="mb-4 space-y-3">
             {viaje.votaciones.map((v) => {
@@ -122,7 +122,7 @@ export default function CompartidoPage() {
                         value={votoParticipante[v.id] ?? ""}
                         onChange={(e) => setVotoParticipante((prev) => ({ ...prev, [v.id]: e.target.value }))}
                       >
-                        <option value="">¿Quién vota?</option>
+                        <option value="">Who votes?</option>
                         {viaje.participantes.map((p) => (
                           <option key={p} value={p}>
                             {p}
@@ -134,7 +134,7 @@ export default function CompartidoPage() {
                         value={votoOpcion[v.id] ?? ""}
                         onChange={(e) => setVotoOpcion((prev) => ({ ...prev, [v.id]: e.target.value }))}
                       >
-                        <option value="">Opción</option>
+                        <option value="">Option</option>
                         {v.opciones.map((op) => (
                           <option key={op} value={op}>
                             {op}
@@ -152,12 +152,12 @@ export default function CompartidoPage() {
           </ul>
 
           <form onSubmit={crearVotacion} className="space-y-2 border-t border-neutral-100 pt-4">
-            <input className="input" placeholder="¿Playa o museo?" value={pregunta} onChange={(e) => setPregunta(e.target.value)} />
+            <input className="input" placeholder="Beach or museum?" value={pregunta} onChange={(e) => setPregunta(e.target.value)} />
             {opciones.map((op, i) => (
               <input
                 key={i}
                 className="input"
-                placeholder={`Opción ${i + 1}`}
+                placeholder={`Option ${i + 1}`}
                 value={op}
                 onChange={(e) => setOpciones((prev) => prev.map((o, idx) => (idx === i ? e.target.value : o)))}
               />

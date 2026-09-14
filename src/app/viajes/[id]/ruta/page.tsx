@@ -118,7 +118,7 @@ export default function RutaPage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
+          <Cabecera titulo="Trip not found" volverA="/viajes" />
         </div>
       </main>
     );
@@ -190,8 +190,8 @@ export default function RutaPage() {
       <div className="mx-auto max-w-xl">
         <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
-          titulo={circuito ? "Tu ruta" : "Tu destino"}
-          subtitulo="Desde que sales de casa hasta que vuelves: paradas, fechas y el itinerario de cada una."
+          titulo={circuito ? "Your route" : "Your destination"}
+          subtitulo="From leaving home to getting back: stops, dates and the itinerary for each one."
           volverA={`/viajes/${viaje.id}`}
         />
 
@@ -231,7 +231,7 @@ export default function RutaPage() {
             fiesta que es justo lo que querrías ver. Antes no se sabía. */}
         {festivos.length > 0 && (
           <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <p className="mb-1.5 text-sm font-medium text-amber-900">📅 Días festivos durante tu viaje</p>
+            <p className="mb-1.5 text-sm font-medium text-amber-900">📅 Public holidays during your trip</p>
             <ul className="space-y-1 text-sm text-amber-800">
               {festivos.map((f) => (
                 <li key={`${f.fecha}-${f.nombre}`}>
@@ -247,9 +247,9 @@ export default function RutaPage() {
 
         <div className="no-imprimir mb-5 flex flex-wrap gap-2">
           <button onClick={() => window.print()} className="btn-primary text-xs">
-            🖨️ Imprimir o guardar en PDF
+            🖨️ Print or save as PDF
           </button>
-          <span className="self-center text-xs text-neutral-400">Funciona sin batería ni cobertura.</span>
+          <span className="self-center text-xs text-neutral-400">Works with no battery and no signal.</span>
         </div>
 
         {/* Generar / regenerar el itinerario completo del viaje: el ritmo y
@@ -257,7 +257,7 @@ export default function RutaPage() {
             etapa. */}
         {mostrarPreferencias ? (
           <section className="mb-6">
-            <h2 className="mb-3 font-medium">{itinerario ? "Regenerar itinerario" : "Genera tu itinerario"}</h2>
+            <h2 className="mb-3 font-medium">{itinerario ? "Rebuild itinerary" : "Build your itinerary"}</h2>
             <PreferenciaItinerarioForm inicial={itinerario?.preferencias} onGenerar={handleGenerarItinerario} cargando={cargando} />
             {itinerario && (
               <button onClick={() => setMostrarPreferencias(false)} className="mt-2 text-xs text-neutral-500 underline">
@@ -268,7 +268,7 @@ export default function RutaPage() {
         ) : (
           itinerario && (
             <button onClick={() => setMostrarPreferencias(true)} className="mb-4 text-xs text-neutral-500 underline hover:text-neutral-900">
-              ↻ Regenerar itinerario con otras preferencias
+              ↻ Rebuild the itinerary with different preferences
             </button>
           )
         )}
@@ -291,7 +291,7 @@ export default function RutaPage() {
                         {etapa.nombre}
                       </p>
                       {pais?.nombre !== etapa.nombre && (
-                        <p className="text-sm text-neutral-500">{pais ? pais.nombre : "País sin definir"}</p>
+                        <p className="text-sm text-neutral-500">{pais ? pais.nombre : "Country not set"}</p>
                       )}
                       {rango && (
                         <p className="mt-0.5 text-xs text-neutral-400">
@@ -335,7 +335,7 @@ export default function RutaPage() {
                       <div className="flex gap-2">
                         <dt className="w-28 shrink-0 text-neutral-400">Emergencias</dt>
                         <dd className={pais.emergencias ? "font-medium text-red-700" : "text-neutral-500"}>
-                          {pais.emergencias ?? "sin dato verificado — confírmalo al llegar"}
+                          {pais.emergencias ?? "no verified data — check when you arrive"}
                         </dd>
                       </div>
                       {pais.telefonoTurista && (
@@ -363,7 +363,7 @@ export default function RutaPage() {
                             <dt className="w-28 shrink-0 text-neutral-400">Luna</dt>
                             <dd className="text-neutral-700">
                               🌙 {luna.nombre} ({Math.round(luna.iluminacion * 100)}%)
-                              {luna.buenaParaEstrellas && " · buena noche para ver estrellas"}
+                              {luna.buenaParaEstrellas && " · a good night for stargazing"}
                             </dd>
                           </div>
                         );
@@ -373,8 +373,8 @@ export default function RutaPage() {
                           <dt className="w-28 shrink-0 text-neutral-400">Auroras</dt>
                           <dd className={auroras[etapa.nombre].hayOportunidad ? "font-medium text-marino-800" : "text-neutral-700"}>
                             {auroras[etapa.nombre].hayOportunidad
-                              ? `🌌 Hay opción estos días: se prevé Kp ${auroras[etapa.nombre].kpMaximo} y aquí basta con Kp ${auroras[etapa.nombre].kpNecesario}`
-                              : `🌌 Poco probable: aquí haría falta Kp ${auroras[etapa.nombre].kpNecesario} y se prevé como mucho Kp ${auroras[etapa.nombre].kpMaximo}`}
+                              ? `🌌 Worth a look these nights: Kp ${auroras[etapa.nombre].kpMaximo} is forecast and Kp ${auroras[etapa.nombre].kpNecesario} is enough here`
+                              : `🌌 Unlikely: you'd need Kp ${auroras[etapa.nombre].kpNecesario} here and at most Kp ${auroras[etapa.nombre].kpMaximo} is forecast`}
                           </dd>
                         </div>
                       )}
@@ -414,7 +414,7 @@ export default function RutaPage() {
                       {abierta && (
                         <div className="mt-3 space-y-3">
                           {diasDeEtapa.length === 0 ? (
-                            <p className="text-sm text-neutral-400">Sin días asignados a esta etapa.</p>
+                            <p className="text-sm text-neutral-400">No days assigned to this stage.</p>
                           ) : (
                             diasDeEtapa.map((dia) => {
                               const puntosDia = puntosDelDia(dia, viaje, etapa);
@@ -428,7 +428,7 @@ export default function RutaPage() {
                                         onClick={() => toggleMapa(dia.fecha)}
                                         className="flex w-full items-center justify-between px-1 py-1 text-left text-xs font-medium text-marino-700"
                                       >
-                                        🗺️ {mapaAbierto ? "Ocultar mapa del día" : "Ver mapa del día"}
+                                        🗺️ {mapaAbierto ? "Hide the day's map" : "See the day's map"}
                                         <span className="text-neutral-400">{mapaAbierto ? "−" : "+"}</span>
                                       </button>
                                       {mapaAbierto && (
@@ -475,7 +475,7 @@ export default function RutaPage() {
 
                         {cruce.cambiaMoneda && (
                           <p className="mt-1.5 text-neutral-700">
-                            <span className="font-medium">💱 Cambia la moneda:</span> {cruce.paisDesde?.moneda} → {cruce.paisHacia?.moneda}.
+                            <span className="font-medium">💱 The currency changes:</span> {cruce.paisDesde?.moneda} → {cruce.paisHacia?.moneda}.
                             Gasta o cambia lo que te sobre antes de cruzar; en la frontera el cambio suele ser peor.
                           </p>
                         )}
@@ -491,7 +491,7 @@ export default function RutaPage() {
         {moneda && monedasDelViaje.length > 0 && (
           <section className="card mt-6">
             <div className="mb-1 flex items-baseline justify-between">
-              <h2 className="font-medium">Cambio de moneda</h2>
+              <h2 className="font-medium">Currency change</h2>
               <span className="text-xs text-neutral-400">Frankfurter · {moneda.fecha}</span>
             </div>
             <p className="mb-3 text-xs text-neutral-500">Cuánto vale 1 {moneda.base} en las monedas de tu ruta.</p>

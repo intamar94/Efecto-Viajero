@@ -13,7 +13,7 @@ const TIPOS_DOCUMENTO: { valor: TipoDocumento; etiqueta: string }[] = [
   { valor: "pasaporte", etiqueta: "Pasaporte" },
   { valor: "dni", etiqueta: "DNI" },
   { valor: "visado", etiqueta: "Visado" },
-  { valor: "permiso_conduccion", etiqueta: "Permiso de conducción" },
+  { valor: "permiso_conduccion", etiqueta: "Driving licence" },
   { valor: "certificado", etiqueta: "Certificado" },
   { valor: "vacuna", etiqueta: "Vacuna" },
   { valor: "microchip", etiqueta: "Microchip" },
@@ -38,7 +38,7 @@ export default function ViajeroDetallePage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Viajero no encontrado" volverA="/viajeros" />
+          <Cabecera titulo="Traveller not found" volverA="/viajeros" />
         </div>
       </main>
     );
@@ -70,7 +70,7 @@ export default function ViajeroDetallePage() {
 
   function borrarViajero() {
     if (!viajero) return;
-    if (!confirm(`¿Eliminar a ${viajero.nombre}? Se quitará también de los viajes existentes.`)) return;
+    if (!confirm(`Delete ${viajero.nombre}? They will also be removed from existing trips.`)) return;
     eliminarViajero(viajero.id);
     router.push("/viajeros");
   }
@@ -82,7 +82,7 @@ export default function ViajeroDetallePage() {
           titulo={`${viajero.tipo === "persona" ? "🧑" : "🐾"} ${viajero.nombre}`}
           subtitulo={
             viajero.tipo === "persona"
-              ? [edad !== null ? `${edad} años` : null, viajero.nacionalidad].filter(Boolean).join(" · ")
+              ? [edad !== null ? `${edad} years old` : null, viajero.nacionalidad].filter(Boolean).join(" · ")
               : [viajero.especie, viajero.raza].filter(Boolean).join(" · ")
           }
           volverA="/viajeros"
@@ -93,7 +93,7 @@ export default function ViajeroDetallePage() {
           {viajero.tipo === "persona" ? (
             <dl className="grid grid-cols-2 gap-y-3 text-sm">
               <Dato etiqueta="Apellido" valor={viajero.apellido} />
-              <Dato etiqueta="Fecha de nacimiento" valor={viajero.fechaNacimiento} />
+              <Dato etiqueta="Date of birth" valor={viajero.fechaNacimiento} />
               <Dato etiqueta="Nacionalidad" valor={viajero.nacionalidad} />
               <Dato etiqueta="Residencia" valor={viajero.residencia} />
             </dl>
@@ -101,7 +101,7 @@ export default function ViajeroDetallePage() {
             <dl className="grid grid-cols-2 gap-y-3 text-sm">
               <Dato etiqueta="Especie" valor={viajero.especie} />
               <Dato etiqueta="Raza" valor={viajero.raza} />
-              <Dato etiqueta="Fecha de nacimiento" valor={viajero.fechaNacimiento} />
+              <Dato etiqueta="Date of birth" valor={viajero.fechaNacimiento} />
               <Dato etiqueta="Peso" valor={viajero.pesoKg ? `${viajero.pesoKg} kg` : undefined} />
               <Dato etiqueta="Microchip" valor={viajero.microchip} />
             </dl>
@@ -112,7 +112,7 @@ export default function ViajeroDetallePage() {
           <h2 className="mb-4 font-medium">Documentos</h2>
 
           {viajero.documentos.length === 0 ? (
-            <p className="mb-4 text-sm text-neutral-500">Sin documentos registrados.</p>
+            <p className="mb-4 text-sm text-neutral-500">No documents on file.</p>
           ) : (
             <ul className="mb-4 space-y-2">
               {viajero.documentos.map((doc) => (
@@ -142,7 +142,7 @@ export default function ViajeroDetallePage() {
             {nuevoDocTipo === "vacuna" && (
               <input
                 className="input col-span-2"
-                placeholder="¿Qué vacuna? (ej. rabia)"
+                placeholder="Which vaccine? (e.g. rabies)"
                 value={nuevoDocNombre}
                 onChange={(e) => setNuevoDocNombre(e.target.value)}
                 required
@@ -150,7 +150,7 @@ export default function ViajeroDetallePage() {
             )}
             <input
               className="input"
-              placeholder="Lugar de expedición (opcional)"
+              placeholder="Place of issue (optional)"
               value={nuevoDocLugar}
               onChange={(e) => setNuevoDocLugar(e.target.value)}
             />
@@ -163,8 +163,8 @@ export default function ViajeroDetallePage() {
 
         {historial.length > 0 && (
           <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-6">
-            <h2 className="mb-1 font-medium">Historial de viajes</h2>
-            <p className="mb-4 text-xs text-neutral-400">Ayuda a sugerir, pero el viaje actual siempre manda.</p>
+            <h2 className="mb-1 font-medium">Trip history</h2>
+            <p className="mb-4 text-xs text-neutral-400">It helps us suggest things, but the current trip always wins.</p>
             <ul className="space-y-2">
               {historial.map((v) => (
                 <li key={v.id}>

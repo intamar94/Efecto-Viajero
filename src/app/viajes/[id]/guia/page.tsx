@@ -108,7 +108,7 @@ export default function ModoGuiaPage() {
     return (
       <main className="flex-1 px-5 py-8">
         <div className="mx-auto max-w-xl">
-          <Cabecera titulo="Viaje no encontrado" volverA="/viajes" />
+          <Cabecera titulo="Trip not found" volverA="/viajes" />
         </div>
       </main>
     );
@@ -129,7 +129,7 @@ export default function ModoGuiaPage() {
       return {
         id: p.id,
         nombre: p.nombre,
-        texto: `Estás cerca de ${p.nombre}. ${rico?.extracto ?? p.detalle ?? `Un sitio recomendado en ${etapa.nombre}.`}`,
+        texto: `You're near ${p.nombre}. ${rico?.extracto ?? p.detalle ?? `Un sitio recomendado en ${etapa.nombre}.`}`,
         lat: p.lat,
         lon: p.lon,
         etapaNombre: etapa.nombre,
@@ -172,12 +172,12 @@ export default function ModoGuiaPage() {
   function activar() {
     setError(null);
     if (!("geolocation" in navigator)) {
-      setError("Este navegador no puede acceder a tu ubicación.");
+      setError("This browser can't access your location.");
       return;
     }
     watchId.current = navigator.geolocation.watchPosition(
       manejarPosicion,
-      (err) => setError(err.code === err.PERMISSION_DENIED ? "Necesitamos permiso de ubicación para activar el modo guía." : "No se pudo obtener tu ubicación."),
+      (err) => setError(err.code === err.PERMISSION_DENIED ? "We need location permission to turn on guide mode." : "We couldn't get your location."),
       { enableHighAccuracy: true, maximumAge: 5000 }
     );
     setActivo(true);
@@ -201,15 +201,15 @@ export default function ModoGuiaPage() {
       <div className="mx-auto max-w-xl">
         <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
-          titulo="Modo Guía"
-          subtitulo="Detecta dónde estás y te cuenta sobre el sitio, como una guía de tour."
+          titulo="Guide mode"
+          subtitulo="It spots where you are and tells you about the place, like a tour guide."
           volverA={`/viajes/${viaje.id}`}
         />
 
         <div className="mb-5 rounded-2xl border border-coral-200 bg-coral-50 p-4 text-sm text-coral-800">
-          ⚠️ Funciona mientras tengas esta página abierta y el GPS activado. En iPhone deja de narrar si bloqueas la
-          pantalla o cambias de app: no es una limitación nuestra, es como funciona un sitio web en el móvil.
-          {!haySintesisDeVoz() && <p className="mt-2 font-medium">Este navegador no admite voz por síntesis: no podrá narrar en voz alta.</p>}
+          ⚠️ It works while you keep this page open with GPS on. On iPhone it stops narrating if you lock
+          the screen or switch apps: that's not our limitation, it's how a website behaves on a phone.
+          {!haySintesisDeVoz() && <p className="mt-2 font-medium">This browser doesn't support speech synthesis: it won't be able to read aloud.</p>}
         </div>
 
         {puntos.length === 0 ? (
@@ -233,7 +233,7 @@ export default function ModoGuiaPage() {
                 onClick={() => setSilenciado((v) => !v)}
                 className={`rounded-lg border px-3 py-2 text-sm ${silenciado ? "border-neutral-300 bg-neutral-100 text-neutral-500" : "border-marino-200 bg-marino-50 text-marino-700"}`}
               >
-                {silenciado ? "🔇 Silenciado" : "🔊 Con voz"}
+                {silenciado ? "🔇 Silenciado" : "🔊 With voice"}
               </button>
             </div>
 
@@ -243,7 +243,7 @@ export default function ModoGuiaPage() {
             {pendiente && (
               <div className="mb-5 rounded-2xl border-2 border-marino-400 bg-marino-50 p-4">
                 <p className="text-sm font-medium text-marino-900">📍 Estás cerca de {pendiente.nombre}</p>
-                <p className="mt-1 text-xs text-marino-700">¿Quieres escuchar sobre este lugar?</p>
+                <p className="mt-1 text-xs text-marino-700">Want to hear about this place?</p>
                 {pendiente.tieneResumenRico && (
                   <p className="mt-2 line-clamp-2 text-xs text-marino-600">{pendiente.texto}</p>
                 )}
@@ -260,11 +260,11 @@ export default function ModoGuiaPage() {
 
             {activo && (
               <p className="mb-4 text-xs text-neutral-500">
-                {posicion ? `📍 Ubicación activa · ${narrados.size} sitio(s) narrados` : "Buscando tu ubicación…"}
+                {posicion ? `📍 Location on · ${narrados.size} place(s) narrated` : "Finding your location…"}
               </p>
             )}
 
-            <h2 className="mb-2 font-medium">Sitios de tu viaje ({puntos.length})</h2>
+            <h2 className="mb-2 font-medium">Places on your trip ({puntos.length})</h2>
             <ul className="space-y-2">
               {ordenados.map((p) => {
                 const d = posicion ? Math.round(distanciaMetros(posicion.lat, posicion.lon, p.lat, p.lon)) : null;
@@ -294,7 +294,7 @@ export default function ModoGuiaPage() {
                         🔊 Escuchar
                       </button>
                     </div>
-                    {narrados.has(p.id) && <span className="mt-1 inline-block text-[11px] text-emerald-600">✓ Ya narrado</span>}
+                    {narrados.has(p.id) && <span className="mt-1 inline-block text-[11px] text-emerald-600">✓ Already narrated</span>}
                   </li>
                 );
               })}
