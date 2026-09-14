@@ -13,15 +13,28 @@ import type { CategoriaActividad } from "./types";
 // veía nada de vida nocturna. Se listan las formas reales (infinitivos y
 // sinónimos incluidos) en vez de intentar conjugar: es un buscador por
 // palabras, y explícito es más fácil de corregir que ingenioso.
+// Las listas llevan los mismos conceptos en español Y en inglés: la
+// interfaz está en inglés porque las fuentes libres (Wikivoyage, OSM,
+// Wikipedia) tienen mucho más contenido ahí, pero quien escribe puede
+// hacerlo en cualquiera de los dos idiomas y tiene que entenderse igual.
+// Se evitan a propósito las palabras funcionales del inglés: "night" a
+// secas haría que "night sky" (astronomía) cayera en vida nocturna.
 const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
   museo: [
     "museo", "historia", "historico", "cultura", "cultural", "arte", "galeria", "patrimonio",
     "exposicion", "iglesia", "catedral", "monumento", "centro historico", "casco antiguo",
     "ruinas", "arqueologico", "castillo",
+    // English
+    "museum", "history", "historical", "heritage", "gallery", "exhibition",
+    "cathedral", "monument", "old town", "ruins", "archaeological", "castle",
+    "cultural",
   ],
   parque: [
     "parque", "caminar", "caminata", "pasear", "paseo", "aire libre", "mirador", "vista",
     "senderismo suave", "plaza", "jardin", "picnic", "malecon",
+    // English
+    "park", "walk", "walking", "stroll", "viewpoint", "garden",
+    "picnic", "promenade", "waterfront", "outdoors",
   ],
   restaurante: [
     "restaurante", "comida", "comer", "gastronomia", "gastronomico", "tipica", "tipico",
@@ -29,18 +42,30 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     "cenar", "cena", "almorzar", "almuerzo", "desayunar", "desayuno",
     "tapas", "picar", "comida callejera", "street food", "marisco", "vegetariano", "vegano",
     "restaurantes tipicos", "sabor", "sabores",
+    // English
+    "restaurant", "food", "eat", "eating", "cuisine", "gastronomy",
+    "typical food", "local food", "dish", "dishes", "cooking", "taste",
+    "tasting", "dinner", "lunch", "breakfast", "seafood", "vegetarian",
+    "vegan", "foodie", "culinary", "flavours", "flavors", "traditional food",
   ],
   cine_teatro: [
     "cine", "teatro", "pelicula", "obra de teatro", "espectaculo", "concierto", "show", "musical",
+    // English
+    "cinema", "theatre", "theater", "movie", "opera", "musical",
   ],
   discoteca: [
     "discoteca", "disco", "fiesta", "bar", "vida nocturna", "rumba", "salsa", "baile", "noche",
     "bailar", "bailando", "rumbear", "salir de fiesta", "salir a bailar", "copas", "trago",
-    "tomar algo", "cerveza", "reggaeton", "antro", "boliche", "after", "nocturna",
+    "tomar algo", "cerveza", "reggaeton", "antro", "boliche", "nocturna",
+    // English
+    "nightlife", "nightclub", "night out", "party", "partying", "clubbing",
+    "dancing", "drinks", "beer", "pub crawl",
   ],
   compras: [
     "compras", "comprar", "mercado", "tienda", "souvenir", "artesania",
     "shopping", "centro comercial", "mall", "regalo", "boutique",
+    // English
+    "shops", "crafts", "souvenirs", "handicraft", "market stalls",
   ],
   naturaleza: [
     "naturaleza", "montana", "senderismo", "rio", "cascada", "aventura", "excursion natural",
@@ -51,12 +76,25 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     "acampar", "camping", "glaciar", "acantilado", "mirador", "miradores", "cueva", "cuevas",
     "refugio", "aire libre", "al aire libre", "contacto con la naturaleza", "paisaje", "paisajes",
     "bahia", "playa natural", "manantial", "geiser", "parque nacional", "area protegida",
+    // English
+    "nature", "mountain", "mountains", "trail", "trails", "waterfall",
+    "waterfalls", "forest", "jungle", "lake", "lakes", "river",
+    "rivers", "volcano", "wilderness", "landscape", "landscapes", "scenery",
+    "countryside", "trek", "national park", "nature reserve", "canyon", "valley",
+    "cave", "caves", "fjord", "tundra", "desert", "greenery",
+    "open air",
   ],
   playa: [
     "playa", "mar", "costa", "isla", "islas", "arena", "bucear", "buceo", "snorkel", "surf", "nadar",
+    // English
+    "beach", "beaches", "sea", "coast", "coastal", "island",
+    "islands", "sand", "swim", "swimming", "seaside", "shore",
   ],
   pueblos: [
     "pueblo", "excursion", "cerca de la ciudad", "escapada", "alrededores", "afueras", "day trip",
+    // English
+    "village", "villages", "small town", "small towns", "historic town", "hamlet",
+    "old village", "nearby towns",
   ],
   aventura: [
     "aventura", "adrenalina", "parapente", "rafting", "canopy", "tirolina", "tirolesa",
@@ -65,10 +103,17 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     "deporte extremo", "deportes extremos", "parapentismo", "kitesurf", "pesca",
     "espeleologia", "cueva", "cuevas", "puenting", "bungee", "salto", "cuatrimoto", "cuatrimotos",
     "quad", "globo", "globo aerostatico", "esqui", "snowboard", "vuelo libre", "tubing",
+    // English
+    "adventure", "adrenaline", "paragliding", "zipline", "zip line", "climbing",
+    "abseiling", "horseback", "cycling", "biking", "mountain biking", "extreme sports",
+    "skiing", "caving", "hot air balloon", "via ferrata",
   ],
   bienestar: [
     "termales", "termal", "spa", "sauna", "masaje", "relajarse", "descansar", "bienestar",
     "aguas termales", "banos termales",
+    // English
+    "hot springs", "thermal baths", "massage", "relax", "relaxing", "wellness",
+    "unwind", "retreat spa",
   ],
   todos: [
     "ninos", "nino", "hijos", "familia", "familiar", "acuario", "zoologico", "zoo",
@@ -76,44 +121,75 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     "con peques", "para toda la familia", "para todos", "todo publico", "plan familiar",
     "piscina", "piscinas", "balneario", "jardin botanico", "boliche", "bolos",
     "patinaje", "minigolf", "planetario", "adulto mayor", "abuelos",
+    // English
+    "kids", "children", "family", "family friendly", "aquarium", "theme park",
+    "amusement park", "water park", "playground", "all ages", "grandparents", "swimming pool",
   ],
   experiencias: [
     "experiencia", "experiencias", "taller", "cata", "degustacion", "vinedo", "bodega",
     "cafetal", "finca cafetera", "tour de cafe", "cerveceria", "artesanal", "mercado local",
+    // English
+    "workshop", "winery", "wineries", "vineyard", "vineyards", "wine",
+    "brewery", "distillery", "coffee farm", "coffee tour", "food tour", "local market",
+    "cooking class",
   ],
   eventos: [
     "evento", "eventos", "festival", "festivales", "concierto", "conciertos", "feria", "ferias",
     "carnaval", "fiesta popular", "agenda cultural", "que pasa", "partido", "estadio",
     "temporada", "en vivo", "espectaculo deportivo",
+    // English
+    "event", "festival", "festivals", "concert", "concerts", "carnival",
+    "live music", "stadium",
   ],
   espiritual: [
     "iglesia", "catedral", "templo", "santuario", "monasterio", "convento", "basilica",
     "mezquita", "sinagoga", "peregrinacion", "camino de santiago", "espiritual", "religioso",
     "retiro", "meditacion", "yoga", "mindfulness", "sagrado",
+    // English
+    "church", "churches", "temple", "shrine", "monastery", "convent",
+    "basilica", "mosque", "synagogue", "pilgrimage", "spiritual", "religious",
+    "sacred", "meditation",
   ],
   fauna: [
     "aves", "pajaros", "avistamiento", "birdwatching", "fauna", "animales", "ballenas",
     "delfines", "tortugas", "safari", "observacion de aves", "vida silvestre", "monos",
+    // English
+    "birds", "birding", "wildlife", "animals", "whales", "whale watching",
+    "dolphins", "turtles", "monkeys", "wildlife watching", "national wildlife",
   ],
   astronomia: [
     "estrellas", "estrella", "astronomia", "astronomico", "astroturismo", "observatorio",
     "planetario", "auroras", "aurora boreal", "cielo nocturno", "cielo oscuro", "telescopio",
     "via lactea", "eclipse", "lluvia de estrellas", "meteoros", "starlight", "ver el cielo",
+    // English
+    "stars", "stargazing", "astronomy", "astrotourism", "observatory", "planetarium",
+    "northern lights", "aurora", "auroras", "night sky", "dark sky", "dark skies",
+    "telescope", "milky way", "meteor shower", "meteors", "southern lights",
   ],
   ciencia: [
     "biblioteca", "bibliotecas", "libreria", "libros", "ciencia", "cientifico", "tecnologia",
     "museo de ciencia", "centro de ciencia", "innovacion", "universidad", "archivo",
+    // English
+    "library", "libraries", "bookshop", "bookstore", "books", "science",
+    "technology", "science museum", "archive",
   ],
   arte_urbano: [
     "arte urbano", "mural", "murales", "grafiti", "graffiti", "street art", "arte callejero",
+    // English
+    "mural", "murals", "street mural",
   ],
   memoria: [
     "memorial", "memoria", "cementerio", "historia oscura", "dark tourism", "campo de batalla",
     "guerra", "holocausto", "victimas", "mausoleo", "monumento conmemorativo",
+    // English
+    "memory", "cemetery", "battlefield", "war", "mausoleum", "remembrance",
   ],
   industrial: [
     "faro", "faros", "mina", "minas", "tren historico", "ferrocarril", "locomotora",
     "fabrica", "patrimonio industrial", "turismo industrial", "molino",
+    // English
+    "lighthouse", "lighthouses", "mine", "mines", "historic train", "railway",
+    "locomotive", "factory", "industrial heritage", "mill", "windmill", "watermill",
   ],
   nautica: [
     "barco", "barcos", "bote", "botes", "lancha", "velero", "yate", "navegar", "navegacion",
@@ -123,6 +199,12 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     // playa y aventura, que es donde nadie busca un arrecife.
     "bucear", "buceo", "submarinismo", "snorkel", "esnorquel", "arrecife", "arrecifes",
     "sumergirse", "fondo marino", "vida marina", "kayak", "remar", "piraguismo",
+    // English
+    "boat", "boats", "sailing", "sail", "yacht", "sailboat",
+    "boat rental", "rent a boat", "houseboat", "harbour", "harbor", "fishing",
+    "pier", "dock", "boat trip", "cruise", "diving", "dive",
+    "scuba", "snorkelling", "snorkeling", "reef", "reefs", "kayaking",
+    "canoeing", "rowing", "underwater", "marine life", "jetty",
   ],
   otro: [
     "espontaneo", "sorpresa", "algo diferente", "tour", "free tour",

@@ -1,29 +1,46 @@
-// "No sé a dónde ir, pero sé qué quiero hacer."
+// "I don't know where to go, but I know what I want to do."
 //
-// Es el caso contrario al de toda la app: aquí no hay destino todavía, y
-// lo que hay es un deseo ("bucear", "ver auroras", "andar por montaña
-// sin gente"). Hace falta recorrer el camino al revés: del deseo al
-// lugar del mundo donde eso se hace.
+// This is the reverse of the rest of the app: there is no destination
+// yet, only a wish ("diving", "northern lights", "quiet mountains").
+// The road has to be walked backwards — from the wish to the place on
+// Earth where that happens.
 //
-// La fuente es Wikivoyage, la guía de viajes libre — la misma que ya usa
-// la app para la guía de cada ciudad. Es gratis, sin clave y, sobre
-// todo, está escrita por viajeros describiendo qué se hace en cada
-// sitio: buscar "buceo arrecife" ahí devuelve los artículos de los
-// lugares donde de verdad se bucea, no una lista inventada.
+// The source is Wikivoyage, the free travel guide — the same one the app
+// already uses for each city's guide. Free, no key, and above all
+// written by travellers describing what you actually do in each place:
+// searching "diving reef" there returns the articles of the places where
+// people really dive, not a list we made up.
 //
-// Regla dura: NO se sugiere ningún lugar que no venga de un artículo
-// real, y cada tarjeta enseña el texto tal cual lo escribió Wikivoyage,
-// con su enlace. Si una búsqueda no da lugares, se dice; no se rellena.
+// Hard rule: no place is ever suggested that doesn't come from a real
+// article, and every card shows Wikivoyage's own text with its link. If
+// a search finds nothing, we say so — we never pad the page.
+//
+// ── Why it scores instead of just listing ──────────────────────────────
+// Someone who asks for "typical food, quiet, near villages, with nature"
+// is not asking for four separate lists. Answering with "here you can
+// dive, over there you can see stars" is answering a question nobody
+// asked. So each wish becomes its own search, and a place scores one
+// point per wish whose search returned it. A place Wikivoyage considers
+// relevant for THREE of your four wishes ranks above one that only
+// matches a single wish — and the card says which ones it covers, so the
+// ranking is never a black box.
 
 import { interpretarIntencion } from "./intencion";
 import { resolverLugar } from "./lugares";
 import { buscarPaisPorCodigo } from "./paises";
 import type { CategoriaActividad } from "./types";
 
+export interface Criterio {
+  id: string;
+  // What the traveller asked for, in their terms — this is what the card
+  // shows as "covered", so it has to read like their own wish.
+  etiqueta: string;
+  consulta: string;
+}
+
 export interface DestinoSugerido {
   nombre: string;
-  // El texto de entrada del artículo de Wikivoyage, tal cual. Nunca una
-  // descripción escrita por nosotros.
+  // Wikivoyage's own lead text, verbatim. Never a description we wrote.
   resumen: string;
   imagen?: string;
   lat: number;
@@ -32,70 +49,58 @@ export interface DestinoSugerido {
   paisCodigo?: string;
   paisNombre?: string;
   idioma: "es" | "en";
-  // Qué búsqueda lo trajo: así la persona ve por qué se le propone esto
-  // y no un lugar salido de la nada.
-  motivo: string;
+  // Which of the traveller's wishes this place covers, and how many.
+  // Both are shown: a score without its reasons is just a number.
+  cumple: Criterio[];
 }
 
 export interface ResultadoExploracion {
   sugerencias: DestinoSugerido[];
-  // Las búsquedas que de verdad se lanzaron contra Wikivoyage, para
-  // poder enseñarlas: es la diferencia entre "esto salió de algún sitio"
-  // y una caja negra.
-  consultas: string[];
+  criterios: Criterio[];
+  // How many wishes the best result actually covers. When it is lower
+  // than the number asked for, the page says so instead of quietly
+  // presenting a partial match as if it were everything.
+  mejorCobertura: number;
 }
 
-// Qué buscar en Wikivoyage para cada tipo de plan. No es la etiqueta de
-// la interfaz: es lo que un artículo de destino diría de verdad. Una
-// guía no dice "náutica", dice "alquiler de barcos" y "puerto
-// deportivo".
-const CONSULTA_POR_CATEGORIA: Partial<Record<CategoriaActividad, string>> = {
-  naturaleza: "senderismo parque nacional naturaleza",
-  playa: "playa costa arena",
-  nautica: "buceo navegar puerto deportivo pesca",
-  aventura: "escalada rafting parapente aventura",
-  fauna: "avistamiento de aves fauna safari",
-  astronomia: "auroras boreales observatorio cielo nocturno",
-  bienestar: "aguas termales balneario spa",
-  museo: "museo arte historia",
-  espiritual: "peregrinación monasterio templo",
-  eventos: "festival carnaval fiesta",
-  restaurante: "gastronomía cocina local mercado",
-  compras: "mercado artesanía compras",
-  experiencias: "viñedos bodega ruta del vino",
-  pueblos: "pueblo histórico casco antiguo",
-  discoteca: "vida nocturna bares música en vivo",
-  arte_urbano: "arte urbano murales",
-  ciencia: "biblioteca ciencia planetario",
-  memoria: "memoria histórica monumento",
-  industrial: "patrimonio industrial mina faro",
-  todos: "parque temático acuario zoológico en familia",
-  cine_teatro: "teatro ópera cine",
-  parque: "parque jardín botánico",
+// What to search on Wikivoyage for each kind of plan. Not the interface
+// label: what a destination article would actually say. A guide doesn't
+// write "nautical", it writes "boat rental" and "marina".
+const CRITERIO_POR_CATEGORIA: Partial<Record<CategoriaActividad, { etiqueta: string; consulta: string }>> = {
+  naturaleza: { etiqueta: "nature", consulta: "hiking national park nature trails" },
+  playa: { etiqueta: "beaches", consulta: "beach coast sand swimming" },
+  nautica: { etiqueta: "water & boats", consulta: "diving snorkelling boat rental marina fishing" },
+  aventura: { etiqueta: "adventure", consulta: "climbing rafting paragliding adventure sports" },
+  fauna: { etiqueta: "wildlife", consulta: "wildlife birdwatching safari animals" },
+  astronomia: { etiqueta: "stargazing", consulta: "northern lights observatory dark sky stargazing" },
+  bienestar: { etiqueta: "hot springs & spa", consulta: "hot springs thermal baths spa" },
+  museo: { etiqueta: "museums", consulta: "museum art history gallery" },
+  espiritual: { etiqueta: "spiritual", consulta: "pilgrimage monastery temple sacred" },
+  eventos: { etiqueta: "festivals", consulta: "festival carnival music event" },
+  restaurante: { etiqueta: "local food", consulta: "local cuisine traditional food specialities market" },
+  compras: { etiqueta: "markets & crafts", consulta: "market crafts shopping artisan" },
+  experiencias: { etiqueta: "food & wine", consulta: "vineyards winery brewery food tour" },
+  pueblos: { etiqueta: "villages", consulta: "historic village old town charming small town" },
+  discoteca: { etiqueta: "nightlife", consulta: "nightlife bars live music clubs" },
+  arte_urbano: { etiqueta: "street art", consulta: "street art murals graffiti" },
+  ciencia: { etiqueta: "science & books", consulta: "library science planetarium" },
+  memoria: { etiqueta: "history & memory", consulta: "memorial historic site heritage" },
+  industrial: { etiqueta: "industrial heritage", consulta: "industrial heritage mine lighthouse mill" },
+  todos: { etiqueta: "for all ages", consulta: "theme park aquarium zoo family friendly" },
+  cine_teatro: { etiqueta: "theatre & cinema", consulta: "theatre opera cinema" },
+  parque: { etiqueta: "parks & gardens", consulta: "park botanical garden" },
 };
 
-// Palabras que hablan de la logística del viaje, no de lo que se quiere
-// hacer. Buscarlas en Wikivoyage solo mete ruido: "10 días en enero con
-// mi pareja" no dice nada sobre QUÉ lugar encaja.
-const RUIDO = new Set([
-  "quiero", "quisiera", "queremos", "me", "gustaria", "gustaría", "busco", "buscamos", "tengo", "tenemos",
-  "ir", "viajar", "visitar", "conocer", "hacer", "algun", "algún", "alguna", "sitio", "lugar", "lugares",
-  "dias", "días", "dia", "día", "semana", "semanas", "mes", "meses", "noche", "noches", "finde",
-  "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-  "presupuesto", "euros", "dolares", "dólares", "barato", "barata", "economico", "económico",
-  "con", "mi", "mis", "sin", "para", "por", "que", "de", "del", "la", "el", "los", "las", "un", "una", "unos", "unas",
-  "y", "o", "en", "a", "al", "es", "son", "muy", "mas", "más", "pero", "como", "donde", "dónde", "algo",
-  "pareja", "novia", "novio", "amigos", "familia", "solo", "sola", "nos", "nuestro", "nuestra",
-  "vacaciones", "viaje", "libre", "tiempo",
-]);
-
-function palabrasUtiles(texto: string): string[] {
-  return texto
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .split(/\s+/)
-    .filter((p) => p.length > 2 && !RUIDO.has(p) && !/^\d+$/.test(p));
-}
+// Moods that aren't an activity but absolutely change which place fits.
+// "Quiet" is a real requirement — ignoring it and returning a capital
+// city would be answering a different question.
+const MATICES: { patron: RegExp; etiqueta: string; consulta: string }[] = [
+  { patron: /\b(tranquil|quiet|calm|peace|relax|sin gente|uncrowded|secluded|remote|no crowds|not crowded|few tourists|off the beaten)/i, etiqueta: "quiet", consulta: "quiet peaceful uncrowded relaxed" },
+  { patron: /\b(barato|cheap|budget|econom|affordable)/i, etiqueta: "affordable", consulta: "budget cheap affordable" },
+  { patron: /\b(lujo|luxur|exclusiv)/i, etiqueta: "upscale", consulta: "luxury upscale resort" },
+  { patron: /\b(frio|cold|nieve|snow|winter|invierno)/i, etiqueta: "cold climate", consulta: "snow winter cold mountains" },
+  { patron: /\b(calor|warm|tropical|sol\b|sunny)/i, etiqueta: "warm climate", consulta: "tropical warm sunny climate" },
+];
 
 interface PaginaWiki {
   title?: string;
@@ -104,21 +109,21 @@ interface PaginaWiki {
   thumbnail?: { source?: string };
 }
 
-// Títulos que son artículos de Wikivoyage pero no un destino: temas,
-// itinerarios, listas. Aunque casi todos caen ya por no tener
-// coordenadas, algunos sí las tienen y colarlos como "un sitio al que
-// ir" sería engañoso.
-const NO_ES_DESTINO = /^(wikiviajes|wikivoyage|categor[ií]a|plantilla|ayuda|usuario|template|category|help|user)\s*:/i;
+// Real Wikivoyage articles that are not a destination: topics,
+// itineraries, phrasebooks. Most fall out for having no coordinates, but
+// a few do have them, and passing one off as "a place to go" would be
+// misleading.
+const NO_ES_DESTINO = /^(wikivoyage|wikiviajes|category|categor[ií]a|template|plantilla|help|ayuda|user|usuario|talk)\s*:/i;
 
-async function buscarEnWikivoyage(consulta: string, idioma: "es" | "en", señal?: AbortSignal): Promise<DestinoSugerido[]> {
-  // generator=search encadena la búsqueda con las propiedades en UNA
-  // sola petición: sin esto harían falta dos por consulta (buscar y
-  // luego pedir coordenadas), y son varias consultas por exploración.
+async function buscar(consulta: string, idioma: "es" | "en", señal?: AbortSignal): Promise<DestinoSugerido[]> {
+  // generator=search chains the search with the properties in ONE
+  // request: without it each wish would cost two round trips, and there
+  // are several wishes per exploration.
   const params = new URLSearchParams({
     action: "query",
     generator: "search",
     gsrsearch: consulta,
-    gsrlimit: "12",
+    gsrlimit: "14",
     gsrnamespace: "0",
     prop: "coordinates|extracts|pageimages",
     exintro: "1",
@@ -139,13 +144,13 @@ async function buscarEnWikivoyage(consulta: string, idioma: "es" | "en", señal?
     for (const pagina of Object.values(paginas)) {
       const nombre = pagina.title?.trim();
       if (!nombre || NO_ES_DESTINO.test(nombre)) continue;
-      // La prueba de que es un LUGAR y no un tema: tiene coordenadas en
-      // el mapa. Un artículo sobre "Buceo" no las tiene; Bonaire sí.
+      // Proof that this is a PLACE and not a topic: it sits on the map.
+      // An article about "Diving" has no coordinates; Bonaire does.
       const coord = pagina.coordinates?.[0];
       if (typeof coord?.lat !== "number" || typeof coord?.lon !== "number") continue;
       const resumen = pagina.extract?.trim();
-      // Sin una línea que contar, la tarjeta sería un nombre suelto: eso
-      // es justo el "cajón vacío" que no queremos.
+      // With nothing to say, the card would be a bare name — exactly the
+      // empty box this app is trying not to produce.
       if (!resumen) continue;
 
       const lugar = resolverLugar(nombre);
@@ -158,12 +163,12 @@ async function buscarEnWikivoyage(consulta: string, idioma: "es" | "en", señal?
         lat: coord.lat,
         lon: coord.lon,
         url: `https://${idioma}.wikivoyage.org/wiki/${encodeURIComponent(nombre.replace(/ /g, "_"))}`,
-        // Solo cuando lo sabemos de verdad: si el nombre no está en el
-        // diccionario, la tarjeta no dice país en vez de adivinarlo.
+        // Only when we actually know it: if the name isn't in the
+        // dictionary the card stays silent rather than guessing.
         paisCodigo: pais?.codigo,
         paisNombre: pais?.nombre,
         idioma,
-        motivo: consulta,
+        cumple: [],
       });
     }
     return salida;
@@ -172,48 +177,86 @@ async function buscarEnWikivoyage(consulta: string, idioma: "es" | "en", señal?
   }
 }
 
-function primeraFrase(texto: string, maximo = 260): string {
+function recortar(texto: string, maximo = 260): string {
   if (texto.length <= maximo) return texto;
   const corte = texto.slice(0, maximo);
   const punto = corte.lastIndexOf(". ");
   return punto > 80 ? corte.slice(0, punto + 1) : `${corte.trimEnd()}…`;
 }
 
+// Each wish becomes its own criterion, so that later we can say how many
+// of them a place covers. Without splitting them there is no way to tell
+// "matches everything you asked for" from "matches one thing".
+export function criteriosDe(texto: string): Criterio[] {
+  const criterios: Criterio[] = [];
+  const vistos = new Set<string>();
+
+  for (const categoria of interpretarIntencion(texto)) {
+    const c = CRITERIO_POR_CATEGORIA[categoria];
+    if (c && !vistos.has(c.etiqueta)) {
+      vistos.add(c.etiqueta);
+      criterios.push({ id: categoria, etiqueta: c.etiqueta, consulta: c.consulta });
+    }
+  }
+
+  for (const matiz of MATICES) {
+    if (matiz.patron.test(texto) && !vistos.has(matiz.etiqueta)) {
+      vistos.add(matiz.etiqueta);
+      criterios.push({ id: matiz.etiqueta, etiqueta: matiz.etiqueta, consulta: matiz.consulta });
+    }
+  }
+
+  return criterios.slice(0, 6);
+}
+
 export async function explorarElMundo(texto: string, señal?: AbortSignal): Promise<ResultadoExploracion> {
-  const palabras = palabrasUtiles(texto);
-  const categorias = interpretarIntencion(texto);
+  const criterios = criteriosDe(texto);
+  if (criterios.length === 0) return { sugerencias: [], criterios: [], mejorCobertura: 0 };
 
-  const consultas: string[] = [];
-  // Primero las palabras de la propia persona: si dijo "arrecife" o
-  // "auroras", eso es más preciso que cualquier consulta nuestra.
-  if (palabras.length) consultas.push(palabras.slice(0, 6).join(" "));
-  // Y después, lo que esas palabras significan en lenguaje de guía de
-  // viajes: alguien que escribe "salir de fiesta" no encuentra nada
-  // buscando esas palabras, pero sí buscando "vida nocturna".
-  for (const categoria of categorias.slice(0, 3)) {
-    const consulta = CONSULTA_POR_CATEGORIA[categoria];
-    if (consulta && !consultas.includes(consulta)) consultas.push(consulta);
+  // English Wikivoyage first, on purpose: it has several times more
+  // destination articles than the Spanish one, so asking it first is the
+  // difference between a real answer and "nothing found" for anything
+  // slightly specific. Spanish is added on top, never instead.
+  const idiomas: ("es" | "en")[] = ["en", "es"];
+  const lotes = await Promise.all(
+    criterios.flatMap((c) => idiomas.map(async (idioma) => ({ criterio: c, resultados: await buscar(c.consulta, idioma, señal) })))
+  );
+
+  // One entry per place, accumulating which wishes it covers. The same
+  // place showing up in three different searches IS the signal: it means
+  // Wikivoyage considers it relevant for all three.
+  const porLugar = new Map<string, DestinoSugerido>();
+  for (const { criterio, resultados } of lotes) {
+    for (const destino of resultados) {
+      const clave = destino.nombre.toLowerCase();
+      const existente = porLugar.get(clave);
+      if (!existente) {
+        porLugar.set(clave, { ...destino, resumen: recortar(destino.resumen), cumple: [criterio] });
+        continue;
+      }
+      if (!existente.cumple.some((c) => c.id === criterio.id)) existente.cumple.push(criterio);
+      // Prefer the version that has a picture, and the Spanish article
+      // when there is one: same place, better card.
+      if (!existente.imagen && destino.imagen) existente.imagen = destino.imagen;
+      if (existente.idioma === "en" && destino.idioma === "es") {
+        existente.url = destino.url;
+        existente.idioma = "es";
+        existente.resumen = recortar(destino.resumen);
+      }
+    }
   }
-  if (consultas.length === 0) return { sugerencias: [], consultas: [] };
 
-  const lotes = await Promise.all(consultas.map((c) => buscarEnWikivoyage(c, "es", señal)));
-  let encontrados = lotes.flat();
+  const ordenadas = [...porLugar.values()].sort(
+    (a, b) => b.cumple.length - a.cumple.length || a.nombre.localeCompare(b.nombre)
+  );
+  const mejorCobertura = ordenadas[0]?.cumple.length ?? 0;
 
-  // Wikivoyage en español es mucho más pequeño que el inglés. Si desde
-  // aquí no sale casi nada, el mundo no se ha quedado sin sitios: se
-  // pregunta a la edición inglesa antes de decir "no hay nada".
-  if (encontrados.length < 5) {
-    const enIngles = await Promise.all(consultas.map((c) => buscarEnWikivoyage(c, "en", señal)));
-    encontrados = [...encontrados, ...enIngles.flat()];
-  }
+  // When several wishes were asked for, a place covering only one is
+  // noise: it's the "over there you can dive" answer to a question that
+  // asked for four things at once. Below the best coverage by more than
+  // one point, it stops being an answer.
+  const minimo = criterios.length > 1 ? Math.max(2, mejorCobertura - 1) : 1;
+  const utiles = ordenadas.filter((d) => d.cumple.length >= minimo);
 
-  // El mismo lugar puede salir en varias consultas (y en los dos
-  // idiomas): gana el primero, que viene de la consulta más precisa.
-  const porNombre = new Map<string, DestinoSugerido>();
-  for (const d of encontrados) {
-    const clave = d.nombre.toLowerCase();
-    if (!porNombre.has(clave)) porNombre.set(clave, { ...d, resumen: primeraFrase(d.resumen) });
-  }
-
-  return { sugerencias: [...porNombre.values()].slice(0, 18), consultas };
+  return { sugerencias: (utiles.length ? utiles : ordenadas).slice(0, 18), criterios, mejorCobertura };
 }

@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { logout } from "@/lib/supabase/auth-client";
 import { cargarEjemploBase, limpiarEjemploBase } from "@/lib/ejemploBase";
 
-const ENLACES = [{ href: "/viajes", icono: "🗺️", titulo: "Mis viajes", corto: "Viajes" }] as const;
+const ENLACES = [{ href: "/viajes", icono: "🗺️", titulo: "My trips", corto: "Trips" }] as const;
 
 export function NavBar() {
   const pathname = usePathname();
@@ -29,7 +29,7 @@ export function NavBar() {
 
   function handleRestablecerEjemplo() {
     setMenuOpen(false);
-    if (!confirm("Esto borra los viajes y viajeros guardados en este navegador y deja solo el viaje de ejemplo. ¿Continuar?")) return;
+    if (!confirm("This deletes the trips and travellers saved in this browser and leaves only the sample trip. Continue?")) return;
     limpiarEjemploBase();
     cargarEjemploBase();
     window.location.href = "/viajes";
@@ -37,15 +37,15 @@ export function NavBar() {
 
   async function handleBorrarTodo() {
     setMenuOpen(false);
-    if (!confirm("Esto borra todos tus viajes y viajeros guardados, en este navegador y en la nube si iniciaste sesión, para empezar de cero. No se puede deshacer. ¿Continuar?")) return;
+    if (!confirm("This deletes all your saved trips and travellers — in this browser and in the cloud if you are signed in — so you can start from scratch. It cannot be undone. Continue?")) return;
     setBorrando(true);
     try {
       limpiarEjemploBase();
       await borrarTodo();
       window.location.href = "/planificar";
     } catch (err) {
-      console.error("Error al borrar todo:", err);
-      alert("No se pudo borrar todo. Revisa tu conexión e inténtalo de nuevo.");
+      console.error("Error deleting everything:", err);
+      alert("Could not delete everything. Check your connection and try again.");
       setBorrando(false);
     }
   }
@@ -82,7 +82,7 @@ export function NavBar() {
               onClick={() => setMenuOpen(!menuOpen)}
               className="rounded-full bg-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/30 transition"
             >
-              {authLoading ? "👤" : user ? `👤 ${user.email?.split("@")[0]}` : "👤 Acceder"}
+              {authLoading ? "👤" : user ? `👤 ${user.email?.split("@")[0]}` : "👤 Sign in"}
             </button>
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white py-1 shadow-lg">
@@ -91,27 +91,27 @@ export function NavBar() {
                   onClick={() => setMenuOpen(false)}
                   className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
                 >
-                  ✈️ Planificar un viaje
+                  ✈️ Plan a trip
                 </Link>
                 <Link
                   href="/viajeros"
                   onClick={() => setMenuOpen(false)}
                   className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
                 >
-                  🧑‍🤝‍🧑 Viajeros
+                  🧑‍🤝‍🧑 Travellers
                 </Link>
                 <button
                   onClick={handleBorrarTodo}
                   disabled={borrando}
                   className="block w-full border-t border-neutral-100 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
                 >
-                  {borrando ? "🧹 Borrando…" : "🧹 Borrar todo (empezar de cero)"}
+                  {borrando ? "🧹 Deleting…" : "🧹 Delete everything (start over)"}
                 </button>
                 <button
                   onClick={handleRestablecerEjemplo}
                   className="block w-full border-t border-neutral-100 px-4 py-2 text-left text-sm text-neutral-500 hover:bg-neutral-50"
                 >
-                  🔄 Cargar viaje de ejemplo
+                  🔄 Load sample trip
                 </button>
                 {!authLoading && user ? (
                   <>
@@ -120,7 +120,7 @@ export function NavBar() {
                       onClick={() => setMenuOpen(false)}
                       className="block border-t border-neutral-100 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
                     >
-                      ⚙️ Configuración
+                      ⚙️ Settings
                     </Link>
                     <button
                       onClick={() => {
@@ -129,7 +129,7 @@ export function NavBar() {
                       }}
                       className="w-full border-t border-neutral-100 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
                     >
-                      🚪 Cerrar sesión
+                      🚪 Sign out
                     </button>
                   </>
                 ) : (
@@ -139,7 +139,7 @@ export function NavBar() {
                       onClick={() => setMenuOpen(false)}
                       className="block border-t border-neutral-100 px-4 py-2 text-sm text-marino-700 hover:bg-neutral-50"
                     >
-                      🔓 Acceder
+                      🔓 Sign in
                     </Link>
                   )
                 )}

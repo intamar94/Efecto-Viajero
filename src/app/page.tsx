@@ -4,8 +4,8 @@ const OPCIONES = [
   {
     href: "/planificar",
     icono: "✈️",
-    titulo: "Planificar un viaje",
-    descripcion: "Cuéntanos qué quieres hacer y lo montamos contigo.",
+    titulo: "Plan a trip",
+    descripcion: "Tell us what you want to do and we build it with you.",
     destacado: true,
   },
   // Toda la app daba por hecho que ya sabes a dónde vas, y mucha gente
@@ -15,22 +15,22 @@ const OPCIONES = [
   {
     href: "/explorar",
     icono: "🌎",
-    titulo: "Explorar el mundo",
-    descripcion: "¿Tiempo libre y ningún destino? Di qué te apetece y te decimos dónde.",
+    titulo: "Explore the world",
+    descripcion: "Time off but no destination? Say what you feel like and we find where.",
     destacado: false,
   },
   {
     href: "/viajes",
     icono: "🗺️",
-    titulo: "Mis viajes",
-    descripcion: "Lo que ya tienes en marcha: plan, requisitos y estado.",
+    titulo: "My trips",
+    descripcion: "What you already have in motion: plan, requirements and status.",
     destacado: false,
   },
   {
     href: "/viajeros",
     icono: "🧑‍🤝‍🧑",
-    titulo: "Viajeros",
-    descripcion: "Personas y mascotas, con sus documentos siempre a mano.",
+    titulo: "Travellers",
+    descripcion: "People and pets, with their documents always at hand.",
     destacado: false,
   },
 ];
@@ -43,9 +43,9 @@ export default function Home() {
           la acción principal queda visible sin hacer scroll. */}
       <section className="-mx-5 mb-8 bg-gradient-to-b from-marino-800 via-marino-700 to-neutral-50 px-5 pb-10 pt-10 text-center">
         <p className="mb-2 text-[0.7rem] font-medium tracking-[0.3em] text-marino-200">EFECTO VIAJERO</p>
-        <h1 className="mb-2 text-3xl font-semibold text-white sm:text-4xl">Que el viaje encaje solo</h1>
+        <h1 className="mb-2 text-3xl font-semibold text-white sm:text-4xl">Let the trip fall into place</h1>
         <p className="mx-auto max-w-md text-sm text-marino-100">
-          Describes lo que quieres hacer; nosotros nos ocupamos de los requisitos, el presupuesto y la logística.
+          You describe what you want to do; we take care of the paperwork, the budget and the logistics.
         </p>
       </section>
 
@@ -77,7 +77,7 @@ export default function Home() {
           href="/ejemplo"
           className="text-xs text-neutral-400 hover:text-neutral-600 underline"
         >
-          💡 Cargar ejemplo de viaje completo
+          💡 Load a full sample trip
         </Link>
       </div>
     </main>

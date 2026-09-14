@@ -2,29 +2,47 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { explorarElMundo, type DestinoSugerido } from "@/lib/exploracionMundial";
+import { explorarElMundo, type Criterio, type DestinoSugerido } from "@/lib/exploracionMundial";
 
-// Ejemplos para arrancar: no son resultados ni destinos sugeridos, son
-// FORMAS DE PEDIR. Alguien que llega sin destino tampoco sabe cómo
-// contarlo, y una caja de texto vacía no ayuda a empezar.
+// Starters: not results, not suggested destinations — ways of ASKING.
+// Someone arriving without a destination often doesn't know how to phrase
+// it either, and an empty box is no help. Deliberately multi-part, because
+// that is what this page is for: several wishes at once, not one.
 const EJEMPLOS = [
-  "Quiero bucear y ver arrecifes de coral",
-  "Un sitio con montañas para caminar días enteros",
-  "Ver auroras boreales",
-  "Pueblos con buen vino y comida",
-  "Playa tranquila, sin multitudes",
-  "Una ciudad con mucha vida nocturna",
+  "Typical food, quiet, near old villages, with nature around",
+  "Diving and coral reefs, somewhere warm",
+  "Mountains to walk for days, and hot springs after",
+  "Northern lights, dark skies, not crowded",
+  "Wine, markets and small historic towns",
 ];
 
-function TarjetaDestino({ d }: { d: DestinoSugerido }) {
-  // El texto que la persona escribió viaja con ella a /planificar: es su
-  // viaje, no hace falta que lo cuente dos veces.
-  const destino = encodeURIComponent(d.nombre);
+function Cobertura({ cumple, total }: { cumple: Criterio[]; total: number }) {
+  const completo = cumple.length === total && total > 1;
+  return (
+    <div className="mt-2">
+      {total > 1 && (
+        <p className={`text-xs font-medium ${completo ? "text-emerald-700" : "text-neutral-500"}`}>
+          {completo ? "✓ Covers everything you asked for" : `Covers ${cumple.length} of your ${total} wishes`}
+        </p>
+      )}
+      {/* The reasons, not just the number: a score without them is a
+          black box, and the traveller can't tell if it got them right. */}
+      <div className="mt-1 flex flex-wrap gap-1">
+        {cumple.map((c) => (
+          <span key={c.id} className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600">
+            {c.etiqueta}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
+function TarjetaDestino({ d, total }: { d: DestinoSugerido; total: number }) {
   return (
     <li className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-      {/* La foto es la del propio artículo de Wikivoyage: existe o no
-          existe, nunca se pone una genérica de relleno. */}
+      {/* The article's own photo: it exists or it doesn't. Never a
+          generic stock filler. */}
       {d.imagen && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={d.imagen} alt={d.nombre} loading="lazy" className="h-36 w-full object-cover" />
@@ -32,17 +50,21 @@ function TarjetaDestino({ d }: { d: DestinoSugerido }) {
       <div className="p-4">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="font-medium text-neutral-900">{d.nombre}</h3>
-          {/* Solo si de verdad sabemos el país. Sin dato, no se dice. */}
+          {/* Only when we actually know it. No country is better than a
+              guessed one. */}
           {d.paisNombre && <span className="shrink-0 text-xs text-neutral-500">{d.paisNombre}</span>}
         </div>
-        <p className="mt-1.5 text-sm text-neutral-600">{d.resumen}</p>
+
+        <Cobertura cumple={d.cumple} total={total} />
+
+        <p className="mt-2 text-sm text-neutral-600">{d.resumen}</p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Link
-            href={`/planificar?destino=${destino}`}
+            href={`/planificar?destino=${encodeURIComponent(d.nombre)}`}
             className="rounded-lg bg-coral-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-coral-600"
           >
-            Planificar aquí
+            Plan a trip here
           </Link>
           <a
             href={`https://www.google.com/maps/search/?api=1&query=${d.lat},${d.lon}`}
@@ -50,17 +72,16 @@ function TarjetaDestino({ d }: { d: DestinoSugerido }) {
             rel="noopener noreferrer"
             className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm text-neutral-600 transition hover:bg-neutral-50"
           >
-            📍 Ver en el mapa
+            📍 Map
           </a>
-          {/* De dónde salió esto, a un clic: lo que se lee arriba es de
-              Wikivoyage, y quien quiera comprobarlo o leer más, puede. */}
+          {/* Where this came from, one click away. */}
           <a
             href={d.url}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-neutral-400 underline transition hover:text-neutral-600"
           >
-            Guía completa{d.idioma === "en" ? " (en inglés)" : ""}
+            Full guide
           </a>
         </div>
       </div>
@@ -72,38 +93,44 @@ export default function ExplorarPage() {
   const [texto, setTexto] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [sugerencias, setSugerencias] = useState<DestinoSugerido[] | null>(null);
-  const [consultas, setConsultas] = useState<string[]>([]);
+  const [criterios, setCriterios] = useState<Criterio[]>([]);
+  const [mejorCobertura, setMejorCobertura] = useState(0);
   const abortar = useRef<AbortController | null>(null);
 
   async function explorar(consulta: string) {
     const limpio = consulta.trim();
     if (!limpio) return;
     setTexto(limpio);
-    // Una búsqueda anterior que llegue tarde no puede pisar a la nueva.
+    // An earlier search arriving late must not overwrite the new one.
     abortar.current?.abort();
     const control = new AbortController();
     abortar.current = control;
 
     setBuscando(true);
     try {
-      const { sugerencias: encontradas, consultas: usadas } = await explorarElMundo(limpio, control.signal);
+      const r = await explorarElMundo(limpio, control.signal);
       if (control.signal.aborted) return;
-      setSugerencias(encontradas);
-      setConsultas(usadas);
+      setSugerencias(r.sugerencias);
+      setCriterios(r.criterios);
+      setMejorCobertura(r.mejorCobertura);
     } finally {
       if (!control.signal.aborted) setBuscando(false);
     }
   }
 
+  const total = criterios.length;
+  const nadieLoTieneTodo = total > 1 && mejorCobertura < total;
+
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-5 pb-16 pt-6">
       <Link href="/" className="text-sm text-neutral-500 transition hover:text-neutral-800">
-        ← Inicio
+        ← Home
       </Link>
 
-      <h1 className="mt-3 text-2xl font-semibold text-neutral-900">Explorar el mundo</h1>
+      <h1 className="mt-3 text-2xl font-semibold text-neutral-900">Explore the world</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        ¿Tienes tiempo pero no destino? Cuenta qué te apetece hacer y te decimos en qué lugares del mundo se hace.
+        Time off but no destination? Describe everything you want from the trip — the more you ask for, the better.
+        We look for the places that tick the most boxes, not one place per wish.
       </p>
 
       <form
@@ -117,7 +144,7 @@ export default function ExplorarPage() {
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           rows={3}
-          placeholder="Ej.: quiero bucear, ver fauna y que no sea caro"
+          placeholder="e.g. somewhere quiet with great local food, small villages and nature nearby"
           className="w-full resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-coral-400 focus:ring-2 focus:ring-coral-100"
         />
         <button
@@ -125,20 +152,20 @@ export default function ExplorarPage() {
           disabled={buscando || !texto.trim()}
           className="mt-2 w-full rounded-xl bg-coral-500 px-4 py-2.5 font-medium text-white transition hover:bg-coral-600 disabled:opacity-50"
         >
-          {buscando ? "Buscando por el mundo…" : "Buscar lugares"}
+          {buscando ? "Searching the world…" : "Find places"}
         </button>
       </form>
 
       {sugerencias === null && !buscando && (
         <div className="mt-6">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">O empieza por aquí</p>
-          <div className="flex flex-wrap gap-2">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">Or start from one of these</p>
+          <div className="flex flex-col gap-2">
             {EJEMPLOS.map((e) => (
               <button
                 key={e}
                 type="button"
                 onClick={() => void explorar(e)}
-                className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-600 transition hover:border-coral-300 hover:text-neutral-900"
+                className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-left text-sm text-neutral-600 transition hover:border-coral-300 hover:text-neutral-900"
               >
                 {e}
               </button>
@@ -150,22 +177,22 @@ export default function ExplorarPage() {
       {sugerencias !== null && !buscando && (
         <section className="mt-7">
           {sugerencias.length === 0 ? (
-            // Cero resultados es una respuesta honesta, no una pantalla
-            // rota: se dice qué se buscó y cómo puede afinarlo.
+            // Zero results is an honest answer, not a broken screen: say
+            // what was searched and how to narrow it down.
             <div className="rounded-xl border border-neutral-200 bg-white p-4">
-              <p className="text-sm font-medium text-neutral-800">No encontramos lugares para eso.</p>
+              <p className="text-sm font-medium text-neutral-800">No places found for that.</p>
               <p className="mt-1 text-sm text-neutral-500">
-                {consultas.length > 0
-                  ? `Buscamos «${consultas.join("», «")}» en la guía de viajes Wikivoyage y no salió ningún destino con eso.`
-                  : "No conseguimos sacar de tu texto qué tipo de plan buscas."}{" "}
-                Prueba a nombrar la actividad directamente: «buceo», «senderismo», «termales», «auroras».
+                {criterios.length > 0
+                  ? `We searched Wikivoyage for ${criterios.map((c) => `“${c.etiqueta}”`).join(", ")} and no destination came back.`
+                  : "We couldn’t work out what kind of trip you’re after from that text."}{" "}
+                Try naming the activity directly: “diving”, “hiking”, “hot springs”, “northern lights”.
               </p>
             </div>
           ) : (
             <>
               <div className="mb-3 flex items-baseline justify-between gap-3">
                 <h2 className="font-medium text-neutral-900">
-                  {sugerencias.length} {sugerencias.length === 1 ? "lugar" : "lugares"} para eso
+                  {sugerencias.length} {sugerencias.length === 1 ? "place" : "places"}, best match first
                 </h2>
                 <button
                   type="button"
@@ -175,18 +202,31 @@ export default function ExplorarPage() {
                   }}
                   className="text-xs text-neutral-400 underline transition hover:text-neutral-600"
                 >
-                  Empezar de nuevo
+                  Start over
                 </button>
               </div>
+
+              {/* Said up front, not hidden: if nowhere covers everything,
+                  presenting a partial match as the answer would be a lie
+                  by omission. */}
+              {nadieLoTieneTodo && (
+                <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Nowhere covers all {total} things you asked for. The best match covers {mejorCobertura} —
+                  these are ranked by how much of your list they tick.
+                </p>
+              )}
+
               <ul className="grid gap-3 sm:grid-cols-2">
                 {sugerencias.map((d) => (
-                  <TarjetaDestino key={`${d.idioma}-${d.nombre}`} d={d} />
+                  <TarjetaDestino key={d.nombre} d={d} total={total} />
                 ))}
               </ul>
-              {/* Sin esto, la lista parecería nuestra opinión. Es de
-                  Wikivoyage, y decirlo es parte de la respuesta. */}
+
+              {/* Without this the list would read as our opinion. It is
+                  Wikivoyage's, and saying so is part of the answer. */}
               <p className="mt-4 text-xs text-neutral-400">
-                Lugares y textos de Wikivoyage, la guía de viajes libre (CC BY-SA). Se buscó: «{consultas.join("», «")}».
+                Places and text from Wikivoyage, the free travel guide (CC BY-SA). Searched for:{" "}
+                {criterios.map((c) => c.etiqueta).join(", ")}.
               </p>
             </>
           )}
