@@ -54,6 +54,24 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
   pueblos: [
     "pueblo", "excursion", "cerca de la ciudad", "escapada", "alrededores", "afueras", "day trip",
   ],
+  aventura: [
+    "aventura", "adrenalina", "parapente", "rafting", "canopy", "tirolina", "tirolesa",
+    "escalada", "escalar", "rapel", "canyoning", "torrentismo", "buceo", "bucear", "snorkel",
+    "surf", "kayak", "canoa", "cabalgata", "caballo", "bicicleta", "ciclismo", "mountain bike",
+    "deporte extremo", "deportes extremos", "parapentismo", "kitesurf", "pesca",
+  ],
+  bienestar: [
+    "termales", "termal", "spa", "sauna", "masaje", "relajarse", "descansar", "bienestar",
+    "aguas termales", "banos termales",
+  ],
+  ninos: [
+    "ninos", "nino", "hijos", "familia", "familiar", "acuario", "zoologico", "zoo",
+    "parque de diversiones", "parque de atracciones", "granja", "con peques", "para toda la familia",
+  ],
+  experiencias: [
+    "experiencia", "experiencias", "taller", "cata", "degustacion", "vinedo", "bodega",
+    "cafetal", "finca cafetera", "tour de cafe", "cerveceria", "artesanal", "mercado local",
+  ],
   otro: [
     "feria", "evento", "festival", "fiesta popular", "espontaneo", "sorpresa", "algo diferente",
     "tour", "free tour",

@@ -21,7 +21,7 @@ const ENDPOINT = "https://query.wikidata.org/sparql";
 // Sube cuando cambie de raíz QUÉ se pide o cómo se clasifica: una ciudad
 // ya explorada con una versión anterior se vuelve a explorar en vez de
 // quedarse con un resultado peor para siempre.
-export const VERSION_DESCUBRIMIENTO = 1;
+export const VERSION_DESCUBRIMIENTO = 2;
 
 export interface LugarDescubierto {
   nombre: string;
@@ -38,8 +38,8 @@ export interface LugarDescubierto {
 // sin este filtro entrarían empresas, calles o barrios, que no son planes.
 const TIPOS: Record<string, { categoria: CategoriaActividad; detalle: string }> = {
   Q34038: { categoria: "naturaleza", detalle: "cascada" },
-  Q177380: { categoria: "naturaleza", detalle: "termales" },
-  Q1394476: { categoria: "naturaleza", detalle: "termales" },
+  Q177380: { categoria: "bienestar", detalle: "termales" },
+  Q1394476: { categoria: "bienestar", detalle: "termales" },
   Q46169: { categoria: "naturaleza", detalle: "parque nacional" },
   Q179049: { categoria: "naturaleza", detalle: "reserva natural" },
   Q473972: { categoria: "naturaleza", detalle: "área protegida" },
@@ -50,8 +50,16 @@ const TIPOS: Record<string, { categoria: CategoriaActividad; detalle: string }> 
   Q40080: { categoria: "playa", detalle: "playa" },
   Q22698: { categoria: "parque", detalle: "parque" },
   Q167346: { categoria: "naturaleza", detalle: "jardín botánico" },
-  Q43501: { categoria: "naturaleza", detalle: "zoológico" },
-  Q194195: { categoria: "otro", detalle: "parque temático" },
+  Q43501: { categoria: "ninos", detalle: "zoológico" },
+  Q194195: { categoria: "ninos", detalle: "parque temático" },
+  Q43483: { categoria: "ninos", detalle: "acuario" },
+  Q1076486: { categoria: "aventura", detalle: "recinto deportivo" },
+  Q1341387: { categoria: "bienestar", detalle: "balneario" },
+  Q820477: { categoria: "aventura", detalle: "mina visitable" },
+  Q204832: { categoria: "aventura", detalle: "montaña rusa" },
+  Q22750: { categoria: "experiencias", detalle: "viñedo" },
+  Q131734: { categoria: "experiencias", detalle: "cervecería" },
+  Q330284: { categoria: "experiencias", detalle: "mercado" },
   Q33506: { categoria: "museo", detalle: "museo" },
   Q839954: { categoria: "museo", detalle: "sitio arqueológico" },
   Q4989906: { categoria: "museo", detalle: "monumento" },

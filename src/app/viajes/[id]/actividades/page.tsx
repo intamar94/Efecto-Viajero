@@ -49,6 +49,10 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   naturaleza: { etiqueta: "Naturaleza", icono: "🌿" },
   playa: { etiqueta: "Playa", icono: "🏖️" },
   pueblos: { etiqueta: "Pueblos cercanos", icono: "🏘️" },
+  aventura: { etiqueta: "Aventura y deporte", icono: "🪂" },
+  bienestar: { etiqueta: "Termales y bienestar", icono: "💆" },
+  ninos: { etiqueta: "Con niños", icono: "🧸" },
+  experiencias: { etiqueta: "Experiencias locales", icono: "🎒" },
   otro: { etiqueta: "Otros planes", icono: "✨" },
 };
 
@@ -69,6 +73,10 @@ const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
   naturaleza: "naturaleza y senderos",
   playa: "mejores playas",
   pueblos: "pueblos cercanos que visitar",
+  aventura: "deportes de aventura y adrenalina",
+  bienestar: "termales y spa",
+  ninos: "planes con niños",
+  experiencias: "tours y experiencias locales",
   otro: "planes turísticos recomendados",
 };
 
@@ -200,6 +208,10 @@ const ORDEN_CATEGORIAS: CategoriaActividad[] = [
   "naturaleza",
   "playa",
   "pueblos",
+  "aventura",
+  "bienestar",
+  "ninos",
+  "experiencias",
   "otro",
 ];
 

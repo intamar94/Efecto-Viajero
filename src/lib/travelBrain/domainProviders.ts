@@ -84,7 +84,29 @@ const poi: Record<string, string[]> = {
   // por ellos. Sitios reales y muy típicos de ciertas zonas (los
   // termales del eje cafetero colombiano, por ejemplo) quedaban
   // invisibles sin importar qué tan cerca estuvieran.
-  experiences: ["tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub", "amenity=biergarten", "shop=gift", "shop=souvenir", "shop=craft", "shop=art", "shop=deli"], culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"],   // Una cascada se etiqueta como waterway=waterfall tanto o más que como
+  // "Experiencias" era solo atracciones, bares y tiendas de souvenirs.
+  // Todo lo que de verdad se hace en un destino de naturaleza —
+  // parapente, rafting, canopy, escalada, buceo, cabalgatas — no se
+  // buscaba en ninguna parte, así que para la app no existía. Igual los
+  // termales/spa y los planes con niños (acuario, granja, parque de
+  // atracciones). Se busca todo eso explícitamente.
+  experiences: [
+    "tourism=attraction", "amenity=bar", "amenity=pub", "amenity=nightclub", "amenity=biergarten",
+    "shop=gift", "shop=souvenir", "shop=craft", "shop=art", "shop=deli",
+    // Aventura y deporte
+    "sport=climbing", "sport=paragliding", "sport=hang_gliding", "sport=rafting", "sport=canyoning",
+    "sport=surfing", "sport=scuba_diving", "sport=kitesurfing", "sport=canoe", "sport=cycling",
+    "sport=horse_riding", "leisure=horse_riding", "aerialway=zip_line", "attraction=zip_line",
+    "leisure=climbing_adventure", "leisure=sports_centre", "leisure=fishing",
+    // Bienestar
+    "leisure=spa", "amenity=spa", "leisure=sauna", "amenity=public_bath",
+    // Con niños
+    "tourism=aquarium", "attraction=animal", "attraction=amusement_ride", "leisure=amusement_arcade",
+    "tourism=farm", "attraction=big_wheel",
+    // Experiencias locales
+    "tourism=winery", "craft=brewery", "craft=distillery", "amenity=marketplace", "tourism=artwork",
+  ],
+  culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"],   // Una cascada se etiqueta como waterway=waterfall tanto o más que como
   // natural=waterfall, y acampar, un parque natural o un jardín botánico
   // no estaban en la lista en absoluto: en Pereira eso dejaba fuera La
   // Florida, los termales y el camping, y "naturaleza" se llenaba de

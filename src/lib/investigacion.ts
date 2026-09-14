@@ -124,7 +124,7 @@ export interface AuditoriaCapacidades {
 // número, esa investigación quedó desactualizada aunque nadie la haya
 // tocado, y conviene volver a correrla en vez de esperar a que alguien
 // recuerde tocar "Actualizar investigación real".
-export const VERSION_INVESTIGACION = 7;
+export const VERSION_INVESTIGACION = 8;
 
 export interface Investigacion {
   generadoEn: string;
@@ -181,6 +181,26 @@ const DETALLE_OSM: Record<string, string> = {
   hot_spring: "aguas termales",
   theme_park: "parque temático",
   water_park: "parque acuático",
+  aquarium: "acuario",
+  zoo: "zoológico",
+  spa: "spa",
+  sauna: "sauna",
+  public_bath: "baños termales",
+  horse_riding: "cabalgatas",
+  climbing_adventure: "parque de aventura",
+  sports_centre: "centro deportivo",
+  fishing: "pesca",
+  winery: "bodega de vino",
+  brewery: "cervecería",
+  distillery: "destilería",
+  marketplace: "mercado",
+  farm: "granja",
+  camp_site: "camping",
+  picnic_site: "zona de picnic",
+  spring: "manantial",
+  peak: "cima",
+  cave_entrance: "cueva",
+  garden: "jardín",
 };
 
 const MAX_POR_CATEGORIA = 8;
@@ -246,6 +266,22 @@ interface ElementoOverpass {
 // wheelchair= en muchos sitios y ya venía en la misma respuesta que todo
 // lo demás: solo había que leerla. No se asume nada cuando falta — sin
 // etiqueta, no se dice nada, que es distinto de decir que no es accesible.
+// Nombre legible del deporte: sin esto, un sitio de parapente salía como
+// "Atracción." y no se entendía qué se hace ahí.
+const DEPORTE_ES: Record<string, string> = {
+  climbing: "escalada",
+  paragliding: "parapente",
+  hang_gliding: "ala delta",
+  rafting: "rafting",
+  canyoning: "torrentismo",
+  surfing: "surf",
+  scuba_diving: "buceo",
+  kitesurfing: "kitesurf",
+  canoe: "kayak / canoa",
+  horse_riding: "cabalgatas",
+  cycling: "ciclismo",
+};
+
 function accesibilidadDe(tags: Record<string, string> = {}): SitioReal["accesible"] {
   if (tags.wheelchair === "yes") return "si";
   if (tags.wheelchair === "limited") return "parcial";
@@ -254,7 +290,9 @@ function accesibilidadDe(tags: Record<string, string> = {}): SitioReal["accesibl
 }
 
 function detalleDe(tags: Record<string, string> = {}): string | undefined {
-  for (const clave of ["amenity", "tourism", "leisure", "natural", "historic", "shop"]) {
+  const deporte = tags.sport ? DEPORTE_ES[tags.sport] : undefined;
+  if (deporte) return deporte;
+  for (const clave of ["amenity", "tourism", "leisure", "natural", "historic", "shop", "craft", "waterway"]) {
     const valor = tags[clave];
     if (valor && DETALLE_OSM[valor]) return DETALLE_OSM[valor];
   }
@@ -287,16 +325,57 @@ function findingsDe(data: unknown): unknown[] {
 // selección para algo que el viajero piensa como un solo tipo de plan —
 // el tipo exacto (playa, parque, mirador...) se sigue viendo en el
 // detalle de cada tarjeta, solo que ya no como categoría aparte.
+// Deportes que son un PLAN de viaje (te subes a un parapente, bajas un
+// río), no la cancha de fútbol del barrio: solo estos entran en aventura.
+const DEPORTES_AVENTURA = new Set([
+  "climbing", "paragliding", "hang_gliding", "rafting", "canyoning", "surfing",
+  "scuba_diving", "kitesurfing", "canoe", "horse_riding", "cycling",
+]);
+
 function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): CategoriaActividad {
+  // Antes que naturaleza: unos termales o un parque acuático son un plan
+  // de bienestar o de niños más que "un sitio natural que mirar", y en
+  // esa caja es donde alguien los busca de verdad.
+  if (tags.leisure === "spa" || tags.amenity === "spa" || tags.leisure === "sauna" || tags.amenity === "public_bath" || tags.natural === "hot_spring")
+    return "bienestar";
+  if (
+    tags.tourism === "aquarium" ||
+    tags.tourism === "zoo" ||
+    tags.tourism === "theme_park" ||
+    tags.leisure === "water_park" ||
+    tags.attraction === "animal" ||
+    tags.attraction === "amusement_ride" ||
+    tags.attraction === "big_wheel" ||
+    tags.leisure === "amusement_arcade" ||
+    tags.tourism === "farm"
+  )
+    return "ninos";
+  if (
+    (tags.sport && DEPORTES_AVENTURA.has(tags.sport)) ||
+    tags.leisure === "horse_riding" ||
+    tags.leisure === "climbing_adventure" ||
+    tags.aerialway === "zip_line" ||
+    tags.attraction === "zip_line" ||
+    tags.leisure === "sports_centre" ||
+    tags.leisure === "fishing"
+  )
+    return "aventura";
+  if (tags.tourism === "winery" || tags.craft === "brewery" || tags.craft === "distillery" || tags.amenity === "marketplace")
+    return "experiencias";
   if (
     tags.natural === "beach" ||
     tags.leisure === "park" ||
     tags.leisure === "nature_reserve" ||
     tags.tourism === "viewpoint" ||
     tags.natural === "waterfall" ||
-    tags.natural === "hot_spring" ||
-    tags.tourism === "theme_park" ||
-    tags.leisure === "water_park"
+    tags.waterway === "waterfall" ||
+    tags.natural === "spring" ||
+    tags.natural === "peak" ||
+    tags.natural === "cave_entrance" ||
+    tags.tourism === "camp_site" ||
+    tags.tourism === "picnic_site" ||
+    tags.leisure === "garden" ||
+    tags.boundary === "national_park"
   )
     return "naturaleza";
   if (tags.amenity === "bar" || tags.amenity === "pub" || tags.amenity === "nightclub" || tags.amenity === "biergarten") return "discoteca";

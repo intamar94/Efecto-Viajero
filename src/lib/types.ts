@@ -128,6 +128,13 @@ export interface OpcionAlojamiento {
 
 export type EstadoActividad = "disponible" | "planificada" | "reservada" | "realizada" | "descartada";
 
+// Las categorías son el menú con el que alguien descubre qué se puede
+// hacer en un sitio, así que lo que no tiene caja aquí, sencillamente no
+// existe para el viajero — daba igual cuántas fuentes consultáramos.
+// Faltaban justo los planes que uno no sabe buscar de antemano: el
+// parapente del valle, el rafting del río, los termales, el acuario al
+// que llevar a los niños, el tour por el cafetal. Por eso se añaden
+// aventura, bienestar, niños y experiencias.
 export type CategoriaActividad =
   | "museo"
   | "parque"
@@ -138,6 +145,10 @@ export type CategoriaActividad =
   | "naturaleza"
   | "playa"
   | "pueblos"
+  | "aventura"
+  | "bienestar"
+  | "ninos"
+  | "experiencias"
   | "otro";
 
 export interface ActividadDestino {
