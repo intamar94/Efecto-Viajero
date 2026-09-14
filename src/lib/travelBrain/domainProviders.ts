@@ -110,6 +110,15 @@ const poi: Record<string, string[]> = {
     "leisure=beach_resort", "garden:type=botanical",
     // Experiencias locales
     "tourism=winery", "craft=brewery", "craft=distillery", "amenity=marketplace", "tourism=artwork",
+    // Aventura que faltaba: cuevas, cuatrimotos, puenting, globo, esquí
+    "sport=caving", "sport=quad", "sport=bungee_jumping", "sport=ballooning", "sport=skiing",
+    "sport=free_flying", "tourism=wilderness_hut",
+    // Eventos: dónde pasan conciertos, ferias y partidos
+    "amenity=events_venue", "amenity=conference_centre", "leisure=stadium", "amenity=theatre",
+    // Espiritual y religioso
+    "amenity=place_of_worship", "amenity=monastery", "historic=wayside_shrine", "historic=monastery",
+    // Fauna: dónde se ve de verdad
+    "leisure=bird_hide", "tourism=wildlife_hide",
   ],
   culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"],   // Una cascada se etiqueta como waterway=waterfall tanto o más que como
   // natural=waterfall, y acampar, un parque natural o un jardín botánico

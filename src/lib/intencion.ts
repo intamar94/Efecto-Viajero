@@ -59,6 +59,8 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     "escalada", "escalar", "rapel", "canyoning", "torrentismo", "buceo", "bucear", "snorkel",
     "surf", "kayak", "canoa", "cabalgata", "caballo", "bicicleta", "ciclismo", "mountain bike",
     "deporte extremo", "deportes extremos", "parapentismo", "kitesurf", "pesca",
+    "espeleologia", "cueva", "cuevas", "puenting", "bungee", "salto", "cuatrimoto", "cuatrimotos",
+    "quad", "globo", "globo aerostatico", "esqui", "snowboard", "vuelo libre", "tubing",
   ],
   bienestar: [
     "termales", "termal", "spa", "sauna", "masaje", "relajarse", "descansar", "bienestar",
@@ -75,9 +77,22 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     "experiencia", "experiencias", "taller", "cata", "degustacion", "vinedo", "bodega",
     "cafetal", "finca cafetera", "tour de cafe", "cerveceria", "artesanal", "mercado local",
   ],
+  eventos: [
+    "evento", "eventos", "festival", "festivales", "concierto", "conciertos", "feria", "ferias",
+    "carnaval", "fiesta popular", "agenda cultural", "que pasa", "partido", "estadio",
+    "temporada", "en vivo", "espectaculo deportivo",
+  ],
+  espiritual: [
+    "iglesia", "catedral", "templo", "santuario", "monasterio", "convento", "basilica",
+    "mezquita", "sinagoga", "peregrinacion", "camino de santiago", "espiritual", "religioso",
+    "retiro", "meditacion", "yoga", "mindfulness", "sagrado",
+  ],
+  fauna: [
+    "aves", "pajaros", "avistamiento", "birdwatching", "fauna", "animales", "ballenas",
+    "delfines", "tortugas", "safari", "observacion de aves", "vida silvestre", "monos",
+  ],
   otro: [
-    "feria", "evento", "festival", "fiesta popular", "espontaneo", "sorpresa", "algo diferente",
-    "tour", "free tour",
+    "espontaneo", "sorpresa", "algo diferente", "tour", "free tour",
   ],
 };
 

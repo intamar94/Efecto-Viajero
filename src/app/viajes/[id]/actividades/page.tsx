@@ -53,6 +53,9 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   bienestar: { etiqueta: "Termales y bienestar", icono: "💆" },
   todos: { etiqueta: "Planes para todos", icono: "🎡" },
   experiencias: { etiqueta: "Experiencias locales", icono: "🎒" },
+  eventos: { etiqueta: "Eventos y festivales", icono: "🎪" },
+  espiritual: { etiqueta: "Espiritual y religioso", icono: "⛪" },
+  fauna: { etiqueta: "Ver fauna y aves", icono: "🦜" },
   otro: { etiqueta: "Otros planes", icono: "✨" },
 };
 
@@ -77,6 +80,9 @@ const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
   bienestar: "termales y spa",
   todos: "planes para toda la familia",
   experiencias: "tours y experiencias locales",
+  eventos: "conciertos, festivales y eventos",
+  espiritual: "iglesias, santuarios y sitios de peregrinación",
+  fauna: "avistamiento de aves y fauna",
   otro: "planes turísticos recomendados",
 };
 
@@ -212,6 +218,9 @@ const ORDEN_CATEGORIAS: CategoriaActividad[] = [
   "bienestar",
   "todos",
   "experiencias",
+  "eventos",
+  "espiritual",
+  "fauna",
   "otro",
 ];
 
@@ -900,13 +909,15 @@ export default function ActividadesPage() {
       const categoria = CATEGORIA_DE_LISTING[l.tipo];
       if (!categoria || !l.nombre) return [];
       // Un festival o feria no es un sitio al que se pueda ir cualquier
-      // día — es un evento con fecha propia, y Wikivoyage no trae esa
-      // fecha en estos listings. Mostrarlo con "+Añadir"/mapa como si
-      // fuera un lugar fijo (sin poder decir cuándo ocurre) confunde más
-      // de lo que ayuda; los eventos reales con fecha ya tienen su
-      // propia sección (EventosEstacionalesDestino, con datos curados
-      // por país y mes) — aquí se descartan en vez de mostrarse a medias.
-      if (PARECE_EVENTO.test(l.nombre)) return [];
+      // día: es un evento con fecha propia, y Wikivoyage no trae esa
+      // fecha. Antes se DESCARTABAN por eso — pero esconderlos era peor
+      // que mostrarlos: los festivales y conciertos están entre lo que
+      // más busca la gente al viajar, y quien va a Barranquilla quiere
+      // saber que existe el Carnaval aunque tenga que mirar la fecha por
+      // su cuenta. Ahora van a su propia caja ("Eventos y festivales"),
+      // donde se entiende que son fechas, no sitios fijos.
+      const esEvento = PARECE_EVENTO.test(l.nombre);
+      const categoriaFinal = esEvento ? ("eventos" as const) : categoria;
       const id = `wv-${etapa.id}-${slug(l.nombre)}`;
       if (idsWikivoyageYaAñadidos.has(id)) return [];
       return [
@@ -914,13 +925,17 @@ export default function ActividadesPage() {
           id,
           nombre: l.nombre,
           tipo: l.tipo,
-          categoria,
+          categoria: categoriaFinal,
           duracionHoras: 0,
           costeEstimado: 0,
           apta: [],
           entorno: "mixto" as const,
           admiteMascotas: false,
-          descripcion: l.contenido ? acortarTexto(l.contenido, 160) : "Recomendado en la guía Wikivoyage de la ciudad.",
+          descripcion: esEvento
+            ? `${l.contenido ? acortarTexto(l.contenido, 140) + " " : ""}Confirma la fecha antes de contar con ello: es un evento, no un sitio abierto todo el año.`
+            : l.contenido
+              ? acortarTexto(l.contenido, 160)
+              : "Recomendado en la guía Wikivoyage de la ciudad.",
           esPropia: false,
           esSitioReal: true,
           fuenteEtiqueta: "Wikivoyage",

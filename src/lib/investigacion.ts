@@ -208,6 +208,16 @@ const DETALLE_OSM: Record<string, string> = {
   miniature_golf: "minigolf",
   planetarium: "planetario",
   beach_resort: "balneario",
+  place_of_worship: "sitio de culto",
+  monastery: "monasterio",
+  wayside_shrine: "santuario",
+  events_venue: "recinto de eventos",
+  conference_centre: "centro de convenciones",
+  stadium: "estadio",
+  bird_hide: "observatorio de aves",
+  wildlife_hide: "observatorio de fauna",
+  theatre: "teatro",
+  wilderness_hut: "refugio de montaña",
 };
 
 const MAX_POR_CATEGORIA = 8;
@@ -287,6 +297,12 @@ const DEPORTE_ES: Record<string, string> = {
   canoe: "kayak / canoa",
   horse_riding: "cabalgatas",
   cycling: "ciclismo",
+  caving: "espeleología",
+  quad: "cuatrimotos",
+  bungee_jumping: "puenting",
+  ballooning: "globo aerostático",
+  skiing: "esquí",
+  free_flying: "vuelo libre",
 };
 
 function accesibilidadDe(tags: Record<string, string> = {}): SitioReal["accesible"] {
@@ -338,9 +354,23 @@ function findingsDe(data: unknown): unknown[] {
 const DEPORTES_AVENTURA = new Set([
   "climbing", "paragliding", "hang_gliding", "rafting", "canyoning", "surfing",
   "scuba_diving", "kitesurfing", "canoe", "horse_riding", "cycling",
+  "caving", "quad", "bungee_jumping", "ballooning", "skiing", "free_flying",
 ]);
 
 function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): CategoriaActividad {
+  // Antes que "museo": una iglesia o un santuario los busca un peregrino
+  // como sitio de culto, no como pieza de museo. Quien va por el arte lo
+  // encuentra igual, pero quien va a rezar ya tiene su caja.
+  if (
+    tags.amenity === "place_of_worship" ||
+    tags.amenity === "monastery" ||
+    tags.historic === "wayside_shrine" ||
+    tags.historic === "monastery"
+  )
+    return "espiritual";
+  if (tags.amenity === "events_venue" || tags.amenity === "conference_centre" || tags.leisure === "stadium")
+    return "eventos";
+  if (tags.leisure === "bird_hide" || tags.tourism === "wildlife_hide") return "fauna";
   // Antes que naturaleza: unos termales o un parque acuático son un plan
   // de bienestar o de niños más que "un sitio natural que mirar", y en
   // esa caja es donde alguien los busca de verdad.

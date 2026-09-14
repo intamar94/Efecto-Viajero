@@ -21,7 +21,7 @@ const ENDPOINT = "https://query.wikidata.org/sparql";
 // Sube cuando cambie de raíz QUÉ se pide o cómo se clasifica: una ciudad
 // ya explorada con una versión anterior se vuelve a explorar en vez de
 // quedarse con un resultado peor para siempre.
-export const VERSION_DESCUBRIMIENTO = 3;
+export const VERSION_DESCUBRIMIENTO = 4;
 
 export interface LugarDescubierto {
   nombre: string;
@@ -67,9 +67,15 @@ const TIPOS: Record<string, { categoria: CategoriaActividad; detalle: string }> 
   Q33506: { categoria: "museo", detalle: "museo" },
   Q839954: { categoria: "museo", detalle: "sitio arqueológico" },
   Q4989906: { categoria: "museo", detalle: "monumento" },
-  Q2977: { categoria: "museo", detalle: "catedral" },
-  Q16970: { categoria: "museo", detalle: "iglesia" },
   Q24354: { categoria: "cine_teatro", detalle: "teatro" },
+  Q16970: { categoria: "espiritual", detalle: "iglesia" },
+  Q2977: { categoria: "espiritual", detalle: "catedral" },
+  Q44613: { categoria: "espiritual", detalle: "monasterio" },
+  Q32815: { categoria: "espiritual", detalle: "mezquita" },
+  Q34627: { categoria: "espiritual", detalle: "sinagoga" },
+  Q842402: { categoria: "espiritual", detalle: "santuario" },
+  Q483110: { categoria: "eventos", detalle: "estadio" },
+  Q18674739: { categoria: "eventos", detalle: "recinto de eventos" },
   Q515: { categoria: "pueblos", detalle: "ciudad" },
   Q3957: { categoria: "pueblos", detalle: "pueblo" },
   Q15284: { categoria: "pueblos", detalle: "municipio" },

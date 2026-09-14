@@ -140,6 +140,13 @@ export type EstadoActividad = "disponible" | "planificada" | "reservada" | "real
 // temático, un jardín botánico o una piscina son planes que hace la
 // familia entera — niños, adultos y personas mayores. Encasillarlos como
 // infantiles escondía justo lo que más gente puede disfrutar junta.
+//
+// eventos, espiritual y fauna salen de contrastar lo que teníamos con lo
+// que la gente de verdad busca al viajar (ver commit): los festivales y
+// conciertos son de lo más buscado y aquí se estaban ESCONDIENDO; el
+// turismo espiritual/religioso mueve a mucha gente y sus iglesias y
+// santuarios caían en "museo", que no es como los busca un peregrino; y
+// el avistamiento de fauna (aves, ballenas) no tenía dónde caer.
 export type CategoriaActividad =
   | "museo"
   | "parque"
@@ -154,6 +161,9 @@ export type CategoriaActividad =
   | "bienestar"
   | "todos"
   | "experiencias"
+  | "eventos"
+  | "espiritual"
+  | "fauna"
   | "otro";
 
 export interface ActividadDestino {
