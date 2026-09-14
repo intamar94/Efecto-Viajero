@@ -151,6 +151,9 @@ const poi: Record<string, string[]> = {
     // Agua: alquilar un bote, salir a pescar, un muelle donde embarcar
     "amenity=boat_rental", "amenity=boat_sharing", "leisure=marina", "leisure=slipway",
     "leisure=fishing", "sport=fishing", "sport=sailing", "sport=rowing", "man_made=pier",
+    // La casa flotante SÍ tiene etiqueta propia en OSM: houseboat_rental
+    // sobre el alquiler, o "houseboat" entre los tipos de rental=.
+    "houseboat_rental=yes", "rental=boat", "boat:rental", "shop=boat",
   ],
   accommodation: ["tourism=hotel", "tourism=hostel", "tourism=guest_house", "tourism=apartment"],
 };

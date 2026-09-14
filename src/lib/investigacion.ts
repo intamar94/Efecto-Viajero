@@ -376,6 +376,13 @@ function accesibilidadDe(tags: Record<string, string> = {}): SitioReal["accesibl
 
 function detalleDe(tags: Record<string, string> = {}): string | undefined {
   if (tags["garden:type"] === "botanical") return "jardín botánico";
+  // Alquilar una casa flotante es un plan en sí mismo, no "un bote más":
+  // OpenStreetMap lo marca con houseboat_rental=yes sobre el alquiler, o
+  // listando "houseboat" entre los tipos de rental=. Antes de decir solo
+  // "alquiler de botes", se mira si de verdad hay casas flotantes.
+  const tiposAlquiler = `${tags.rental ?? ""};${tags["boat:rental"] ?? ""}`;
+  if (tags.houseboat_rental === "yes" || /houseboat/i.test(tiposAlquiler)) return "alquiler de casas flotantes";
+  if (tags.rental === "boat" || tags["boat:rental"] || tags.shop === "boat") return "alquiler de botes";
   const deporte = tags.sport ? DEPORTE_ES[tags.sport] : undefined;
   if (deporte) return deporte;
   if (tags.artwork_type === "mural" || tags.artwork_type === "street_art") return "mural";
@@ -499,7 +506,11 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
     tags.man_made === "pier" ||
     tags.sport === "fishing" ||
     tags.sport === "sailing" ||
-    tags.sport === "rowing"
+    tags.sport === "rowing" ||
+    tags.shop === "boat" ||
+    tags.houseboat_rental === "yes" ||
+    Boolean(tags["boat:rental"]) ||
+    /boat/i.test(tags.rental ?? "")
   )
     return "nautica";
   if (
