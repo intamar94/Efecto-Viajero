@@ -8,6 +8,11 @@ export interface ResumenWikipedia {
   titulo: string;
   extracto: string;
   url: string;
+  // La misma respuesta que ya trae el extracto incluye una miniatura del
+  // artículo, y hasta ahora se descartaba: la app no mostraba ni una
+  // imagen de ningún sitio. No cuesta una consulta más — es un campo que
+  // ya venía en la respuesta y se estaba tirando.
+  imagen?: string;
 }
 
 const LARGO_POR_DEFECTO = 200;
@@ -39,7 +44,7 @@ function acortar(texto: string, maxCaracteres: number): string {
   return resultado;
 }
 
-interface ArticuloWikipedia { titulo: string; extractoCompleto: string; url: string }
+interface ArticuloWikipedia { titulo: string; extractoCompleto: string; url: string; imagen?: string }
 
 // Se cachea por (término, contexto, idioma): dos lugares con el mismo
 // nombre pero distinto contexto (país) no deben compartir caché.
@@ -101,6 +106,7 @@ async function obtenerResumenDeTitulo(titulo: string, idioma: "es" | "en"): Prom
       titulo: data.title as string,
       extractoCompleto: data.extract as string,
       url: (data.content_urls?.desktop?.page as string | undefined) ?? `https://${idioma}.wikipedia.org/wiki/${encodeURIComponent(titulo)}`,
+      imagen: typeof data.thumbnail?.source === "string" ? (data.thumbnail.source as string) : undefined,
     };
   } catch {
     return null;
@@ -161,7 +167,7 @@ export async function obtenerResumenPorEnlaceOsm(enlaces: EnlacesOsm, maxCaracte
   const desdeWikipedia = enlaces.wikipedia ? await resumenDeTituloConIdioma(enlaces.wikipedia) : null;
   const completo = desdeWikipedia ?? (enlaces.wikidata ? await resumenDesdeWikidata(enlaces.wikidata) : null);
   if (!completo) return null;
-  return { titulo: completo.titulo, extracto: acortar(completo.extractoCompleto, maxCaracteres), url: completo.url };
+  return { titulo: completo.titulo, extracto: acortar(completo.extractoCompleto, maxCaracteres), url: completo.url, imagen: completo.imagen };
 }
 
 async function buscarResumen(termino: string, idioma: "es" | "en", contexto?: string, coords?: Coordenadas): Promise<ArticuloWikipedia | null> {
@@ -200,7 +206,7 @@ export async function obtenerResumenLugar(nombre: string, maxCaracteres: number 
     cache.set(clave, completo);
   }
   if (!completo) return null;
-  return { titulo: completo.titulo, extracto: acortar(completo.extractoCompleto, maxCaracteres), url: completo.url };
+  return { titulo: completo.titulo, extracto: acortar(completo.extractoCompleto, maxCaracteres), url: completo.url, imagen: completo.imagen };
 }
 
 // El mismo criterio de resolución completo (enlace directo de OSM →

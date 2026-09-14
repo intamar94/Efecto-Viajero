@@ -11,6 +11,7 @@ import { useData } from "@/lib/store";
 import { crucesDe, esCircuito, etapasDe, paisDeEtapa, destinoParaCatalogo } from "@/lib/viaje";
 import { ETIQUETA_BLOQUE, REGLA_BLOQUE } from "@/lib/paises";
 import { mediosUtilesEnCiudad } from "@/lib/transporteLocal";
+import { festivosEnRango, luzDelDia, type FestivoPais, type LuzDelDia } from "@/lib/calendarioViaje";
 import { actividadesDe } from "@/lib/catalogo";
 import { GeneradorItinerario } from "@/lib/generador-itinerario";
 import { formatearFecha } from "@/lib/formatoFecha";
@@ -55,6 +56,10 @@ export default function RutaPage() {
   const [cargando, setCargando] = useState(false);
   const [etapasAbiertas, setEtapasAbiertas] = useState<Set<string>>(new Set());
   const [mapasAbiertos, setMapasAbiertos] = useState<Set<string>>(new Set());
+  const [festivos, setFestivos] = useState<FestivoPais[]>([]);
+  // Por nombre de ciudad: la hora de luz depende de dónde estés, no solo
+  // del día (amanece bastante distinto en Cartagena que en Bogotá).
+  const [luz, setLuz] = useState<Record<string, LuzDelDia>>({});
 
   // El viaje se hidrata desde localStorage de forma asíncrona: si se lee
   // viaje.itinerario en el useState inicial, esa lectura llega demasiado
@@ -66,6 +71,32 @@ export default function RutaPage() {
     setMostrarPreferencias(!viaje?.itinerario);
     setInicializado(true);
   }, [hidratado, inicializado, viaje]);
+
+  // Festivos del país durante el viaje y horas de luz por ciudad: dos
+  // datos que cambian el plan real de un día (un museo cerrado, o salir
+  // al mirador cuando ya es de noche) y que ninguna de las fuentes que ya
+  // usábamos traía. Sin clave: si fallan, simplemente no se muestran.
+  useEffect(() => {
+    if (!viaje?.fechaSalida || !viaje?.fechaRegreso) return;
+    let cancelado = false;
+    (async () => {
+      const codigos = [...new Set(etapasDe(viaje).map((e) => paisDeEtapa(e)?.codigo).filter(Boolean))] as string[];
+      const listas = await Promise.all(codigos.map((c) => festivosEnRango(c, viaje.fechaSalida!, viaje.fechaRegreso!)));
+      if (cancelado) return;
+      setFestivos(listas.flat());
+
+      for (const etapa of etapasDe(viaje)) {
+        if (etapa.lat === undefined || etapa.lon === undefined) continue;
+        const datos = await luzDelDia(etapa.lat, etapa.lon, viaje.fechaSalida!);
+        if (cancelado) return;
+        if (datos) setLuz((prev) => ({ ...prev, [etapa.nombre]: datos }));
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viaje?.id, viaje?.fechaSalida, viaje?.fechaRegreso]);
 
   if (!hidratado || !inicializado) {
     return (
@@ -189,6 +220,25 @@ export default function RutaPage() {
           </span>
         </div>
 
+        {/* Un festivo dentro del viaje cambia el día real: museos y
+            oficinas cerrados, transporte con otro horario, y a veces una
+            fiesta que es justo lo que querrías ver. Antes no se sabía. */}
+        {festivos.length > 0 && (
+          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="mb-1.5 text-sm font-medium text-amber-900">📅 Días festivos durante tu viaje</p>
+            <ul className="space-y-1 text-sm text-amber-800">
+              {festivos.map((f) => (
+                <li key={`${f.fecha}-${f.nombre}`}>
+                  <span className="font-medium">{formatearFecha(f.fecha)}</span> — {f.nombreLocal}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-amber-700">
+              Muchos museos, oficinas y comercios cierran o cambian de horario. El transporte también suele ir distinto.
+            </p>
+          </div>
+        )}
+
         <div className="no-imprimir mb-5 flex flex-wrap gap-2">
           <button onClick={() => window.print()} className="btn-primary text-xs">
             🖨️ Imprimir o guardar en PDF
@@ -286,6 +336,14 @@ export default function RutaPage() {
                         <div className="flex gap-2">
                           <dt className="w-28 shrink-0 text-neutral-400">Turista</dt>
                           <dd className="text-neutral-700">{pais.telefonoTurista}</dd>
+                        </div>
+                      )}
+                      {luz[etapa.nombre] && (
+                        <div className="flex gap-2">
+                          <dt className="w-28 shrink-0 text-neutral-400">Luz</dt>
+                          <dd className="text-neutral-700">
+                            ☀️ {luz[etapa.nombre].amanecer} · 🌅 {luz[etapa.nombre].atardecer}
+                          </dd>
                         </div>
                       )}
                       {(() => {

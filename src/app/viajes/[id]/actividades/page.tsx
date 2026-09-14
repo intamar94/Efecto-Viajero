@@ -238,6 +238,8 @@ type Item = ActividadDestino & {
   // local confirmada debería verse ANTES que uno de cocina genérica sin
   // dato — nunca se asume que algo ES típico sin la etiqueta real.
   cocinaLocal?: boolean;
+  imagen?: string;
+  accesible?: "si" | "parcial" | "no";
 };
 
 const COCINAS_LOCALES = new Set(["colombiana", "regional", "local", "latinoamericana", "arepas", "empanadas"]);
@@ -256,7 +258,16 @@ function medalla(n: number): string {
 // antes eran dos bloques de JSX casi idénticos.
 function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: EstadoActividad; onCambiarEstado: (e: EstadoActividad | null) => void }) {
   return (
-    <li className="rounded-lg bg-neutral-50 p-3">
+    <li className="overflow-hidden rounded-lg bg-neutral-50">
+      {/* Una foto real del sitio dice más que tres líneas de texto para
+          decidir si te apetece ir. Sale del artículo de Wikipedia del
+          propio lugar, así que solo aparece cuando de verdad existe —
+          nunca una imagen genérica de relleno. */}
+      {it.imagen && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={it.imagen} alt={it.nombre} loading="lazy" className="h-32 w-full object-cover" />
+      )}
+      <div className="p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium">{it.nombre}</p>
@@ -280,6 +291,11 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
           <span className="chip">{it.costeEstimado > 0 ? `💵 ${it.costeEstimado}€` : "🆓 Gratis"}</span>
         )}
         {it.admiteMascotas && <span className="chip">🐾 Mascotas</span>}
+        {/* Solo cuando OpenStreetMap lo dice de verdad: sin etiqueta no
+            se muestra nada, porque "no sabemos" no es "no accesible". */}
+        {it.accesible === "si" && <span className="chip">♿ Accesible</span>}
+        {it.accesible === "parcial" && <span className="chip">♿ Parcialmente accesible</span>}
+        {it.accesible === "no" && <span className="chip">♿ No accesible</span>}
         {it.esPropia && <span className="chip">✍️ Tuya</span>}
       </div>
 
@@ -359,6 +375,7 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
             Deshacer
           </button>
         )}
+      </div>
       </div>
     </li>
   );
@@ -537,7 +554,14 @@ export default function ActividadesPage() {
             );
             if (cancelado) return;
             huboCambios = true;
-            siguiente = { ...siguiente, resumenWikipedia: resumen?.extracto ?? "", versionResumen: VERSION_ENRIQUECIMIENTO_SITIO };
+            siguiente = {
+              ...siguiente,
+              resumenWikipedia: resumen?.extracto ?? "",
+              // La foto viene en la MISMA respuesta que el resumen: se
+              // guarda aquí para no pedirla aparte.
+              imagen: resumen?.imagen ?? "",
+              versionResumen: VERSION_ENRIQUECIMIENTO_SITIO,
+            };
           }
           // Sin artículo propio: qué hay de verdad cerca, según OSM. Un
           // fallo de red (entornoCercanoDe lanza en ese caso) se deja tal
@@ -843,6 +867,8 @@ export default function ActividadesPage() {
         // pide — se reconoce también por el nombre real de la marca.
         cadenaGenerica: s.detalle === "comida rápida" || s.detalle === "cafetería" || esCadenaConocida(s.nombre),
         cocinaLocal: s.cocina ? s.cocina.split(", ").some((c) => COCINAS_LOCALES.has(c)) : false,
+        imagen: s.imagen || undefined,
+        accesible: s.accesible,
         // La distancia al centro ayuda a decidir, pero una dirección real
         // (cuando alguna fuente la tiene) es lo que de verdad sirve para ir.
         direccion: s.direccionComercial || distanciaDelCentro(etapa, s.lat, s.lon),

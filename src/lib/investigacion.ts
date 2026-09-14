@@ -18,7 +18,7 @@ import { distanciaMetros } from "./geoAudio";
 // sitio ya marcado como "" (sin artículo) bajo una versión de búsqueda
 // anterior no debe quedarse así para siempre solo porque esa búsqueda
 // vieja no lo encontró: se reintenta con la versión vigente.
-export const VERSION_ENRIQUECIMIENTO_SITIO = 4;
+export const VERSION_ENRIQUECIMIENTO_SITIO = 5;
 
 export interface SitioReal {
   nombre: string;
@@ -81,6 +81,13 @@ export interface SitioReal {
   // encuentra lo que está fuera del casco urbano (termales, cascadas,
   // pueblos) y que OSM no tiene bien etiquetado a esa distancia.
   fuente?: "wikidata";
+  // Miniatura real del artículo de Wikipedia del sitio, cuando lo tiene.
+  // Viene en la misma respuesta que el resumen, así que no cuesta una
+  // consulta extra. "" = ya se buscó y el artículo no tiene imagen.
+  imagen?: string;
+  // Accesibilidad real según la etiqueta wheelchair= de OpenStreetMap.
+  // Sin etiqueta queda undefined: "no sabemos" no es "no es accesible".
+  accesible?: "si" | "parcial" | "no";
 }
 
 export interface DiaClima {
@@ -232,6 +239,18 @@ interface ElementoOverpass {
   lon?: number;
   center?: { lat?: number; lon?: number };
   tags?: Record<string, string>;
+}
+
+// En /planificar ya se pregunta si hay necesidades de accesibilidad, pero
+// esa respuesta no se usaba para nada. OpenStreetMap trae la etiqueta
+// wheelchair= en muchos sitios y ya venía en la misma respuesta que todo
+// lo demás: solo había que leerla. No se asume nada cuando falta — sin
+// etiqueta, no se dice nada, que es distinto de decir que no es accesible.
+function accesibilidadDe(tags: Record<string, string> = {}): SitioReal["accesible"] {
+  if (tags.wheelchair === "yes") return "si";
+  if (tags.wheelchair === "limited") return "parcial";
+  if (tags.wheelchair === "no") return "no";
+  return undefined;
 }
 
 function detalleDe(tags: Record<string, string> = {}): string | undefined {
@@ -454,6 +473,7 @@ function extraerSitios(findings: unknown[], dominio: string): { lugar: string; s
         nombre,
         categoria,
         detalle: detalleDe(el.tags),
+        accesible: accesibilidadDe(el.tags),
         lat: el.lat ?? el.center?.lat,
         lon: el.lon ?? el.center?.lon,
         horarioApertura: horarioDe(el.tags),
