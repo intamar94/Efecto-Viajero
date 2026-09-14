@@ -51,7 +51,7 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   pueblos: { etiqueta: "Pueblos cercanos", icono: "🏘️" },
   aventura: { etiqueta: "Aventura y deporte", icono: "🪂" },
   bienestar: { etiqueta: "Termales y bienestar", icono: "💆" },
-  ninos: { etiqueta: "Con niños", icono: "🧸" },
+  todos: { etiqueta: "Planes para todos", icono: "🎡" },
   experiencias: { etiqueta: "Experiencias locales", icono: "🎒" },
   otro: { etiqueta: "Otros planes", icono: "✨" },
 };
@@ -75,7 +75,7 @@ const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
   pueblos: "pueblos cercanos que visitar",
   aventura: "deportes de aventura y adrenalina",
   bienestar: "termales y spa",
-  ninos: "planes con niños",
+  todos: "planes para toda la familia",
   experiencias: "tours y experiencias locales",
   otro: "planes turísticos recomendados",
 };
@@ -210,7 +210,7 @@ const ORDEN_CATEGORIAS: CategoriaActividad[] = [
   "pueblos",
   "aventura",
   "bienestar",
-  "ninos",
+  "todos",
   "experiencias",
   "otro",
 ];

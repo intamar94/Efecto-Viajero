@@ -21,7 +21,7 @@ const ENDPOINT = "https://query.wikidata.org/sparql";
 // Sube cuando cambie de raíz QUÉ se pide o cómo se clasifica: una ciudad
 // ya explorada con una versión anterior se vuelve a explorar en vez de
 // quedarse con un resultado peor para siempre.
-export const VERSION_DESCUBRIMIENTO = 2;
+export const VERSION_DESCUBRIMIENTO = 3;
 
 export interface LugarDescubierto {
   nombre: string;
@@ -49,10 +49,14 @@ const TIPOS: Record<string, { categoria: CategoriaActividad; detalle: string }> 
   Q35509: { categoria: "naturaleza", detalle: "cueva" },
   Q40080: { categoria: "playa", detalle: "playa" },
   Q22698: { categoria: "parque", detalle: "parque" },
-  Q167346: { categoria: "naturaleza", detalle: "jardín botánico" },
-  Q43501: { categoria: "ninos", detalle: "zoológico" },
-  Q194195: { categoria: "ninos", detalle: "parque temático" },
-  Q43483: { categoria: "ninos", detalle: "acuario" },
+  Q167346: { categoria: "todos", detalle: "jardín botánico" },
+  Q43501: { categoria: "todos", detalle: "zoológico" },
+  Q194195: { categoria: "todos", detalle: "parque temático" },
+  Q43483: { categoria: "todos", detalle: "acuario" },
+  Q740326: { categoria: "todos", detalle: "parque acuático" },
+  Q1501: { categoria: "todos", detalle: "piscina" },
+  Q207694: { categoria: "museo", detalle: "museo de arte" },
+  Q2087181: { categoria: "todos", detalle: "atracción turística" },
   Q1076486: { categoria: "aventura", detalle: "recinto deportivo" },
   Q1341387: { categoria: "bienestar", detalle: "balneario" },
   Q820477: { categoria: "aventura", detalle: "mina visitable" },

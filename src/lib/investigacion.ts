@@ -201,6 +201,13 @@ const DETALLE_OSM: Record<string, string> = {
   peak: "cima",
   cave_entrance: "cueva",
   garden: "jardín",
+  swimming_pool: "piscina",
+  swimming_area: "zona de baño",
+  bowling_alley: "bolos",
+  ice_rink: "pista de patinaje",
+  miniature_golf: "minigolf",
+  planetarium: "planetario",
+  beach_resort: "balneario",
 };
 
 const MAX_POR_CATEGORIA = 8;
@@ -290,6 +297,7 @@ function accesibilidadDe(tags: Record<string, string> = {}): SitioReal["accesibl
 }
 
 function detalleDe(tags: Record<string, string> = {}): string | undefined {
+  if (tags["garden:type"] === "botanical") return "jardín botánico";
   const deporte = tags.sport ? DEPORTE_ES[tags.sport] : undefined;
   if (deporte) return deporte;
   for (const clave of ["amenity", "tourism", "leisure", "natural", "historic", "shop", "craft", "waterway"]) {
@@ -338,6 +346,14 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
   // esa caja es donde alguien los busca de verdad.
   if (tags.leisure === "spa" || tags.amenity === "spa" || tags.leisure === "sauna" || tags.amenity === "public_bath" || tags.natural === "hot_spring")
     return "bienestar";
+  // Planes que hace la familia entera, sin límite de edad. Una piscina
+  // privada o de hotel no es un plan al que nadie pueda ir, así que se
+  // descarta; un jardín BOTÁNICO sí es una visita en sí misma, a
+  // diferencia de un jardín cualquiera (que sigue siendo naturaleza).
+  const piscinaPublica =
+    (tags.leisure === "swimming_pool" || tags.leisure === "swimming_area") &&
+    tags.access !== "private" &&
+    tags.access !== "customers";
   if (
     tags.tourism === "aquarium" ||
     tags.tourism === "zoo" ||
@@ -347,9 +363,16 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
     tags.attraction === "amusement_ride" ||
     tags.attraction === "big_wheel" ||
     tags.leisure === "amusement_arcade" ||
-    tags.tourism === "farm"
+    tags.tourism === "farm" ||
+    piscinaPublica ||
+    tags.leisure === "bowling_alley" ||
+    tags.leisure === "ice_rink" ||
+    tags.leisure === "miniature_golf" ||
+    tags.amenity === "planetarium" ||
+    tags.leisure === "beach_resort" ||
+    tags["garden:type"] === "botanical"
   )
-    return "ninos";
+    return "todos";
   if (
     (tags.sport && DEPORTES_AVENTURA.has(tags.sport)) ||
     tags.leisure === "horse_riding" ||
@@ -541,6 +564,11 @@ function extraerSitios(findings: unknown[], dominio: string): { lugar: string; s
     for (const el of elementos) {
       // Sin nombre no sirve de nada: un punto anónimo en el mapa no es un
       // sitio al que alguien pueda ir.
+      // Un sitio al que no se puede entrar no es un plan: la piscina
+      // privada de un hotel o un club cerrado ocupan sitio en la lista y
+      // no le sirven a nadie que no sea ya socio o huésped.
+      const acceso = el.tags?.access;
+      if (acceso === "private" || acceso === "no" || acceso === "members") continue;
       const nombre = el.tags?.name?.trim();
       if (!nombre || vistos.has(nombre.toLowerCase())) continue;
       const categoria = categoriaDeTags(el.tags, dominio);

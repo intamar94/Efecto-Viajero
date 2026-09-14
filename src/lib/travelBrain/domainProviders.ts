@@ -100,9 +100,14 @@ const poi: Record<string, string[]> = {
     "leisure=climbing_adventure", "leisure=sports_centre", "leisure=fishing",
     // Bienestar
     "leisure=spa", "amenity=spa", "leisure=sauna", "amenity=public_bath",
-    // Con niños
+    // Planes para todos: acuario, zoo, parque temático, piscina, jardín
+    // botánico, bolos, patinaje... cosas que hace la familia entera, sin
+    // límite de edad. Faltaban casi todas, y son las que más gente puede
+    // disfrutar junta.
     "tourism=aquarium", "attraction=animal", "attraction=amusement_ride", "leisure=amusement_arcade",
-    "tourism=farm", "attraction=big_wheel",
+    "tourism=farm", "attraction=big_wheel", "leisure=swimming_pool", "leisure=swimming_area",
+    "leisure=bowling_alley", "leisure=ice_rink", "leisure=miniature_golf", "amenity=planetarium",
+    "leisure=beach_resort", "garden:type=botanical",
     // Experiencias locales
     "tourism=winery", "craft=brewery", "craft=distillery", "amenity=marketplace", "tourism=artwork",
   ],

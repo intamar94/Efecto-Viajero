@@ -64,9 +64,12 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     "termales", "termal", "spa", "sauna", "masaje", "relajarse", "descansar", "bienestar",
     "aguas termales", "banos termales",
   ],
-  ninos: [
+  todos: [
     "ninos", "nino", "hijos", "familia", "familiar", "acuario", "zoologico", "zoo",
-    "parque de diversiones", "parque de atracciones", "granja", "con peques", "para toda la familia",
+    "parque de diversiones", "parque de atracciones", "parque tematico", "granja",
+    "con peques", "para toda la familia", "para todos", "todo publico", "plan familiar",
+    "piscina", "piscinas", "balneario", "jardin botanico", "boliche", "bolos",
+    "patinaje", "minigolf", "planetario", "adulto mayor", "abuelos",
   ],
   experiencias: [
     "experiencia", "experiencias", "taller", "cata", "degustacion", "vinedo", "bodega",

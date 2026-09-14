@@ -134,7 +134,12 @@ export type EstadoActividad = "disponible" | "planificada" | "reservada" | "real
 // Faltaban justo los planes que uno no sabe buscar de antemano: el
 // parapente del valle, el rafting del río, los termales, el acuario al
 // que llevar a los niños, el tour por el cafetal. Por eso se añaden
-// aventura, bienestar, niños y experiencias.
+// aventura, bienestar, planes para todos y experiencias.
+//
+// "todos" NO es "para niños": un acuario, un zoológico, un parque
+// temático, un jardín botánico o una piscina son planes que hace la
+// familia entera — niños, adultos y personas mayores. Encasillarlos como
+// infantiles escondía justo lo que más gente puede disfrutar junta.
 export type CategoriaActividad =
   | "museo"
   | "parque"
@@ -147,7 +152,7 @@ export type CategoriaActividad =
   | "pueblos"
   | "aventura"
   | "bienestar"
-  | "ninos"
+  | "todos"
   | "experiencias"
   | "otro";
 
