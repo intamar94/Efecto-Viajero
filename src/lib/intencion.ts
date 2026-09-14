@@ -91,8 +91,29 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     "aves", "pajaros", "avistamiento", "birdwatching", "fauna", "animales", "ballenas",
     "delfines", "tortugas", "safari", "observacion de aves", "vida silvestre", "monos",
   ],
+  astronomia: [
+    "estrellas", "estrella", "astronomia", "astronomico", "astroturismo", "observatorio",
+    "planetario", "auroras", "aurora boreal", "cielo nocturno", "cielo oscuro", "telescopio",
+    "via lactea", "eclipse", "lluvia de estrellas", "meteoros", "starlight", "ver el cielo",
+  ],
+  ciencia: [
+    "biblioteca", "bibliotecas", "libreria", "libros", "ciencia", "cientifico", "tecnologia",
+    "museo de ciencia", "centro de ciencia", "innovacion", "universidad", "archivo",
+  ],
+  arte_urbano: [
+    "arte urbano", "mural", "murales", "grafiti", "graffiti", "street art", "arte callejero",
+  ],
+  memoria: [
+    "memorial", "memoria", "cementerio", "historia oscura", "dark tourism", "campo de batalla",
+    "guerra", "holocausto", "victimas", "mausoleo", "monumento conmemorativo",
+  ],
+  industrial: [
+    "faro", "faros", "mina", "minas", "tren historico", "ferrocarril", "locomotora",
+    "fabrica", "patrimonio industrial", "turismo industrial", "molino",
+  ],
   otro: [
     "espontaneo", "sorpresa", "algo diferente", "tour", "free tour",
+    "descubrir", "curioso", "insolito", "diferente", "alternativo", "fuera de lo comun",
   ],
 };
 

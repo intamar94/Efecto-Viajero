@@ -56,6 +56,11 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   eventos: { etiqueta: "Eventos y festivales", icono: "🎪" },
   espiritual: { etiqueta: "Espiritual y religioso", icono: "⛪" },
   fauna: { etiqueta: "Ver fauna y aves", icono: "🦜" },
+  astronomia: { etiqueta: "Estrellas y cielo", icono: "🔭" },
+  ciencia: { etiqueta: "Ciencia y libros", icono: "📚" },
+  arte_urbano: { etiqueta: "Arte urbano", icono: "🎨" },
+  memoria: { etiqueta: "Memoria e historia", icono: "🕯️" },
+  industrial: { etiqueta: "Faros, minas y trenes", icono: "🏭" },
   otro: { etiqueta: "Otros planes", icono: "✨" },
 };
 
@@ -83,6 +88,11 @@ const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
   eventos: "conciertos, festivales y eventos",
   espiritual: "iglesias, santuarios y sitios de peregrinación",
   fauna: "avistamiento de aves y fauna",
+  astronomia: "observatorios y dónde ver las estrellas",
+  ciencia: "bibliotecas y centros de ciencia",
+  arte_urbano: "arte urbano y murales",
+  memoria: "memoriales y lugares con historia",
+  industrial: "faros, minas visitables y trenes históricos",
   otro: "planes turísticos recomendados",
 };
 
@@ -221,6 +231,11 @@ const ORDEN_CATEGORIAS: CategoriaActividad[] = [
   "eventos",
   "espiritual",
   "fauna",
+  "astronomia",
+  "ciencia",
+  "arte_urbano",
+  "memoria",
+  "industrial",
   "otro",
 ];
 

@@ -218,6 +218,16 @@ const DETALLE_OSM: Record<string, string> = {
   wildlife_hide: "observatorio de fauna",
   theatre: "teatro",
   wilderness_hut: "refugio de montaña",
+  telescope: "observatorio",
+  library: "biblioteca",
+  archive: "archivo histórico",
+  battlefield: "campo de batalla",
+  tomb: "tumba histórica",
+  lighthouse: "faro",
+  mine: "mina visitable",
+  mine_shaft: "mina",
+  watermill: "molino de agua",
+  windmill: "molino de viento",
 };
 
 const MAX_POR_CATEGORIA = 8;
@@ -316,7 +326,9 @@ function detalleDe(tags: Record<string, string> = {}): string | undefined {
   if (tags["garden:type"] === "botanical") return "jardín botánico";
   const deporte = tags.sport ? DEPORTE_ES[tags.sport] : undefined;
   if (deporte) return deporte;
-  for (const clave of ["amenity", "tourism", "leisure", "natural", "historic", "shop", "craft", "waterway"]) {
+  if (tags.artwork_type === "mural" || tags.artwork_type === "street_art") return "mural";
+  if (tags.artwork_type === "graffiti") return "grafiti";
+  for (const clave of ["amenity", "tourism", "leisure", "natural", "historic", "shop", "craft", "waterway", "man_made"]) {
     const valor = tags[clave];
     if (valor && DETALLE_OSM[valor]) return DETALLE_OSM[valor];
   }
@@ -371,6 +383,24 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
   if (tags.amenity === "events_venue" || tags.amenity === "conference_centre" || tags.leisure === "stadium")
     return "eventos";
   if (tags.leisure === "bird_hide" || tags.tourism === "wildlife_hide") return "fauna";
+  // Intereses de nicho, antes de que caigan en "museo" o "atracción":
+  // quien busca un observatorio, una biblioteca o un mural no lo busca
+  // en la misma caja que un museo de arte.
+  if (tags.man_made === "telescope" || tags.amenity === "planetarium") return "astronomia";
+  if (tags.amenity === "library" || tags.amenity === "archive") return "ciencia";
+  if (tags.artwork_type === "mural" || tags.artwork_type === "graffiti" || tags.artwork_type === "street_art")
+    return "arte_urbano";
+  if (tags.historic === "memorial" || tags.historic === "battlefield" || tags.historic === "tomb")
+    return "memoria";
+  if (
+    tags.man_made === "lighthouse" ||
+    tags.historic === "mine" ||
+    tags.historic === "mine_shaft" ||
+    tags.attraction === "train" ||
+    tags.man_made === "watermill" ||
+    tags.man_made === "windmill"
+  )
+    return "industrial";
   // Antes que naturaleza: unos termales o un parque acuático son un plan
   // de bienestar o de niños más que "un sitio natural que mirar", y en
   // esa caja es donde alguien los busca de verdad.

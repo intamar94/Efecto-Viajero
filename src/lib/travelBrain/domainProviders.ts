@@ -119,6 +119,14 @@ const poi: Record<string, string[]> = {
     "amenity=place_of_worship", "amenity=monastery", "historic=wayside_shrine", "historic=monastery",
     // Fauna: dónde se ve de verdad
     "leisure=bird_hide", "tourism=wildlife_hide",
+    // Intereses de nicho: mucha gente viaja persiguiendo algo suyo
+    // (auroras, bibliotecas, murales, faros) y eso no lo ofrece ninguna
+    // app de viajes.
+    "man_made=telescope", "amenity=library", "amenity=archive",
+    "artwork_type=mural", "artwork_type=graffiti", "artwork_type=street_art",
+    "historic=memorial", "historic=battlefield", "historic=tomb",
+    "man_made=lighthouse", "historic=mine", "historic=mine_shaft", "attraction=train",
+    "man_made=watermill", "man_made=windmill",
   ],
   culture: ["tourism=museum", "tourism=gallery", "historic"], gastronomy: ["amenity=restaurant", "amenity=cafe", "amenity=fast_food"],   // Una cascada se etiqueta como waterway=waterfall tanto o más que como
   // natural=waterfall, y acampar, un parque natural o un jardín botánico

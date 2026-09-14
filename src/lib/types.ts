@@ -147,6 +147,12 @@ export type EstadoActividad = "disponible" | "planificada" | "reservada" | "real
 // turismo espiritual/religioso mueve a mucha gente y sus iglesias y
 // santuarios caían en "museo", que no es como los busca un peregrino; y
 // el avistamiento de fauna (aves, ballenas) no tenía dónde caer.
+//
+// Y el último grupo son los intereses de nicho: mucha gente no viaja a
+// "ver la torre y comer típico", viaja persiguiendo algo suyo — auroras
+// y cielos oscuros, bibliotecas, murales, memoria histórica, faros o
+// minas. Es justo lo que ninguna app de viajes ofrece y lo que convierte
+// un listado de sitios en una guía de verdad.
 export type CategoriaActividad =
   | "museo"
   | "parque"
@@ -164,6 +170,11 @@ export type CategoriaActividad =
   | "eventos"
   | "espiritual"
   | "fauna"
+  | "astronomia"
+  | "ciencia"
+  | "arte_urbano"
+  | "memoria"
+  | "industrial"
   | "otro";
 
 export interface ActividadDestino {

@@ -21,7 +21,7 @@ const ENDPOINT = "https://query.wikidata.org/sparql";
 // Sube cuando cambie de raíz QUÉ se pide o cómo se clasifica: una ciudad
 // ya explorada con una versión anterior se vuelve a explorar en vez de
 // quedarse con un resultado peor para siempre.
-export const VERSION_DESCUBRIMIENTO = 4;
+export const VERSION_DESCUBRIMIENTO = 5;
 
 export interface LugarDescubierto {
   nombre: string;
@@ -59,7 +59,7 @@ const TIPOS: Record<string, { categoria: CategoriaActividad; detalle: string }> 
   Q2087181: { categoria: "todos", detalle: "atracción turística" },
   Q1076486: { categoria: "aventura", detalle: "recinto deportivo" },
   Q1341387: { categoria: "bienestar", detalle: "balneario" },
-  Q820477: { categoria: "aventura", detalle: "mina visitable" },
+  Q820477: { categoria: "industrial", detalle: "mina visitable" },
   Q204832: { categoria: "aventura", detalle: "montaña rusa" },
   Q22750: { categoria: "experiencias", detalle: "viñedo" },
   Q131734: { categoria: "experiencias", detalle: "cervecería" },
@@ -75,6 +75,13 @@ const TIPOS: Record<string, { categoria: CategoriaActividad; detalle: string }> 
   Q34627: { categoria: "espiritual", detalle: "sinagoga" },
   Q842402: { categoria: "espiritual", detalle: "santuario" },
   Q483110: { categoria: "eventos", detalle: "estadio" },
+  Q62832: { categoria: "astronomia", detalle: "observatorio" },
+  Q184876: { categoria: "astronomia", detalle: "planetario" },
+  Q7075: { categoria: "ciencia", detalle: "biblioteca" },
+  Q39715: { categoria: "industrial", detalle: "faro" },
+  Q575759: { categoria: "memoria", detalle: "monumento conmemorativo" },
+  Q5003624: { categoria: "memoria", detalle: "memorial" },
+  Q39614: { categoria: "memoria", detalle: "cementerio histórico" },
   Q18674739: { categoria: "eventos", detalle: "recinto de eventos" },
   Q515: { categoria: "pueblos", detalle: "ciudad" },
   Q3957: { categoria: "pueblos", detalle: "pueblo" },
