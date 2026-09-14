@@ -95,6 +95,16 @@ export default function PlanificarPage() {
   // proveedor lento puede alargarlo. Sin ningún cambio visual el botón
   // parece congelado; a partir de los 6s se muestra un aviso para dejar
   // claro que sigue trabajando, no bloqueado.
+  // Quien llega desde "Explorar el mundo" ya eligió un lugar: llegar
+  // aquí y tener que volver a escribirlo sería perder justo el paso que
+  // acababa de dar. Se lee de la URL en el navegador (no con
+  // useSearchParams) para no obligar a envolver la página en un Suspense
+  // solo por esto.
+  useEffect(() => {
+    const desdeExplorar = new URLSearchParams(window.location.search).get("destino")?.trim();
+    if (desdeExplorar) setDestinos([desdeExplorar]);
+  }, []);
+
   useEffect(() => {
     if (!analizando) { setTardandoMucho(false); return; }
     const id = setTimeout(() => setTardandoMucho(true), 6000);

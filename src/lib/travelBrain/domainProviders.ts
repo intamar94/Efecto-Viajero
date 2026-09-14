@@ -154,6 +154,7 @@ const poi: Record<string, string[]> = {
     // La casa flotante SÍ tiene etiqueta propia en OSM: houseboat_rental
     // sobre el alquiler, o "houseboat" entre los tipos de rental=.
     "houseboat_rental=yes", "rental=boat", "boat:rental", "shop=boat",
+    "sport=snorkelling", "sport=diving",
   ],
   accommodation: ["tourism=hotel", "tourism=hostel", "tourism=guest_house", "tourism=apartment"],
 };

@@ -119,6 +119,10 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     "barco", "barcos", "bote", "botes", "lancha", "velero", "yate", "navegar", "navegacion",
     "alquilar barco", "rentar bote", "casa flotante", "casa bote", "marina", "puerto deportivo",
     "pescar", "pesca", "muelle", "paseo en barco", "crucero", "catamaran",
+    // "Quiero bucear" no caía en ninguna caja de agua: se entendía como
+    // playa y aventura, que es donde nadie busca un arrecife.
+    "bucear", "buceo", "submarinismo", "snorkel", "esnorquel", "arrecife", "arrecifes",
+    "sumergirse", "fondo marino", "vida marina", "kayak", "remar", "piraguismo",
   ],
   otro: [
     "espontaneo", "sorpresa", "algo diferente", "tour", "free tour",

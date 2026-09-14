@@ -334,6 +334,8 @@ const DEPORTE_ES: Record<string, string> = {
   skiing: "esquí",
   free_flying: "vuelo libre",
   fishing: "pesca",
+  snorkelling: "snorkel",
+  diving: "buceo",
   sailing: "vela",
   rowing: "remo",
 };
@@ -424,7 +426,7 @@ function findingsDe(data: unknown): unknown[] {
 // río), no la cancha de fútbol del barrio: solo estos entran en aventura.
 const DEPORTES_AVENTURA = new Set([
   "climbing", "paragliding", "hang_gliding", "rafting", "canyoning", "surfing",
-  "scuba_diving", "kitesurfing", "canoe", "horse_riding", "cycling",
+  "kitesurfing", "horse_riding", "cycling",
   "caving", "quad", "bungee_jumping", "ballooning", "skiing", "free_flying",
 ]);
 
@@ -507,6 +509,9 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
     tags.sport === "fishing" ||
     tags.sport === "sailing" ||
     tags.sport === "rowing" ||
+    tags.sport === "scuba_diving" ||
+    tags.sport === "snorkelling" ||
+    tags.sport === "canoe" ||
     tags.shop === "boat" ||
     tags.houseboat_rental === "yes" ||
     Boolean(tags["boat:rental"]) ||

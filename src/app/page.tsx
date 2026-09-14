@@ -8,6 +8,17 @@ const OPCIONES = [
     descripcion: "Cuéntanos qué quieres hacer y lo montamos contigo.",
     destacado: true,
   },
+  // Toda la app daba por hecho que ya sabes a dónde vas, y mucha gente
+  // llega al revés: tiene los días libres y no el destino. Para ese caso
+  // no había puerta de entrada — tenía que inventarse un destino para
+  // poder empezar, que es justo lo contrario de lo que necesita.
+  {
+    href: "/explorar",
+    icono: "🌎",
+    titulo: "Explorar el mundo",
+    descripcion: "¿Tiempo libre y ningún destino? Di qué te apetece y te decimos dónde.",
+    destacado: false,
+  },
   {
     href: "/viajes",
     icono: "🗺️",

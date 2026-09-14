@@ -61,7 +61,7 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   arte_urbano: { etiqueta: "Arte urbano", icono: "🎨" },
   memoria: { etiqueta: "Memoria e historia", icono: "🕯️" },
   industrial: { etiqueta: "Faros, minas y trenes", icono: "🏭" },
-  nautica: { etiqueta: "Barcos y pesca", icono: "🛥️" },
+  nautica: { etiqueta: "Agua, barcos y pesca", icono: "🛥️" },
   otro: { etiqueta: "Otros planes", icono: "✨" },
 };
 
@@ -94,7 +94,7 @@ const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
   arte_urbano: "arte urbano y murales",
   memoria: "memoriales y lugares con historia",
   industrial: "faros, minas visitables y trenes históricos",
-  nautica: "alquiler de barcos, marinas y sitios de pesca",
+  nautica: "buceo, alquiler de barcos, marinas y sitios de pesca",
   otro: "planes turísticos recomendados",
 };
 
