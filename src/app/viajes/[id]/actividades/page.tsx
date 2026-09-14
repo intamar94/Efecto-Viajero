@@ -61,6 +61,7 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   arte_urbano: { etiqueta: "Arte urbano", icono: "🎨" },
   memoria: { etiqueta: "Memoria e historia", icono: "🕯️" },
   industrial: { etiqueta: "Faros, minas y trenes", icono: "🏭" },
+  nautica: { etiqueta: "Barcos y pesca", icono: "🛥️" },
   otro: { etiqueta: "Otros planes", icono: "✨" },
 };
 
@@ -93,6 +94,7 @@ const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
   arte_urbano: "arte urbano y murales",
   memoria: "memoriales y lugares con historia",
   industrial: "faros, minas visitables y trenes históricos",
+  nautica: "alquiler de barcos, marinas y sitios de pesca",
   otro: "planes turísticos recomendados",
 };
 
@@ -236,6 +238,7 @@ const ORDEN_CATEGORIAS: CategoriaActividad[] = [
   "arte_urbano",
   "memoria",
   "industrial",
+  "nautica",
   "otro",
 ];
 
@@ -276,6 +279,10 @@ type Item = ActividadDestino & {
   cocinaLocal?: boolean;
   imagen?: string;
   accesible?: "si" | "parcial" | "no";
+  // Dificultad y kilómetros de una ruta de senderismo, cuando OSM los
+  // trae. Es el dato que decide si una caminata es para ti: sin él, un
+  // sendero alpino de 18 km y un paseo llano de 2 se veían idénticos.
+  sendero?: string;
 };
 
 const COCINAS_LOCALES = new Set(["colombiana", "regional", "local", "latinoamericana", "arepas", "empanadas"]);
@@ -332,6 +339,7 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
         {it.accesible === "si" && <span className="chip">♿ Accesible</span>}
         {it.accesible === "parcial" && <span className="chip">♿ Parcialmente accesible</span>}
         {it.accesible === "no" && <span className="chip">♿ No accesible</span>}
+        {it.sendero && <span className="chip">🥾 {it.sendero}</span>}
         {it.esPropia && <span className="chip">✍️ Tuya</span>}
       </div>
 
@@ -905,6 +913,7 @@ export default function ActividadesPage() {
         cocinaLocal: s.cocina ? s.cocina.split(", ").some((c) => COCINAS_LOCALES.has(c)) : false,
         imagen: s.imagen || undefined,
         accesible: s.accesible,
+        sendero: s.sendero,
         // La distancia al centro ayuda a decidir, pero una dirección real
         // (cuando alguna fuente la tiene) es lo que de verdad sirve para ir.
         direccion: s.direccionComercial || distanciaDelCentro(etapa, s.lat, s.lon),

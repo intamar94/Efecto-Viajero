@@ -97,7 +97,7 @@ const poi: Record<string, string[]> = {
     "sport=climbing", "sport=paragliding", "sport=hang_gliding", "sport=rafting", "sport=canyoning",
     "sport=surfing", "sport=scuba_diving", "sport=kitesurfing", "sport=canoe", "sport=cycling",
     "sport=horse_riding", "leisure=horse_riding", "aerialway=zip_line", "attraction=zip_line",
-    "leisure=climbing_adventure", "leisure=sports_centre", "leisure=fishing",
+    "leisure=climbing_adventure", "leisure=sports_centre",
     // Bienestar
     "leisure=spa", "amenity=spa", "leisure=sauna", "amenity=public_bath",
     // Planes para todos: acuario, zoo, parque temático, piscina, jardín
@@ -133,11 +133,24 @@ const poi: Record<string, string[]> = {
   // no estaban en la lista en absoluto: en Pereira eso dejaba fuera La
   // Florida, los termales y el camping, y "naturaleza" se llenaba de
   // parques de barrio del centro por pura falta de candidatos reales.
+  // El agua y el monte eran justo lo que no se buscaba. Quien tiene la
+  // pesca o los botes como hobby no encontraba NADA: ni un embarcadero,
+  // ni un alquiler, ni una marina. Y "senderismo" se reducía a que
+  // apareciera un parque — las rutas señalizadas de OSM (relaciones
+  // route=hiking, con su dificultad y sus kilómetros) no se consultaban
+  // en absoluto, ni los refugios de montaña donde esas rutas paran.
   nature: [
     "leisure=park", "leisure=nature_reserve", "natural=beach", "natural=waterfall", "waterway=waterfall",
     "tourism=viewpoint", "natural=hot_spring", "natural=spring", "natural=peak", "natural=cave_entrance",
     "tourism=theme_park", "leisure=water_park", "tourism=camp_site", "tourism=picnic_site", "tourism=zoo",
     "leisure=garden", "boundary=national_park",
+    // Senderismo de verdad: la ruta señalizada, el refugio y la montaña
+    "route=hiking", "route=foot", "tourism=alpine_hut", "tourism=wilderness_hut",
+    "natural=glacier", "natural=cliff", "natural=volcano", "natural=geyser", "natural=arch",
+    "boundary=protected_area", "natural=bay",
+    // Agua: alquilar un bote, salir a pescar, un muelle donde embarcar
+    "amenity=boat_rental", "amenity=boat_sharing", "leisure=marina", "leisure=slipway",
+    "leisure=fishing", "sport=fishing", "sport=sailing", "sport=rowing", "man_made=pier",
   ],
   accommodation: ["tourism=hotel", "tourism=hostel", "tourism=guest_house", "tourism=apartment"],
 };
@@ -176,13 +189,17 @@ const osmPoi: Adapter = async ({ destination, domain, query }) => {
 
   for (const radioKm of RADIOS_KM) {
     const clauses = filters.map((filter) => `nwr[${filter}](around:${radioKm * 1000},${destination.latitude},${destination.longitude});`).join("");
-    const body = `[out:json][timeout:15];(${clauses});out center tags 40;`;
+    // El tope de 40 elementos por consulta era el techo real de toda la
+    // búsqueda: con 90 etiquetas distintas y un cupo de 8 por categoría,
+    // Overpass cortaba mucho antes de que hubiera candidatos para llenar
+    // las cajas — daba igual cuántas fuentes o etiquetas se añadieran.
+    const body = `[out:json][timeout:15];(${clauses});out center tags 150;`;
     // Los dos endpoints se prueban a la vez, no uno tras otro: si uno está
     // caído o muy lento, ya no dobla la espera del radio entero — solo un
     // fallo real en los DOS a la vez cuenta como fallo de este radio.
     const intentos = await Promise.allSettled(
       OVERPASS_ENDPOINTS.map((endpoint) =>
-        getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() }, 1, 12000) as Promise<{ elements?: ElementoOverpassCrudo[] }>,
+        getJson(endpoint, "OpenStreetMap Overpass", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json", "User-Agent": "Efecto-Viajero/1.0" }, body: new URLSearchParams({ data: body }).toString() }, 1, 18000) as Promise<{ elements?: ElementoOverpassCrudo[] }>,
       ),
     );
     // Entre los dos endpoints de este radio, se prefiere el que sí trajo

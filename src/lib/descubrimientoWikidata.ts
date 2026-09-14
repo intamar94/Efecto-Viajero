@@ -21,7 +21,7 @@ const ENDPOINT = "https://query.wikidata.org/sparql";
 // Sube cuando cambie de raíz QUÉ se pide o cómo se clasifica: una ciudad
 // ya explorada con una versión anterior se vuelve a explorar en vez de
 // quedarse con un resultado peor para siempre.
-export const VERSION_DESCUBRIMIENTO = 5;
+export const VERSION_DESCUBRIMIENTO = 6;
 
 export interface LugarDescubierto {
   nombre: string;
@@ -47,6 +47,13 @@ const TIPOS: Record<string, { categoria: CategoriaActividad; detalle: string }> 
   Q8072: { categoria: "naturaleza", detalle: "volcán" },
   Q23397: { categoria: "naturaleza", detalle: "lago" },
   Q35509: { categoria: "naturaleza", detalle: "cueva" },
+  // Naturaleza y agua que faltaba. Cada QID está comprobado contra
+  // Wikidata antes de añadirlo: Q39816 es "valle", no "cañón" como
+  // parecía, y ponerlo mal habría etiquetado mal cada sitio que trajera.
+  Q4022: { categoria: "naturaleza", detalle: "río" },
+  Q23442: { categoria: "naturaleza", detalle: "isla" },
+  Q39816: { categoria: "naturaleza", detalle: "valle" },
+  Q44782: { categoria: "nautica", detalle: "puerto" },
   Q40080: { categoria: "playa", detalle: "playa" },
   Q22698: { categoria: "parque", detalle: "parque" },
   Q167346: { categoria: "todos", detalle: "jardín botánico" },

@@ -175,6 +175,7 @@ export type CategoriaActividad =
   | "arte_urbano"
   | "memoria"
   | "industrial"
+  | "nautica"
   | "otro";
 
 export interface ActividadDestino {

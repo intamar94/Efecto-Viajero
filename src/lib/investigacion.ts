@@ -88,6 +88,12 @@ export interface SitioReal {
   // Accesibilidad real según la etiqueta wheelchair= de OpenStreetMap.
   // Sin etiqueta queda undefined: "no sabemos" no es "no es accesible".
   accesible?: "si" | "parcial" | "no";
+  // Para una ruta de senderismo: su dificultad y su longitud reales, tal
+  // como vienen etiquetadas en OpenStreetMap (sac_scale y distance). Son
+  // los dos datos que deciden si una caminata es para ti o no, y hasta
+  // ahora no se leían: un sendero alpino de 18 km y un paseo llano de 2
+  // salían exactamente igual. Solo se rellena si la ruta lo trae.
+  sendero?: string;
 }
 
 export interface DiaClima {
@@ -124,7 +130,7 @@ export interface AuditoriaCapacidades {
 // número, esa investigación quedó desactualizada aunque nadie la haya
 // tocado, y conviene volver a correrla en vez de esperar a que alguien
 // recuerde tocar "Actualizar investigación real".
-export const VERSION_INVESTIGACION = 8;
+export const VERSION_INVESTIGACION = 9;
 
 export interface Investigacion {
   generadoEn: string;
@@ -228,6 +234,20 @@ const DETALLE_OSM: Record<string, string> = {
   mine_shaft: "mina",
   watermill: "molino de agua",
   windmill: "molino de viento",
+  boat_rental: "alquiler de botes",
+  boat_sharing: "botes compartidos",
+  marina: "marina / puerto deportivo",
+  slipway: "rampa para botes",
+  pier: "muelle",
+  alpine_hut: "refugio de montaña",
+  glacier: "glaciar",
+  cliff: "acantilado",
+  volcano: "volcán",
+  geyser: "géiser",
+  arch: "arco natural",
+  bay: "bahía",
+  hiking: "sendero señalizado",
+  foot: "sendero",
 };
 
 const MAX_POR_CATEGORIA = 8;
@@ -313,7 +333,39 @@ const DEPORTE_ES: Record<string, string> = {
   ballooning: "globo aerostático",
   skiing: "esquí",
   free_flying: "vuelo libre",
+  fishing: "pesca",
+  sailing: "vela",
+  rowing: "remo",
 };
+
+// La escala SAC es el estándar con el que OpenStreetMap gradúa un
+// sendero, de T1 (camino llano) a T6 (alpinismo). Es una clave técnica
+// suiza que no le dice nada a nadie tal cual, pero traducida es la
+// diferencia entre un paseo de tarde y una ruta para la que hace falta
+// equipo. Solo se traducen los seis grados reales; cualquier otro valor
+// se descarta en vez de enseñarlo crudo.
+const SAC_ES: Record<string, string> = {
+  hiking: "sendero fácil",
+  mountain_hiking: "sendero de montaña",
+  demanding_mountain_hiking: "sendero exigente",
+  alpine_hiking: "sendero alpino",
+  demanding_alpine_hiking: "alpino exigente",
+  difficult_alpine_hiking: "alpino difícil",
+};
+
+function senderoDe(tags: Record<string, string> = {}): string | undefined {
+  const dificultad = tags.sac_scale ? SAC_ES[tags.sac_scale] : undefined;
+  // "distance" en OSM viene como número suelto (km por convención) o ya
+  // con unidad ("12 km", "8.5 mi"). Se respeta lo que diga la etiqueta y
+  // solo se le pone "km" al número pelado; no se convierte nada.
+  const bruto = tags.distance?.trim();
+  const longitud =
+    bruto && /^\d+(\.\d+)?$/.test(bruto) ? `${bruto} km`
+    : bruto && /^\d+(\.\d+)?\s*(km|mi|m)$/i.test(bruto) ? bruto
+    : undefined;
+  const partes = [dificultad, longitud].filter(Boolean);
+  return partes.length ? partes.join(" · ") : undefined;
+}
 
 function accesibilidadDe(tags: Record<string, string> = {}): SitioReal["accesible"] {
   if (tags.wheelchair === "yes") return "si";
@@ -328,7 +380,7 @@ function detalleDe(tags: Record<string, string> = {}): string | undefined {
   if (deporte) return deporte;
   if (tags.artwork_type === "mural" || tags.artwork_type === "street_art") return "mural";
   if (tags.artwork_type === "graffiti") return "grafiti";
-  for (const clave of ["amenity", "tourism", "leisure", "natural", "historic", "shop", "craft", "waterway", "man_made"]) {
+  for (const clave of ["amenity", "tourism", "leisure", "natural", "historic", "shop", "craft", "waterway", "man_made", "route"]) {
     const valor = tags[clave];
     if (valor && DETALLE_OSM[valor]) return DETALLE_OSM[valor];
   }
@@ -433,14 +485,30 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
     tags["garden:type"] === "botanical"
   )
     return "todos";
+  // Antes que aventura: el agua es un plan propio. Quien tiene la pesca
+  // o navegar como hobby no busca "deportes de aventura", busca dónde
+  // alquilar un bote o desde qué muelle sale — y hasta ahora la pesca
+  // caía en aventura, mezclada con el parapente y el rafting, donde
+  // nadie la encuentra.
+  if (
+    tags.amenity === "boat_rental" ||
+    tags.amenity === "boat_sharing" ||
+    tags.leisure === "marina" ||
+    tags.leisure === "slipway" ||
+    tags.leisure === "fishing" ||
+    tags.man_made === "pier" ||
+    tags.sport === "fishing" ||
+    tags.sport === "sailing" ||
+    tags.sport === "rowing"
+  )
+    return "nautica";
   if (
     (tags.sport && DEPORTES_AVENTURA.has(tags.sport)) ||
     tags.leisure === "horse_riding" ||
     tags.leisure === "climbing_adventure" ||
     tags.aerialway === "zip_line" ||
     tags.attraction === "zip_line" ||
-    tags.leisure === "sports_centre" ||
-    tags.leisure === "fishing"
+    tags.leisure === "sports_centre"
   )
     return "aventura";
   if (tags.tourism === "winery" || tags.craft === "brewery" || tags.craft === "distillery" || tags.amenity === "marketplace")
@@ -458,7 +526,20 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
     tags.tourism === "camp_site" ||
     tags.tourism === "picnic_site" ||
     tags.leisure === "garden" ||
-    tags.boundary === "national_park"
+    tags.boundary === "national_park" ||
+    // Senderismo: la ruta señalizada en sí, y el refugio donde para.
+    // Un refugio de montaña caía en "otro" y no lo veía nadie.
+    tags.route === "hiking" ||
+    tags.route === "foot" ||
+    tags.tourism === "alpine_hut" ||
+    tags.tourism === "wilderness_hut" ||
+    tags.natural === "glacier" ||
+    tags.natural === "cliff" ||
+    tags.natural === "volcano" ||
+    tags.natural === "geyser" ||
+    tags.natural === "arch" ||
+    tags.natural === "bay" ||
+    tags.boundary === "protected_area"
   )
     return "naturaleza";
   if (tags.amenity === "bar" || tags.amenity === "pub" || tags.amenity === "nightclub" || tags.amenity === "biergarten") return "discoteca";
@@ -641,6 +722,7 @@ function extraerSitios(findings: unknown[], dominio: string): { lugar: string; s
         categoria,
         detalle: detalleDe(el.tags),
         accesible: accesibilidadDe(el.tags),
+        sendero: senderoDe(el.tags),
         lat: el.lat ?? el.center?.lat,
         lon: el.lon ?? el.center?.lon,
         horarioApertura: horarioDe(el.tags),
@@ -749,7 +831,13 @@ export function normalizarInvestigacion(bruto: AnalisisBruto | null | undefined)
 
     if (!DOMINIOS_CON_SITIOS.has(dominio)) continue;
     for (const { lugar, sitios: encontrados } of extraerSitios(findingsDe(resultado.data), dominio)) {
-      sitios[lugar] = [...(sitios[lugar] ?? []), ...encontrados];
+      // Cada dominio deduplica por nombre dentro de su propio lote, pero
+      // nadie lo hacía ENTRE dominios: un mismo sitio buscado por dos
+      // listas de etiquetas (una reserva natural, por ejemplo) salía dos
+      // veces en la pantalla. Se compara aquí, ya con todo junto.
+      const yaEsta = new Set((sitios[lugar] ?? []).map((s) => s.nombre.toLowerCase()));
+      const nuevos = encontrados.filter((s) => !yaEsta.has(s.nombre.toLowerCase()));
+      sitios[lugar] = [...(sitios[lugar] ?? []), ...nuevos];
       fuentes.add("OpenStreetMap");
     }
   }

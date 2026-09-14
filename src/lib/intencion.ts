@@ -47,6 +47,10 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
     "termales", "termal", "bosque", "selva", "lago", "laguna", "volcan", "trekking", "hiking",
     "avistamiento", "aves", "birdwatching", "reserva natural", "parque natural", "jardin botanico",
     "finca", "cafetal",
+    "caminar", "caminata", "sendero", "senderos", "ruta", "rutas", "camino", "andar",
+    "acampar", "camping", "glaciar", "acantilado", "mirador", "miradores", "cueva", "cuevas",
+    "refugio", "aire libre", "al aire libre", "contacto con la naturaleza", "paisaje", "paisajes",
+    "bahia", "playa natural", "manantial", "geiser", "parque nacional", "area protegida",
   ],
   playa: [
     "playa", "mar", "costa", "isla", "islas", "arena", "bucear", "buceo", "snorkel", "surf", "nadar",
@@ -110,6 +114,11 @@ const PALABRAS_CLAVE: Record<CategoriaActividad, string[]> = {
   industrial: [
     "faro", "faros", "mina", "minas", "tren historico", "ferrocarril", "locomotora",
     "fabrica", "patrimonio industrial", "turismo industrial", "molino",
+  ],
+  nautica: [
+    "barco", "barcos", "bote", "botes", "lancha", "velero", "yate", "navegar", "navegacion",
+    "alquilar barco", "rentar bote", "casa flotante", "casa bote", "marina", "puerto deportivo",
+    "pescar", "pesca", "muelle", "paseo en barco", "crucero", "catamaran",
   ],
   otro: [
     "espontaneo", "sorpresa", "algo diferente", "tour", "free tour",
