@@ -60,27 +60,27 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
       {
         nombre: "TransMilenio",
         tipo: "bus",
-        comoFunciona: "Sistema de autobús rápido con carriles exclusivos. Estaciones grandes, tarjeta recargable obligatoria.",
+        comoFunciona: "Bus rapid transit with dedicated lanes. Large stations, a rechargeable card is required.",
       },
       {
-        nombre: "Autobús urbano normal",
+        nombre: "Regular city bus",
         tipo: "bus",
-        comoFunciona: "Buses de líneas regulares. Se paga en efectivo al subir.",
+        comoFunciona: "Regular bus routes. You pay cash as you board.",
       },
       {
-        nombre: "Cercanías (tren regional)",
+        nombre: "Cercanías (regional train)",
         tipo: "tren",
-        comoFunciona: "Trenes de cercanías a pueblos cercanos. Salida desde la estación central.",
+        comoFunciona: "Commuter trains to nearby towns. They leave from the central station.",
       },
       {
         nombre: "Taxi / app",
         tipo: "taxi",
-        comoFunciona: "Taxis amarillos con taxímetro. Apps: Uber, DiDi.",
+        comoFunciona: "Yellow taxis with a meter. Apps: Uber, DiDi.",
       },
       {
-        nombre: "A pie / ciclovía",
+        nombre: "On foot / bike lane",
         tipo: "a_pie",
-        comoFunciona: "El centro es caminable. Hay ciclovías en muchas avenidas.",
+        comoFunciona: "The centre is walkable. There are bike lanes on many avenues.",
       },
     ],
     tarjetasYAbonos: [
@@ -89,18 +89,18 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
         ciudades: ["Bogotá"],
         donde: "Kioscos en estaciones TransMilenio, supermercados, tiendas de conveniencia",
         precio: "Desde $3.000 COP",
-        detalles: "Se recarga en máquinas y kioscos. Válida para TransMilenio y buses urbanos.",
+        detalles: "Top it up at machines and kiosks. Valid on TransMilenio and city buses.",
       },
     ],
     apps: ["Uber", "DiDi"],
     sitiosOficiales: ["https://www.transmilenio.gov.co", "https://www.bogota.gov.co/transporte"],
     precios: {
       viajeSencillo: "Tullave: ~$3.000 COP",
-      abonoDescargas: "10 viajes: ~$30.000 COP (más barato que individual)",
-      nota: "Los precios varían por mes. Confirma en la estación.",
+      abonoDescargas: "10 rides: ~$30,000 COP (cheaper than singles)",
+      nota: "Prices change month to month. Check at the station.",
     },
     aviso:
-      "A 2.650m de altura: la falta de oxígeno puede causar soroche. Tómate el primer día con calma. Evita el transporte a horas pico (7-9am, 4-6pm).",
+      "At 2,650 m altitude: thin air can cause altitude sickness. Take the first day slowly. Avoid transport at rush hour (7-9am, 4-6pm).",
   },
 
   medellin: {
@@ -110,27 +110,27 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
       {
         nombre: "Metro de Medellín",
         tipo: "metro",
-        comoFunciona: "Metro subterráneo con varias líneas. Estaciones bien señalizadas. Tarjeta recargable obligatoria.",
+        comoFunciona: "Underground metro with several lines. Well-signposted stations. A rechargeable card is required.",
       },
       {
         nombre: "Metrocable",
         tipo: "tranvia",
-        comoFunciona: "Teleférico que sube las montañas donde vive la gente. Único en América del Sur para transporte urbano.",
+        comoFunciona: "Cable car up the mountainsides where people live. Unique in South America as urban transport.",
       },
       {
         nombre: "Tranvía",
         tipo: "tranvia",
-        comoFunciona: "Tranvía histórico en la zona central (Línea K del Metro).",
+        comoFunciona: "Historic tram in the central area (Metro line K).",
       },
       {
-        nombre: "Autobús urbano",
+        nombre: "City bus",
         tipo: "bus",
-        comoFunciona: "Buses de líneas regulares. Efectivo al subir.",
+        comoFunciona: "Regular bus routes. Cash as you board.",
       },
       {
         nombre: "Taxi / app",
         tipo: "taxi",
-        comoFunciona: "Taxis amarillos con taxímetro. Apps: Uber, DiDi.",
+        comoFunciona: "Yellow taxis with a meter. Apps: Uber, DiDi.",
       },
     ],
     tarjetasYAbonos: [
@@ -139,18 +139,18 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
         ciudades: ["Medellín"],
         donde: "Kioscos en estaciones de Metro, farmacias, tiendas",
         precio: "Desde $3.100 COP",
-        detalles: "Válida para Metro, Metrocable, buses integrados. Se recarga en máquinas y kioscos.",
+        detalles: "Valid on metro, Metrocable and integrated buses. Top it up at machines and kiosks.",
       },
     ],
     apps: ["Uber", "DiDi"],
     sitiosOficiales: ["https://www.metrodemedellin.gov.co"],
     precios: {
-      viajeSencillo: "Cívica: ~$3.100 COP (un viaje)",
-      abonoDescargas: "Tarjeta recargable: descuento según recarga (10+ viajes salen más baratos)",
+      viajeSencillo: "Cívica: ~$3,100 COP (one ride)",
+      abonoDescargas: "Rechargeable card: discount by top-up amount (10+ rides work out cheaper)",
       nota: "El Metrocable es GRATIS si tienes la tarjeta del Metro.",
     },
     aviso:
-      "El Metrocable es único en el mundo para transporte urbano. Evita las horas pico. La ciudad está construida en montaña: mucho desnivel al caminar.",
+      "The Metrocable is unique in the world as urban transport. Avoid rush hour. The city is built on mountainside: a lot of up and down on foot.",
   },
 
   cartagena: {
@@ -165,7 +165,7 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
       {
         nombre: "Taxi",
         tipo: "taxi",
-        comoFunciona: "Taxis amarillos. Siempre pide que pongan el taxímetro.",
+        comoFunciona: "Yellow taxis. Always ask them to run the meter.",
       },
       {
         nombre: "A pie",
@@ -175,7 +175,7 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
       {
         nombre: "Bicitaxi / carruaje",
         tipo: "otro",
-        comoFunciona: "Transporte turístico. Negocia precio antes de subir.",
+        comoFunciona: "Tourist transport. Agree the price before getting in.",
       },
     ],
     tarjetasYAbonos: [],
@@ -184,7 +184,7 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
       viajeSencillo: "Bus: ~$2.850 COP",
       abonoDescargas: "No hay tarjeta recargable. Paga en efectivo cada viaje.",
     },
-    aviso: "La ciudad amurallada es pequeña: puedes recorrerla caminando. El taxi puede cobrarte más si ve que eres turista: negocia el precio antes.",
+    aviso: "The walled city is small: you can cover it on foot. A taxi may charge you more if they spot you're a tourist: agree the price first.",
   },
 
   // ESPAÑA
@@ -195,10 +195,10 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
       {
         nombre: "Metro",
         tipo: "metro",
-        comoFunciona: "Metro moderno y limpio con 12 líneas. Es lo más rápido para moverse.",
+        comoFunciona: "Modern, clean metro with 12 lines. It's the fastest way around.",
       },
       {
-        nombre: "Autobús urbano",
+        nombre: "City bus",
         tipo: "bus",
         comoFunciona: "Red de autobuses amplia. Se paga con tarjeta o billete.",
       },
@@ -219,12 +219,12 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
         ciudades: ["Madrid"],
         donde: "Estaciones de Metro, puestos de venta autorizados",
         precio: "~€50-70/mes (depende de zonas)",
-        detalles: "Válido para Metro, bus y Cercanías. Versiones de 10 viajes también disponibles.",
+        detalles: "Valid on metro, bus and Cercanías. 10-ride versions also available.",
       },
       {
-        nombre: "Bonobús (10 viajes)",
+        nombre: "Bonobús (10 rides)",
         ciudades: ["Madrid"],
-        donde: "Máquinas de venta, kioscos",
+        donde: "Ticket machines, kiosks",
         precio: "~€15-20",
         detalles: "Para Metro y bus. Se puede compartir entre varias personas.",
       },
@@ -233,8 +233,8 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
     sitiosOficiales: ["https://www.crtm.es", "https://www.metromadrid.es"],
     precios: {
       viajeSencillo: "Billete sencillo: ~€2.60",
-      abonoDescargas: "Bonobús 10 viajes: ~€18 (más barato que sencillos)",
-      nota: "Hay zonas. La mayoría de turismo está en zona A (centro).",
+      abonoDescargas: "Bonobús 10 rides: ~€18 (cheaper than singles)",
+      nota: "There are fare zones. Most sights are in zone A (centre).",
     },
     aviso: "El Metro cierra a las 1:30am. Hay autobuses nocturnos pero menos frecuencia. Madrid es muy transitables a pie.",
   },
@@ -246,31 +246,31 @@ export const TRANSPORTE_LOCAL_POR_CIUDAD: Record<string, TransporteLocalDetallad
       {
         nombre: "Metro (TMB)",
         tipo: "metro",
-        comoFunciona: "Metro con varias líneas. Es el medio más usado.",
+        comoFunciona: "Metro with several lines. It's the most used option.",
       },
       {
-        nombre: "Autobús urbano",
+        nombre: "City bus",
         tipo: "bus",
         comoFunciona: "Buses de la TMB. Tarjeta recargable.",
       },
       {
         nombre: "Tranvía",
         tipo: "tranvia",
-        comoFunciona: "Tranvías en algunas zonas (Gracia, etc).",
+        comoFunciona: "Trams in some areas (Gràcia and others).",
       },
       {
         nombre: "A pie",
         tipo: "a_pie",
-        comoFunciona: "El Gótico y la Rambla son caminables. Pero la ciudad es grande.",
+        comoFunciona: "The Gothic Quarter and La Rambla are walkable. But the city is big.",
       },
     ],
     tarjetasYAbonos: [
       {
         nombre: "T-Casual (10 viajes)",
         ciudades: ["Barcelona"],
-        donde: "Máquinas de Metro, estaciones, máquinas de venta",
+        donde: "Metro machines, stations, ticket machines",
         precio: "~€11.35 (zona 1)",
-        detalles: "Se puede compartir. Válida para Metro, bus, tranvía.",
+        detalles: "Can be shared. Valid on metro, bus and tram.",
       },
     ],
     apps: ["Citymapper", "TMB App"],
