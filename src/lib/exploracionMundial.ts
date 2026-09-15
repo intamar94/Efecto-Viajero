@@ -28,6 +28,7 @@
 import { interpretarIntencion } from "./intencion";
 import { resolverLugar } from "./lugares";
 import { buscarPaisPorCodigo } from "./paises";
+import { traducirAlIngles } from "./traduccion";
 import type { CategoriaActividad } from "./types";
 
 export interface Criterio {
@@ -235,18 +236,32 @@ export async function explorarElMundo(texto: string, señal?: AbortSignal): Prom
         continue;
       }
       if (!existente.cumple.some((c) => c.id === criterio.id)) existente.cumple.push(criterio);
-      // Prefer the version that has a picture, and the Spanish article
-      // when there is one: same place, better card.
+      // Prefer the version with a picture either way; between the two
+      // languages, prefer English when the place has an article there —
+      // the rest of the page is in English, so that's the consistent
+      // choice, not a value judgement on which article is "better". A
+      // place found ONLY in Spanish is never dropped for this: it just
+      // gets translated below instead of losing it — the goal is the
+      // most real options for the traveller, not language purity.
       if (!existente.imagen && destino.imagen) existente.imagen = destino.imagen;
-      if (existente.idioma === "en" && destino.idioma === "es") {
+      if (existente.idioma === "es" && destino.idioma === "en") {
         existente.url = destino.url;
-        existente.idioma = "es";
+        existente.idioma = "en";
         existente.resumen = recortar(destino.resumen);
       }
     }
   }
 
-  const ordenadas = [...porLugar.values()].sort(
+  // A place whose only real article is in Spanish keeps its spot — it's
+  // still a genuine option, dropping it would shrink the results for no
+  // real gain — but its text gets translated so the page doesn't mix
+  // languages, the same way Wikivoyage content is already translated
+  // for each city's own guide (see wikivoyage.ts).
+  const traducidas = await Promise.all(
+    [...porLugar.values()].map(async (d) => (d.idioma === "en" ? d : { ...d, resumen: await traducirAlIngles(d.resumen, "es") }))
+  );
+
+  const ordenadas = traducidas.sort(
     (a, b) => b.cumple.length - a.cumple.length || a.nombre.localeCompare(b.nombre)
   );
   const mejorCobertura = ordenadas[0]?.cumple.length ?? 0;
