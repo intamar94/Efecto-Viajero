@@ -6,7 +6,9 @@ import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
-import { fechaDeImagen, miniaturaDeImagen } from "@/lib/fotos";
+import { coordsDeImagen, fechaDeImagen, miniaturaDeImagen } from "@/lib/fotos";
+import { claveDeCoordenadas, lugarDeCoordenadas } from "@/lib/geocodificacionInversa";
+import { formatearFecha } from "@/lib/formatoFecha";
 
 export default function RecuerdosPage() {
   const params = useParams<{ id: string }>();
@@ -37,17 +39,33 @@ export default function RecuerdosPage() {
     setProcesandoFotos(true);
     setErrorFotos(null);
     try {
-      const nuevos = await Promise.all(
+      const conCoords = await Promise.all(
         archivos.map(async (archivo) => {
-          const [fotoDataUrl, fechaFoto] = await Promise.all([miniaturaDeImagen(archivo), fechaDeImagen(archivo)]);
-          return {
-            id: generarId(),
-            titulo: archivo.name.replace(/\.[^.]+$/, ""),
-            fecha: fechaFoto,
-            fotoDataUrl,
-          };
+          const [fotoDataUrl, fechaFoto, coords] = await Promise.all([miniaturaDeImagen(archivo), fechaDeImagen(archivo), coordsDeImagen(archivo)]);
+          return { archivo, fotoDataUrl, fechaFoto, coords };
         })
       );
+
+      // Varias fotos del mismo sitio comparten una sola consulta real de
+      // geocodificación inversa, en vez de repetirla foto por foto.
+      const lugaresPorClave = new Map<string, string | undefined>();
+      for (const { coords } of conCoords) {
+        if (!coords) continue;
+        const clave = claveDeCoordenadas(coords.lat, coords.lon);
+        if (lugaresPorClave.has(clave)) continue;
+        const lugar = await lugarDeCoordenadas(coords.lat, coords.lon);
+        lugaresPorClave.set(clave, lugar?.nombre);
+      }
+
+      const nuevos = conCoords.map(({ archivo, fotoDataUrl, fechaFoto, coords }) => ({
+        id: generarId(),
+        titulo: archivo.name.replace(/\.[^.]+$/, ""),
+        fecha: fechaFoto,
+        fotoDataUrl,
+        lat: coords?.lat,
+        lon: coords?.lon,
+        lugar: coords ? lugaresPorClave.get(claveDeCoordenadas(coords.lat, coords.lon)) : undefined,
+      }));
       actualizarViaje(viaje.id, { recuerdos: [...viaje.recuerdos, ...nuevos] });
     } catch {
       setErrorFotos("We couldn't process one of the photos. Try another or add the moment by hand.");
@@ -74,6 +92,16 @@ export default function RecuerdosPage() {
 
   const ordenados = [...viaje.recuerdos].sort((a, b) => (a.fecha ?? "").localeCompare(b.fecha ?? ""));
 
+  // Cronológico de verdad: agrupado por día, no solo una lista larga
+  // ordenada por fecha — así se ve el viaje como una línea de tiempo real.
+  const grupos: { fecha: string; recuerdos: typeof ordenados }[] = [];
+  for (const r of ordenados) {
+    const clave = r.fecha ?? "Sin fecha";
+    const grupo = grupos.find((g) => g.fecha === clave);
+    if (grupo) grupo.recuerdos.push(r);
+    else grupos.push({ fecha: clave, recuerdos: [r] });
+  }
+
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-xl">
@@ -86,38 +114,56 @@ export default function RecuerdosPage() {
             <input type="file" accept="image/*" multiple onChange={importarFotos} disabled={procesandoFotos} className="input" />
           </label>
           <p className="mt-2 text-xs text-neutral-400">
-            They're processed in your browser (a light thumbnail, not the original photo) and sorted by date
-            automatically. Automatically picking the best photos needs image processing — that isn't built in
-            this version.
+            They're processed in your browser (a light thumbnail, not the original photo), sorted by date and, when
+            the photo has location saved in it, matched to the real place it was taken. Automatically picking the
+            best photos needs image processing — that isn't built in this version.
           </p>
-          {procesandoFotos && <p className="mt-2 text-sm text-neutral-500">Procesando fotos…</p>}
+          {procesandoFotos && <p className="mt-2 text-sm text-neutral-500">Processing photos…</p>}
           {errorFotos && <p className="mt-2 text-sm text-amber-600">{errorFotos}</p>}
         </section>
 
         {ordenados.length === 0 ? (
           <p className="mb-6 text-sm text-neutral-500">No moments saved yet.</p>
         ) : (
-          <ol className="mb-6 space-y-3 border-l border-neutral-200 pl-4">
-            {ordenados.map((r) => (
-              <li key={r.id} className="relative">
-                <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-marino-600" />
-                <div className="flex items-start justify-between gap-3">
-                  {r.fotoDataUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={r.fotoDataUrl} alt={r.titulo} className="h-16 w-16 shrink-0 rounded-lg object-cover" />
-                  )}
-                  <div className="flex-1">
-                    <p className="font-medium">{r.titulo}</p>
-                    {r.fecha && <p className="text-xs text-neutral-400">{r.fecha}</p>}
-                    {r.nota && <p className="mt-1 text-sm text-neutral-600">{r.nota}</p>}
-                  </div>
-                  <button onClick={() => eliminar(r.id)} className="shrink-0 text-neutral-400 hover:text-red-600">
-                    Eliminar
-                  </button>
-                </div>
-              </li>
+          <div className="mb-6 space-y-5">
+            {grupos.map((grupo) => (
+              <div key={grupo.fecha}>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                  {grupo.fecha === "Sin fecha" ? "No date" : formatearFecha(grupo.fecha)}
+                </p>
+                <ol className="space-y-3 border-l border-neutral-200 pl-4">
+                  {grupo.recuerdos.map((r) => (
+                    <li key={r.id} className="relative">
+                      <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-marino-600" />
+                      <div className="flex items-start justify-between gap-3">
+                        {r.fotoDataUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={r.fotoDataUrl} alt={r.titulo} className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+                        )}
+                        <div className="flex-1">
+                          <p className="font-medium">{r.titulo}</p>
+                          {r.lugar && r.lat != null && r.lon != null && (
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lon}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-marino-600 underline hover:text-marino-800"
+                            >
+                              📍 {r.lugar}
+                            </a>
+                          )}
+                          {r.nota && <p className="mt-1 text-sm text-neutral-600">{r.nota}</p>}
+                        </div>
+                        <button onClick={() => eliminar(r.id)} className="shrink-0 text-neutral-400 hover:text-red-600">
+                          Delete
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             ))}
-          </ol>
+          </div>
         )}
 
         <form onSubmit={agregar} className="card space-y-3">

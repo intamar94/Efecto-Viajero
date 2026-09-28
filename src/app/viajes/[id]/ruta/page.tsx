@@ -16,6 +16,7 @@ import { actividadesDe } from "@/lib/catalogo";
 import { GeneradorItinerario } from "@/lib/generador-itinerario";
 import { formatearFecha } from "@/lib/formatoFecha";
 import { puntosConCoordenadas, type PuntoGeo } from "@/lib/puntosGeo";
+import { descargarICS, generarICS, type EventoICS } from "@/lib/calendarioExport";
 import type { ActividadDestino, DiaItinerario, Etapa, Itinerario, PreferenciaItinerario } from "@/lib/types";
 
 // Solo las paradas del día que sí tienen ubicación exacta, en el orden en
@@ -135,6 +136,61 @@ export default function RutaPage() {
         .flatMap((codigo) => (moneda.tasas[codigo] !== undefined ? [{ codigo, tasa: moneda.tasas[codigo] }] : []))
     : [];
 
+  // Nombre real de cada actividad para el calendario exportado — misma
+  // lógica que la página imprimible: catálogo orientativo salvo que el
+  // viajero haya escrito la suya propia o una nota sobre el hueco.
+  function exportarCalendario() {
+    if (!viaje) return;
+    const catalogoPorId = new Map<string, ActividadDestino>();
+    for (const etapa of etapas) {
+      for (const item of actividadesDe(destinoParaCatalogo(etapa))) catalogoPorId.set(item.id, item);
+    }
+    function nombreActividad(actividadId: string, notas?: string): string {
+      if (notas) return notas;
+      const enViaje = viaje!.actividades.find((a) => a.actividadId === actividadId);
+      if (enViaje?.propia) return enViaje.propia.nombre;
+      return catalogoPorId.get(actividadId)?.nombre ?? actividadId;
+    }
+
+    const eventos: EventoICS[] = [];
+
+    for (const dia of itinerario?.dias ?? []) {
+      for (const a of dia.actividades) {
+        eventos.push({
+          uid: `${viaje.id}-act-${dia.fecha}-${a.horaInicio}@efecto-viajero`,
+          titulo: nombreActividad(a.actividadId, a.notas),
+          inicio: `${dia.fecha}T${a.horaInicio}`,
+          fin: `${dia.fecha}T${a.horaFin}`,
+          ubicacion: dia.etapa,
+        });
+      }
+    }
+
+    for (const t of viaje.transporte) {
+      if (!t.horaSalida) continue;
+      eventos.push({
+        uid: `${viaje.id}-transporte-${t.id}@efecto-viajero`,
+        titulo: `${t.origen} → ${t.destino}`,
+        inicio: t.horaSalida,
+        descripcion: t.notas,
+      });
+    }
+
+    for (const d of viaje.documentos) {
+      if (!d.fecha) continue;
+      eventos.push({
+        uid: `${viaje.id}-doc-${d.id}@efecto-viajero`,
+        titulo: `${d.proveedor}${d.referencia ? ` (${d.referencia})` : ""}`,
+        inicio: d.hora ? `${d.fecha}T${d.hora}` : d.fecha,
+        ubicacion: d.direccion,
+      });
+    }
+
+    if (eventos.length === 0) return;
+    const ics = generarICS(viaje.destino, eventos);
+    descargarICS(ics, `${viaje.destino.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.ics`);
+  }
+
   async function handleGenerarItinerario(prefs: PreferenciaItinerario) {
     setCargando(true);
     try {
@@ -245,9 +301,12 @@ export default function RutaPage() {
           </div>
         )}
 
-        <div className="no-imprimir mb-5 flex flex-wrap gap-2">
+        <div className="no-imprimir mb-5 flex flex-wrap items-center gap-2">
           <button onClick={() => window.print()} className="btn-primary text-xs">
             🖨️ Print or save as PDF
+          </button>
+          <button onClick={exportarCalendario} className="btn-secondary text-xs">
+            📅 Export to calendar (.ics)
           </button>
           <span className="self-center text-xs text-neutral-400">Works with no battery and no signal.</span>
         </div>

@@ -257,7 +257,19 @@ export interface PlatoTipico {
 }
 
 export interface Votacion { id: string; pregunta: string; opciones: string[]; votos: Record<string, string>; }
-export interface Recuerdo { id: string; titulo: string; fecha?: string; nota?: string; fotoDataUrl?: string; }
+export interface Recuerdo {
+  id: string;
+  titulo: string;
+  fecha?: string;
+  nota?: string;
+  fotoDataUrl?: string;
+  // Del EXIF de la foto (si el teléfono tenía la ubicación activada al
+  // tomarla) + geocodificación inversa gratuita: dónde se tomó de verdad,
+  // no un dato inventado.
+  lat?: number;
+  lon?: number;
+  lugar?: string;
+}
 export type TipoViaje = "simple" | "circuito";
 
 export interface Etapa {

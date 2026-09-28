@@ -31,3 +31,21 @@ export async function fechaDeImagen(archivo: File): Promise<string | undefined> 
   }
   return new Date(archivo.lastModified).toISOString().slice(0, 10);
 }
+
+// El teléfono ya graba dónde se tomó cada foto (EXIF GPS) si la persona
+// tiene la ubicación activada en la cámara — no hace falta pedir acceso
+// aparte al carrete: basta con leer un dato que la foto ya trae. La
+// mayoría de fotos bajadas de redes sociales lo pierden (se limpia al
+// subirlas), así que no encontrarlo es lo normal y no un error.
+export async function coordsDeImagen(archivo: File): Promise<{ lat: number; lon: number } | undefined> {
+  try {
+    const exifr = await import("exifr");
+    const gps = await exifr.gps(archivo);
+    if (gps && Number.isFinite(gps.latitude) && Number.isFinite(gps.longitude)) {
+      return { lat: gps.latitude, lon: gps.longitude };
+    }
+  } catch {
+    // Sin GPS en el EXIF: no pasa nada, simplemente no hay dato de lugar.
+  }
+  return undefined;
+}
