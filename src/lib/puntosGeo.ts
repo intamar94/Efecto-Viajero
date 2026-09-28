@@ -3,7 +3,7 @@
 // Wikivoyage) se recalculan aquí igual, para que el Modo Guía y el Mapa
 // del día sepan ubicar exactamente las mismas actividades sin duplicar
 // la lógica de generación de ids en cada sitio.
-import type { Etapa, Viaje } from "./types";
+import type { CategoriaActividad, Etapa, Viaje } from "./types";
 
 export interface PuntoGeo {
   id: string;
@@ -12,6 +12,10 @@ export interface PuntoGeo {
   lon: number;
   fuente: "OpenStreetMap" | "Wikivoyage";
   detalle?: string;
+  // Solo los sitios de OpenStreetMap traen categoría real (categoriaDeTags
+  // en investigacion.ts); un listing de Wikivoyage es texto libre sin
+  // clasificar, así que se queda sin categoría en vez de adivinar una.
+  categoria?: CategoriaActividad;
   // Ya investigado desde Actividades (si el viajero la abrió antes):
   // reusar esto evita repetir la misma búsqueda dos veces en dos
   // pantallas distintas. undefined = todavía no se investigó desde
@@ -40,6 +44,7 @@ export function puntosConCoordenadas(viaje: Viaje, etapa: Etapa): PuntoGeo[] {
       lon: s.lon!,
       fuente: "OpenStreetMap",
       detalle: s.detalle,
+      categoria: s.categoria,
       resumenWikipedia: s.resumenWikipedia,
       enlaceWikipedia: s.enlaceWikipedia,
       enlaceWikidata: s.enlaceWikidata,

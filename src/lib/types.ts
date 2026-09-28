@@ -101,6 +101,10 @@ export interface ContextoViaje {
   fechaRegreso?: string;
   destinoNoDefinido?: boolean;
   explorer?: ContextoExplorer;
+  // Qué tipo de viajero es (historia, naturaleza, curiosidades...): solo
+  // reordena contenido real en Actividades y Modo Guía, nunca filtra ni
+  // preselecciona nada por su cuenta. Ids de PERFILES_INTERES.
+  perfilInteres?: string[];
 }
 
 export type ModoPlanificacion = "completo" | "poco_a_poco" | "dejarse_llevar";

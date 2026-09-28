@@ -20,6 +20,7 @@ import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
 import { acortarTexto } from "@/lib/texto";
 import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
 import { VERSION_INVESTIGACION, VERSION_ENRIQUECIMIENTO_SITIO, esCadenaConocida, type Investigacion, type SitioReal } from "@/lib/investigacion";
+import { comparadorPorInteres, coincideConInteres } from "@/lib/perfilInteres";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
@@ -1263,7 +1264,12 @@ export default function ActividadesPage() {
             // una pantalla vacía — una caja que no lleva a ningún lado no
             // ayuda a nadie.
             const categoriasConContenido = new Set(items.map((it) => it.categoria));
-            const categoriasDisponibles = ORDEN_CATEGORIAS.filter((c) => categoriasConContenido.has(c));
+            // Las cajas que coinciden con el perfil de interés del viaje van
+            // primero — sigue habiendo que tocar una para ver algo, nada se
+            // auto-abre; solo cambia cuál está más a mano.
+            const categoriasDisponibles = [...ORDEN_CATEGORIAS.filter((c) => categoriasConContenido.has(c))].sort(
+              comparadorPorInteres((c) => c, viaje.contexto.perfilInteres)
+            );
 
             // El viajero decide qué mirar tocando una caja: nada se
             // preselecciona a partir de lo que escribió al crear el
@@ -1297,6 +1303,7 @@ export default function ActividadesPage() {
             const listaMostrada = categoriasBuscadas !== null
               ? [...resultadosBusqueda].sort(
                   (a, b) =>
+                    Number(coincideConInteres(b.categoria, viaje.contexto.perfilInteres)) - Number(coincideConInteres(a.categoria, viaje.contexto.perfilInteres)) ||
                     ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria) ||
                     Number(Boolean(b.cocinaLocal)) - Number(Boolean(a.cocinaLocal)) ||
                     Number(Boolean(a.cadenaGenerica)) - Number(Boolean(b.cadenaGenerica))

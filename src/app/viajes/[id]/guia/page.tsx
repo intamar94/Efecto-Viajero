@@ -11,6 +11,8 @@ import { etapasDe } from "@/lib/viaje";
 import { distanciaMetros, hablar, haySintesisDeVoz } from "@/lib/geoAudio";
 import { puntosConCoordenadas } from "@/lib/puntosGeo";
 import { obtenerResumenSitio, type ResumenWikipedia } from "@/lib/wikipedia";
+import { comparadorPorInteres } from "@/lib/perfilInteres";
+import type { CategoriaActividad } from "@/lib/types";
 
 // En la app instalada (Android), el GPS lo da el sistema operativo real
 // (@capacitor/geolocation) en vez del navegador: un permiso nativo de
@@ -30,6 +32,7 @@ interface PuntoGuia {
   lon: number;
   etapaNombre: string;
   fuente: string;
+  categoria?: CategoriaActividad;
   wikipediaUrl?: string;
   // Independiente de wikipediaUrl: un resumen reusado desde Actividades
   // es igual de real y rico, pero no siempre trae guardada la URL del
@@ -135,7 +138,7 @@ export default function ModoGuiaPage() {
   // lugares conocidos como Monserrate o La Candelaria), se narra ese
   // resumen real en vez del "detalle" corto de OpenStreetMap: más
   // historia y datos curiosos, corto pero claro, sin inventar nada.
-  const puntos: PuntoGuia[] = etapasDe(viaje).flatMap((etapa) =>
+  const puntosSinPriorizar: PuntoGuia[] = etapasDe(viaje).flatMap((etapa) =>
     puntosConCoordenadas(viaje, etapa).map((p) => {
       const resumen = resumenesSitio[p.id];
       const rico = resumen && resumen !== "sin_datos" ? resumen : null;
@@ -147,11 +150,19 @@ export default function ModoGuiaPage() {
         lon: p.lon,
         etapaNombre: etapa.nombre,
         fuente: p.fuente,
+        categoria: p.categoria,
         wikipediaUrl: rico?.url,
         tieneResumenRico: !!rico?.extracto,
       };
     })
   );
+
+  // Con el perfil de interés del viaje, si dos sitios reales están en
+  // rango de GPS al mismo tiempo, se narra primero el que de verdad
+  // coincide con lo que le interesa a este viajero — el "free tour a la
+  // medida" que pidió. No filtra ni esconde nada: todo sigue en la lista
+  // de abajo, solo cambia el orden de prioridad.
+  const puntos = [...puntosSinPriorizar].sort(comparadorPorInteres((p) => p.categoria, viaje.contexto.perfilInteres));
 
   function manejarPosicion(pos: { coords: { latitude: number; longitude: number } }) {
     const actual = { lat: pos.coords.latitude, lon: pos.coords.longitude };

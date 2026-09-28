@@ -15,6 +15,7 @@ import { resumenViaje } from "@/lib/travelBrain";
 import { MODOS } from "@/lib/modos";
 import { invitar as compartirViaje } from "@/lib/viajes/compartidos";
 import { formatearRangoFechas } from "@/lib/formatoFecha";
+import { PERFILES_INTERES } from "@/lib/perfilInteres";
 import type { ContextoViaje, EstadoRequisito, Viaje } from "@/lib/types";
 
 const SECCIONES = [
@@ -187,6 +188,33 @@ export default function ViajeDetallePage() {
             👥 Compartir
           </button>
         </div>
+
+        <section className="mb-6">
+          <h2 className="mb-1 font-medium">What are you into?</h2>
+          <p className="mb-3 text-xs text-neutral-500">
+            Pick as many as you like — Activities and Guide mode will bring these up first, without hiding anything else.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {PERFILES_INTERES.map((p) => {
+              const activo = (viaje.contexto.perfilInteres ?? []).includes(p.id);
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    const actual = viaje.contexto.perfilInteres ?? [];
+                    const siguiente = activo ? actual.filter((id) => id !== p.id) : [...actual, p.id];
+                    actualizarViaje(viaje.id, { contexto: { ...viaje.contexto, perfilInteres: siguiente } });
+                  }}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                    activo ? "border-marino-500 bg-marino-50 text-marino-700" : "border-neutral-200 text-neutral-600 hover:border-neutral-300"
+                  }`}
+                >
+                  {p.icono} {p.etiqueta}
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
         <section className="mb-6">
           <h2 className="mb-4 font-medium">Trip sections</h2>
