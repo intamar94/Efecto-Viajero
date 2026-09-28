@@ -21,7 +21,7 @@ export default function ViajesPage() {
 
         <div className="mb-6 flex items-center gap-3">
           <Link href="/planificar" className="btn-primary flex-1">
-            ➕ Planificar un viaje
+            ➕ Plan a trip
           </Link>
           <div className="inline-flex gap-1 rounded-lg border border-neutral-200 bg-neutral-50 p-1">
             <button
@@ -32,7 +32,7 @@ export default function ViajesPage() {
                   : "text-neutral-600 hover:text-neutral-900"
               }`}
             >
-              📋 Lista
+              📋 List
             </button>
             <button
               onClick={() => setVista("calendario")}
@@ -42,43 +42,33 @@ export default function ViajesPage() {
                   : "text-neutral-600 hover:text-neutral-900"
               }`}
             >
-              📅 Calendario
+              📅 Calendar
             </button>
           </div>
         </div>
 
         {!hidratado ? (
-          <p className="text-neutral-400">Cargando…</p>
+          <p className="text-neutral-400">Loading…</p>
         ) : ordenados.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-neutral-300 px-6 py-10 text-center text-neutral-500">
-            Todavía no has creado ningún viaje.
+            You haven't created any trips yet.
           </div>
         ) : vista === "lista" ? (
           <ul className="space-y-3">
-            {ordenados.map((viaje) => {
-              const nombresViajeros = viaje.viajerosIds
-                .map((id) => viajeros.find((v) => v.id === id)?.nombre)
-                .filter(Boolean);
-              return (
-                <li key={viaje.id}>
-                  <Link href={`/viajes/${viaje.id}`} className="block rounded-xl border border-neutral-200 bg-white px-5 py-4 hover:border-neutral-900">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">{viaje.destino}</p>
-                      <p className="text-sm text-neutral-500">
-                        {viaje.fechaSalida && viaje.fechaRegreso
-                          ? formatearRangoFechas(viaje.fechaSalida, viaje.fechaRegreso)
-                          : viaje.contexto.duracionDias
-                            ? `~${viaje.contexto.duracionDias} days · no dates`
-                            : "No dates"}
-                      </p>
-                    </div>
-                    <p className="mt-1 text-sm text-neutral-500">
-                      {nombresViajeros.length > 0 ? nombresViajeros.join(", ") : "Sin viajeros asignados"}
-                    </p>
-                  </Link>
-                </li>
-              );
-            })}
+            {ordenados.map((viaje) => (
+              <li key={viaje.id}>
+                <Link href={`/viajes/${viaje.id}`} className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white px-5 py-4 hover:border-neutral-900">
+                  <p className="font-medium">{viaje.destino}</p>
+                  <p className="text-sm text-neutral-500">
+                    {viaje.fechaSalida && viaje.fechaRegreso
+                      ? formatearRangoFechas(viaje.fechaSalida, viaje.fechaRegreso)
+                      : viaje.contexto.duracionDias
+                        ? `~${viaje.contexto.duracionDias} days`
+                        : "No dates"}
+                  </p>
+                </Link>
+              </li>
+            ))}
           </ul>
         ) : (
           <CalendarioViajes viajes={ordenados} viajeros={viajeros} />
