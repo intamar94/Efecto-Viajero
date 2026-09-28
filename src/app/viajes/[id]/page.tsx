@@ -15,7 +15,6 @@ import { resumenViaje } from "@/lib/travelBrain";
 import { MODOS } from "@/lib/modos";
 import { invitar as compartirViaje } from "@/lib/viajes/compartidos";
 import { formatearRangoFechas } from "@/lib/formatoFecha";
-import { PERFILES_INTERES } from "@/lib/perfilInteres";
 import type { ContextoViaje, EstadoRequisito, Viaje } from "@/lib/types";
 
 const SECCIONES = [
@@ -46,9 +45,9 @@ function subtituloFechas(viaje: Viaje): string {
 
 function descripcionQuienViaja(c: ContextoViaje): string | null {
   const partes: string[] = [];
-  if (c.numAdultos) partes.push(`${c.numAdultos} adulto${c.numAdultos > 1 ? "s" : ""}`);
+  if (c.numAdultos) partes.push(`${c.numAdultos} adult${c.numAdultos > 1 ? "s" : ""}`);
   for (const edad of c.edadesMenores ?? []) partes.push(`1 child under ${edad}`);
-  if (c.mascota) partes.push("mascota");
+  if (c.mascota) partes.push("pet");
   return partes.length > 0 ? partes.join(", ") : null;
 }
 
@@ -173,8 +172,8 @@ export default function ViajeDetallePage() {
 
         {avisoSinUbicar && (
           <div className="mb-6 flex items-start justify-between gap-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
-            <p>No pudimos ubicar &quot;{avisoSinUbicar}&quot; como destino real — revisa el nombre y créalo de nuevo si hacía falta.</p>
-            <button onClick={() => setAvisoSinUbicar(null)} className="shrink-0 text-amber-600 hover:text-amber-900" aria-label="Cerrar aviso">
+            <p>We couldn&apos;t locate &quot;{avisoSinUbicar}&quot; as a real destination — check the spelling and recreate it if needed.</p>
+            <button onClick={() => setAvisoSinUbicar(null)} className="shrink-0 text-amber-600 hover:text-amber-900" aria-label="Close notice">
               ×
             </button>
           </div>
@@ -185,36 +184,9 @@ export default function ViajeDetallePage() {
             onClick={() => setMostrarCompartir(true)}
             className="flex-1 rounded-lg border border-marino-200 bg-marino-50 px-3 py-2 text-sm font-medium text-marino-700 hover:bg-marino-100 transition"
           >
-            👥 Compartir
+            👥 Share
           </button>
         </div>
-
-        <section className="mb-6">
-          <h2 className="mb-1 font-medium">What are you into?</h2>
-          <p className="mb-3 text-xs text-neutral-500">
-            Pick as many as you like — Activities and Guide mode will bring these up first, without hiding anything else.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {PERFILES_INTERES.map((p) => {
-              const activo = (viaje.contexto.perfilInteres ?? []).includes(p.id);
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    const actual = viaje.contexto.perfilInteres ?? [];
-                    const siguiente = activo ? actual.filter((id) => id !== p.id) : [...actual, p.id];
-                    actualizarViaje(viaje.id, { contexto: { ...viaje.contexto, perfilInteres: siguiente } });
-                  }}
-                  className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                    activo ? "border-marino-500 bg-marino-50 text-marino-700" : "border-neutral-200 text-neutral-600 hover:border-neutral-300"
-                  }`}
-                >
-                  {p.icono} {p.etiqueta}
-                </button>
-              );
-            })}
-          </div>
-        </section>
 
         <section className="mb-6">
           <h2 className="mb-4 font-medium">Trip sections</h2>
@@ -239,7 +211,7 @@ export default function ViajeDetallePage() {
             <div className="flex gap-2">
               <input
                 type="email"
-                placeholder="email@ejemplo.com"
+                placeholder="email@example.com"
                 value={emailACompartir}
                 onChange={(e) => setEmailACompartir(e.target.value)}
                 className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm"
@@ -249,13 +221,13 @@ export default function ViajeDetallePage() {
                 disabled={compartiendo || !emailACompartir}
                 className="rounded-lg bg-marino-600 px-3 py-2 text-sm font-medium text-white hover:bg-marino-700 disabled:bg-neutral-300"
               >
-                {compartiendo ? "..." : "Invitar"}
+                {compartiendo ? "..." : "Invite"}
               </button>
               <button
                 onClick={() => setMostrarCompartir(false)}
                 className="rounded-lg border border-neutral-200 px-3 py-2 text-sm hover:bg-neutral-50"
               >
-                Cancelar
+                Cancel
               </button>
             </div>
           </div>
@@ -307,7 +279,7 @@ export default function ViajeDetallePage() {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-medium">Travellers</h2>
             <button onClick={() => setEditandoViajeros((v) => !v)} className="text-sm text-neutral-500 hover:text-neutral-900">
-              {editandoViajeros ? "Listo" : viajerosDelViaje.length > 0 ? "Editar" : "Añadir"}
+              {editandoViajeros ? "Done" : viajerosDelViaje.length > 0 ? "Edit" : "Add"}
             </button>
           </div>
 
@@ -332,9 +304,9 @@ export default function ViajeDetallePage() {
           {editandoViajeros &&
             (viajeros.length === 0 ? (
               <p className="text-sm text-neutral-500">
-                Todavía no hay viajeros guardados.{" "}
+                No travellers saved yet.{" "}
                 <Link href="/viajeros/nuevo" className="underline">
-                  Añade uno
+                  Add one
                 </Link>
                 .
               </p>
@@ -364,7 +336,7 @@ export default function ViajeDetallePage() {
               </p>
             </div>
             <button onClick={() => setEditandoModo((v) => !v)} className="shrink-0 text-sm text-neutral-500 hover:text-neutral-900">
-              {editandoModo ? "Listo" : "Cambiar"}
+              {editandoModo ? "Done" : "Change"}
             </button>
           </div>
 
@@ -391,10 +363,10 @@ export default function ViajeDetallePage() {
 
         {presupuesto && presupuesto.presupuestoTotal !== undefined && (
           <section className="card mb-6">
-            <h2 className="mb-3 font-medium">Presupuesto</h2>
+            <h2 className="mb-3 font-medium">Budget</h2>
             <div className="flex items-baseline justify-between text-sm">
-              <span className="text-neutral-500">Planificado</span>
-              <span className="font-medium">{presupuesto.total}€ de {presupuesto.presupuestoTotal}€</span>
+              <span className="text-neutral-500">Planned</span>
+              <span className="font-medium">{presupuesto.total}€ of {presupuesto.presupuestoTotal}€</span>
             </div>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
               <div
@@ -404,8 +376,8 @@ export default function ViajeDetallePage() {
             </div>
             <p className={`mt-2 text-sm ${presupuesto.excedido ? "text-red-600" : "text-neutral-500"}`}>
               {presupuesto.excedido
-                ? `Presupuesto excedido en ${Math.abs(presupuesto.disponible ?? 0)}€`
-                : `Disponible: ${presupuesto.disponible}€`}
+                ? `Budget exceeded by ${Math.abs(presupuesto.disponible ?? 0)}€`
+                : `Available: ${presupuesto.disponible}€`}
             </p>
 
             {presupuesto.excedido && (() => {
@@ -415,7 +387,7 @@ export default function ViajeDetallePage() {
               }
               return mostrarAjuste ? (
                 <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm">
-                  <p className="mb-2 text-red-700">Podemos: {sugerencia.descripcion}</p>
+                  <p className="mb-2 text-red-700">We could: {sugerencia.descripcion}</p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
@@ -424,16 +396,16 @@ export default function ViajeDetallePage() {
                       }}
                       className="btn-primary px-3 py-1.5"
                     >
-                      Ajustar automáticamente
+                      Adjust automatically
                     </button>
                     <button onClick={() => setMostrarAjuste(false)} className="btn-secondary px-3 py-1.5">
-                      Decidir yo
+                      I&apos;ll decide
                     </button>
                   </div>
                 </div>
               ) : (
                 <button onClick={() => setMostrarAjuste(true)} className="mt-3 text-sm underline text-red-600 hover:text-red-800">
-                  Ver cómo resolverlo
+                  See how to fix it
                 </button>
               );
             })()}
@@ -442,7 +414,7 @@ export default function ViajeDetallePage() {
 
         <section className="card mb-6">
           <div className="mb-1 flex items-center justify-between">
-            <h2 className="font-medium">Requisitos</h2>
+            <h2 className="font-medium">Requirements</h2>
           </div>
 
           {viajerosDelViaje.length === 0 ? (
@@ -450,7 +422,7 @@ export default function ViajeDetallePage() {
           ) : (
             <>
               <p className="mb-4 text-xs text-neutral-400">
-                Estimación orientativa, no oficial. Verifica siempre en la fuente oficial del país de destino antes de viajar.
+                Rough estimate, not official. Always check the official source for your destination country before travelling.
               </p>
 
               {viajerosDelViaje.map((v) => {
@@ -495,7 +467,7 @@ export default function ViajeDetallePage() {
         </section>
 
         <button onClick={borrarViaje} className="text-sm text-red-600 hover:text-red-800">
-          Eliminar viaje
+          Delete trip
         </button>
       </div>
     </main>

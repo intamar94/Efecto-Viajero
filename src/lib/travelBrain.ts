@@ -17,32 +17,32 @@ export function resumenViaje(viaje: Viaje, requisitos: ResultadoRequisito[], des
   const rojos = requisitos.filter((r) => r.estado === "rojo").length;
   const amarillos = requisitos.filter((r) => r.estado === "amarillo").length;
   if (rojos > 0) {
-    insights.push({ nivel: "alerta", texto: `${rojos} requisito${rojos > 1 ? "s" : ""} obligatorio${rojos > 1 ? "s" : ""} sin resolver.` });
+    insights.push({ nivel: "alerta", texto: `${rojos} required requirement${rojos > 1 ? "s" : ""} unresolved.` });
   } else if (amarillos > 0) {
-    insights.push({ nivel: "aviso", texto: `${amarillos} requisito${amarillos > 1 ? "s" : ""} por revisar.` });
+    insights.push({ nivel: "aviso", texto: `${amarillos} requirement${amarillos > 1 ? "s" : ""} to check.` });
   } else if (requisitos.length > 0) {
-    insights.push({ nivel: "ok", texto: "Documentación y salud sin problemas detectados." });
+    insights.push({ nivel: "ok", texto: "No issues detected with documents and health." });
   }
 
   const presupuesto = calcularPresupuesto(viaje, destino);
   if (presupuesto.excedido) {
-    insights.push({ nivel: "alerta", texto: `Presupuesto excedido en ${Math.abs(presupuesto.disponible ?? 0)}€.` });
+    insights.push({ nivel: "alerta", texto: `Budget exceeded by ${Math.abs(presupuesto.disponible ?? 0)}€.` });
   } else if (presupuesto.presupuestoTotal !== undefined) {
-    insights.push({ nivel: "ok", texto: `Presupuesto dentro de lo previsto (quedan ${presupuesto.disponible}€).` });
+    insights.push({ nivel: "ok", texto: `Budget on track (${presupuesto.disponible}€ left).` });
   }
 
   if (!viaje.alojamientoId) {
-    insights.push({ nivel: "aviso", texto: "El presupuesto todavía no cuenta el alojamiento.", accion: { texto: "Ver alojamiento", href: `/viajes/${viaje.id}/alojamiento` } });
+    insights.push({ nivel: "aviso", texto: "The budget doesn't count accommodation yet.", accion: { texto: "See accommodation", href: `/viajes/${viaje.id}/alojamiento` } });
   }
   if (viaje.transporte.length === 0) {
-    insights.push({ nivel: "aviso", texto: "Todavía no has añadido ningún tramo de transporte.", accion: { texto: "Añadir transporte", href: `/viajes/${viaje.id}/transporte` } });
+    insights.push({ nivel: "aviso", texto: "You haven't added any transport legs yet.", accion: { texto: "Add transport", href: `/viajes/${viaje.id}/transporte` } });
   }
 
   const planificadas = viaje.actividades.filter((a) => a.estado !== "descartada").length;
   if (planificadas === 0) {
-    insights.push({ nivel: "aviso", texto: "Aún no has añadido actividades.", accion: { texto: "Ver actividades", href: `/viajes/${viaje.id}/actividades` } });
+    insights.push({ nivel: "aviso", texto: "You haven't added any activities yet.", accion: { texto: "See activities", href: `/viajes/${viaje.id}/actividades` } });
   } else {
-    insights.push({ nivel: "ok", texto: `${planificadas} actividad${planificadas > 1 ? "es" : ""} en marcha.` });
+    insights.push({ nivel: "ok", texto: `${planificadas} activit${planificadas > 1 ? "ies" : "y"} in progress.` });
   }
 
   return insights;

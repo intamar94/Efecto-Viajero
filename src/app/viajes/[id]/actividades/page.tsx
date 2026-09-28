@@ -20,7 +20,7 @@ import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
 import { acortarTexto } from "@/lib/texto";
 import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
 import { VERSION_INVESTIGACION, VERSION_ENRIQUECIMIENTO_SITIO, esCadenaConocida, type Investigacion, type SitioReal } from "@/lib/investigacion";
-import { comparadorPorInteres, coincideConInteres } from "@/lib/perfilInteres";
+import { comparadorPorInteres, coincideConInteres, PERFILES_INTERES } from "@/lib/perfilInteres";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
@@ -1189,13 +1189,40 @@ export default function ActividadesPage() {
         </div>
         {errorRefresco && <p className="mb-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">{errorRefresco}</p>}
 
+        <section className="mb-6">
+          <h2 className="mb-1 font-medium">What are you into?</h2>
+          <p className="mb-3 text-xs text-neutral-500">
+            Pick as many as you like — the categories below and Guide mode will bring these up first, without hiding anything else.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {PERFILES_INTERES.map((p) => {
+              const activo = (viaje.contexto.perfilInteres ?? []).includes(p.id);
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    const actual = viaje.contexto.perfilInteres ?? [];
+                    const siguiente = activo ? actual.filter((id) => id !== p.id) : [...actual, p.id];
+                    actualizarViaje(viaje.id, { contexto: { ...viaje.contexto, perfilInteres: siguiente } });
+                  }}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                    activo ? "border-marino-500 bg-marino-50 text-marino-700" : "border-neutral-200 text-neutral-600 hover:border-neutral-300"
+                  }`}
+                >
+                  {p.icono} {p.etiqueta}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         <section className="card mb-6">
-          <h2 className="mb-3 font-medium">Algo ha cambiado</h2>
+          <h2 className="mb-3 font-medium">Something changed</h2>
           <div className="flex flex-wrap gap-2">
             {(
               [
                 ["lluvia", "🌧️ It's raining"],
-                ["cansancio", "😴 Estamos cansados"],
+                ["cansancio", "😴 We're tired"],
               ] as const
             ).map(([valor, etiqueta]) => (
               <button
