@@ -1,10 +1,8 @@
 import Link from "next/link";
 
-// Pedido directo: la portada solo necesita dos puertas — planear el
-// viaje y ver los que ya existen. Explorar el mundo (para quien tiene
-// días libres y no destino) y Viajeros (personas/mascotas) siguen
-// existiendo — se llega igual desde el menú de la cuenta — pero ya no
-// compiten por espacio con las dos acciones principales.
+// Pedido directo: la portada solo lleva las dos puertas que hacen
+// falta. Explorar el mundo y Viajeros siguen existiendo — se llega
+// desde el menú de la cuenta (NavBar) — pero ya no aparecen aquí.
 const OPCIONES_PRINCIPALES = [
   {
     href: "/planificar",
@@ -18,11 +16,6 @@ const OPCIONES_PRINCIPALES = [
     titulo: "My trips",
     descripcion: "What you already have in motion: plan, requirements and status.",
   },
-];
-
-const OPCIONES_SECUNDARIAS = [
-  { href: "/explorar", icono: "🌎", titulo: "Explore the world" },
-  { href: "/viajeros", icono: "🧑‍🤝‍🧑", titulo: "Travellers" },
 ];
 
 export default function Home() {
@@ -58,23 +51,6 @@ export default function Home() {
             </span>
           </Link>
         ))}
-      </div>
-
-      <div className="mx-auto mt-6 flex max-w-xl justify-center gap-4">
-        {OPCIONES_SECUNDARIAS.map((op) => (
-          <Link key={op.href} href={op.href} className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800">
-            <span>{op.icono}</span> {op.titulo}
-          </Link>
-        ))}
-      </div>
-
-      <div className="mx-auto mt-8 max-w-xl">
-        <Link
-          href="/ejemplo"
-          className="text-xs text-neutral-400 hover:text-neutral-600 underline"
-        >
-          💡 Load a full sample trip
-        </Link>
       </div>
     </main>
   );

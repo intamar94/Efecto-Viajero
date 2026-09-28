@@ -94,6 +94,13 @@ export function NavBar() {
                   ✈️ Plan a trip
                 </Link>
                 <Link
+                  href="/explorar"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                >
+                  🌎 Explore the world
+                </Link>
+                <Link
                   href="/viajeros"
                   onClick={() => setMenuOpen(false)}
                   className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
