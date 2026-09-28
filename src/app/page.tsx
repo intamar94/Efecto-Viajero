@@ -1,38 +1,28 @@
 import Link from "next/link";
 
-const OPCIONES = [
+// Pedido directo: la portada solo necesita dos puertas — planear el
+// viaje y ver los que ya existen. Explorar el mundo (para quien tiene
+// días libres y no destino) y Viajeros (personas/mascotas) siguen
+// existiendo — se llega igual desde el menú de la cuenta — pero ya no
+// compiten por espacio con las dos acciones principales.
+const OPCIONES_PRINCIPALES = [
   {
     href: "/planificar",
     icono: "✈️",
     titulo: "Plan a trip",
     descripcion: "Tell us what you want to do and we build it with you.",
-    destacado: true,
-  },
-  // Toda la app daba por hecho que ya sabes a dónde vas, y mucha gente
-  // llega al revés: tiene los días libres y no el destino. Para ese caso
-  // no había puerta de entrada — tenía que inventarse un destino para
-  // poder empezar, que es justo lo contrario de lo que necesita.
-  {
-    href: "/explorar",
-    icono: "🌎",
-    titulo: "Explore the world",
-    descripcion: "Time off but no destination? Say what you feel like and we find where.",
-    destacado: false,
   },
   {
     href: "/viajes",
     icono: "🗺️",
     titulo: "My trips",
     descripcion: "What you already have in motion: plan, requirements and status.",
-    destacado: false,
   },
-  {
-    href: "/viajeros",
-    icono: "🧑‍🤝‍🧑",
-    titulo: "Travellers",
-    descripcion: "People and pets, with their documents always at hand.",
-    destacado: false,
-  },
+];
+
+const OPCIONES_SECUNDARIAS = [
+  { href: "/explorar", icono: "🌎", titulo: "Explore the world" },
+  { href: "/viajeros", icono: "🧑‍🤝‍🧑", titulo: "Travellers" },
 ];
 
 export default function Home() {
@@ -50,12 +40,12 @@ export default function Home() {
       </section>
 
       <div className="mx-auto grid w-full max-w-xl gap-3">
-        {OPCIONES.map((op) => (
+        {OPCIONES_PRINCIPALES.map((op, i) => (
           <Link
             key={op.href}
             href={op.href}
             className={`group flex items-center gap-4 rounded-2xl border bg-white px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
-              op.destacado ? "border-coral-300 shadow-sm ring-1 ring-coral-100" : "border-neutral-200 shadow-sm"
+              i === 0 ? "border-coral-300 shadow-sm ring-1 ring-coral-100" : "border-neutral-200 shadow-sm"
             }`}
           >
             <span className="text-2xl">{op.icono}</span>
@@ -63,11 +53,17 @@ export default function Home() {
               <span className="block font-medium text-neutral-900">{op.titulo}</span>
               <span className="block text-sm text-neutral-500">{op.descripcion}</span>
             </span>
-            <span
-              className={`transition group-hover:translate-x-1 ${op.destacado ? "text-coral-500" : "text-neutral-300 group-hover:text-neutral-600"}`}
-            >
+            <span className={`transition group-hover:translate-x-1 ${i === 0 ? "text-coral-500" : "text-neutral-300 group-hover:text-neutral-600"}`}>
               →
             </span>
+          </Link>
+        ))}
+      </div>
+
+      <div className="mx-auto mt-6 flex max-w-xl justify-center gap-4">
+        {OPCIONES_SECUNDARIAS.map((op) => (
+          <Link key={op.href} href={op.href} className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800">
+            <span>{op.icono}</span> {op.titulo}
           </Link>
         ))}
       </div>
