@@ -1,19 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
-import { EstadoBadge } from "@/components/EstadoBadge";
 import { useData } from "@/lib/store";
-import { calcularRequisitos, ORDEN_ESTADO } from "@/lib/requisitos";
 import { destinoPrincipal, esCircuito, etapasDe } from "@/lib/viaje";
 import { alojamientosDe, actividadesDe } from "@/lib/catalogo";
-import { sugerirAjustePresupuesto, calcularPresupuesto as calcularPresupuestoDetalles } from "@/lib/compatibilidad";
-import { calcularPresupuesto, calcularImporteVault } from "@/lib/calcularPresupuesto";
-import { MODOS } from "@/lib/modos";
 import { formatearRangoFechas } from "@/lib/formatoFecha";
-import type { ContextoViaje, EstadoRequisito, Viaje } from "@/lib/types";
+import type { Viaje } from "@/lib/types";
 
 const SECCIONES = [
   { href: "ruta", icono: "🧭", titulo: "Route" },
@@ -36,19 +31,11 @@ function subtituloFechas(viaje: Viaje): string {
   return "Dates to be confirmed";
 }
 
-function descripcionQuienViaja(c: ContextoViaje): string | null {
-  const partes: string[] = [];
-  if (c.numAdultos) partes.push(`${c.numAdultos} adult${c.numAdultos > 1 ? "s" : ""}`);
-  for (const edad of c.edadesMenores ?? []) partes.push(`1 child under ${edad}`);
-  if (c.mascota) partes.push("pet");
-  return partes.length > 0 ? partes.join(", ") : null;
-}
-
 export default function ViajeDetallePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { obtenerViaje, actualizarViaje, eliminarViaje, viajeros } = useData();
+  const { obtenerViaje, eliminarViaje } = useData();
   // Al crear el viaje ya no hay pantalla de confirmación previa: si algún
   // destino escrito no se pudo ubicar, se avisa aquí una sola vez en vez de
   // bloquear la creación por eso. El aviso viaja en la URL desde
@@ -61,26 +48,9 @@ export default function ViajeDetallePage() {
     router.replace(`/viajes/${params.id}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [mostrarAjuste, setMostrarAjuste] = useState(false);
-  const [editandoViajeros, setEditandoViajeros] = useState(false);
-  const [editandoModo, setEditandoModo] = useState(false);
-  const [requisitosAbiertos, setRequisitosAbiertos] = useState<Set<string>>(new Set());
   const viaje = obtenerViaje(params.id);
 
   const destino = viaje ? destinoPrincipal(viaje) : undefined;
-
-  const viajerosDelViaje = useMemo(
-    () => (viaje ? viajeros.filter((v) => viaje.viajerosIds.includes(v.id)) : []),
-    [viaje, viajeros]
-  );
-
-  const requisitos = useMemo(() => (viaje ? calcularRequisitos(viaje, viajeros) : []), [viaje, viajeros]);
-  const presupuesto = useMemo(() => {
-    if (!viaje) return null;
-    const desglose = calcularPresupuestoDetalles(viaje, destino);
-    const totalConVault = calcularPresupuesto(viaje);
-    return { ...desglose, total: totalConVault, excedido: viaje.contexto.presupuestoTotal !== undefined && totalConVault > viaje.contexto.presupuestoTotal };
-  }, [viaje, destino]);
 
   if (!viaje) {
     return (
@@ -114,23 +84,6 @@ export default function ViajeDetallePage() {
     resolver: "Emergencies and contacts",
     imprimir: "Itinerary + bookings as a PDF",
   };
-
-  function toggleViajeroEnViaje(id: string) {
-    if (!viaje) return;
-    const set = new Set(viaje.viajerosIds);
-    if (set.has(id)) set.delete(id);
-    else set.add(id);
-    actualizarViaje(viaje.id, { viajerosIds: Array.from(set) });
-  }
-
-  function toggleRequisitosAbiertos(id: string) {
-    setRequisitosAbiertos((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   function borrarViaje() {
     if (!viaje) return;
@@ -168,197 +121,6 @@ export default function ViajeDetallePage() {
               </Link>
             ))}
           </div>
-        </section>
-
-        <section className="card mb-6">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-medium">Travellers</h2>
-            <button onClick={() => setEditandoViajeros((v) => !v)} className="text-sm text-neutral-500 hover:text-neutral-900">
-              {editandoViajeros ? "Done" : viajerosDelViaje.length > 0 ? "Edit" : "Add"}
-            </button>
-          </div>
-
-          {viajerosDelViaje.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {viajerosDelViaje.map((v) => (
-                <span key={v.id} className="rounded-full border border-neutral-200 px-3 py-1 text-sm">
-                  {v.tipo === "persona" ? "🧑" : "🐾"} {v.nombre}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {viajerosDelViaje.length === 0 && !editandoViajeros && (
-            <p className="text-sm text-neutral-500">
-              {descripcionQuienViaja(viaje.contexto)
-                ? `${descripcionQuienViaja(viaje.contexto)} — no names yet. Add them whenever you like.`
-                : "You haven't said who's travelling yet."}
-            </p>
-          )}
-
-          {editandoViajeros &&
-            (viajeros.length === 0 ? (
-              <p className="text-sm text-neutral-500">
-                No travellers saved yet.{" "}
-                <Link href="/viajeros/nuevo" className="underline">
-                  Add one
-                </Link>
-                .
-              </p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {viajeros.map((v) => (
-                  <label key={v.id} className="flex items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50 px-3 py-2 text-sm">
-                    <input type="checkbox" checked={viaje.viajerosIds.includes(v.id)} onChange={() => toggleViajeroEnViaje(v.id)} />
-                    <span>
-                      {v.tipo === "persona" ? "🧑" : "🐾"} {v.nombre}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            ))}
-        </section>
-
-        {/* El modo ya se elige al crear el viaje: aquí solo se muestra y se
-            cambia si hace falta, en vez de volver a ocupar media pantalla
-            con las tres opciones. */}
-        <section className="card mb-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="font-medium">How it's organised</h2>
-              <p className="mt-0.5 text-sm text-neutral-500">
-                {MODOS.find((m) => m.valor === viaje.modoPlanificacion)?.etiqueta ?? "Not decided yet"}
-              </p>
-            </div>
-            <button onClick={() => setEditandoModo((v) => !v)} className="shrink-0 text-sm text-neutral-500 hover:text-neutral-900">
-              {editandoModo ? "Done" : "Change"}
-            </button>
-          </div>
-
-          {editandoModo && (
-            <div className="mt-3 grid gap-2">
-              {MODOS.map((m) => (
-                <button
-                  key={m.valor}
-                  onClick={() => {
-                    actualizarViaje(viaje.id, { modoPlanificacion: m.valor });
-                    setEditandoModo(false);
-                  }}
-                  className={`rounded-xl border p-3 text-left text-sm transition ${
-                    viaje.modoPlanificacion === m.valor ? "border-marino-500 bg-marino-50" : "border-neutral-200 hover:border-neutral-400"
-                  }`}
-                >
-                  <p className="font-medium">{m.etiqueta}</p>
-                  <p className="mt-0.5 text-xs text-neutral-500">{m.descripcion}</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {presupuesto && presupuesto.presupuestoTotal !== undefined && (
-          <section className="card mb-6">
-            <h2 className="mb-3 font-medium">Budget</h2>
-            <div className="flex items-baseline justify-between text-sm">
-              <span className="text-neutral-500">Planned</span>
-              <span className="font-medium">{presupuesto.total}€ of {presupuesto.presupuestoTotal}€</span>
-            </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
-              <div
-                className={`h-full rounded-full ${presupuesto.excedido ? "bg-red-500" : "bg-marino-600"}`}
-                style={{ width: `${Math.min((presupuesto.total / presupuesto.presupuestoTotal) * 100, 100)}%` }}
-              />
-            </div>
-            <p className={`mt-2 text-sm ${presupuesto.excedido ? "text-red-600" : "text-neutral-500"}`}>
-              {presupuesto.excedido
-                ? `Budget exceeded by ${Math.abs(presupuesto.disponible ?? 0)}€`
-                : `Available: ${presupuesto.disponible}€`}
-            </p>
-
-            {presupuesto.excedido && (() => {
-              const sugerencia = sugerirAjustePresupuesto(viaje, destino);
-              if (!sugerencia) {
-                return <p className="mt-3 text-sm text-neutral-500">No automatic adjustment available: check transport or activities by hand.</p>;
-              }
-              return mostrarAjuste ? (
-                <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm">
-                  <p className="mb-2 text-red-700">We could: {sugerencia.descripcion}</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        actualizarViaje(viaje.id, sugerencia.aplicar(viaje));
-                        setMostrarAjuste(false);
-                      }}
-                      className="btn-primary px-3 py-1.5"
-                    >
-                      Adjust automatically
-                    </button>
-                    <button onClick={() => setMostrarAjuste(false)} className="btn-secondary px-3 py-1.5">
-                      I&apos;ll decide
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button onClick={() => setMostrarAjuste(true)} className="mt-3 text-sm underline text-red-600 hover:text-red-800">
-                  See how to fix it
-                </button>
-              );
-            })()}
-          </section>
-        )}
-
-        <section className="card mb-6">
-          <div className="mb-1 flex items-center justify-between">
-            <h2 className="font-medium">Requirements</h2>
-          </div>
-
-          {viajerosDelViaje.length === 0 ? (
-            <p className="text-sm text-neutral-500">Add who's travelling to see each person's documents, visa and health requirements.</p>
-          ) : (
-            <>
-              <p className="mb-4 text-xs text-neutral-400">
-                Rough estimate, not official. Always check the official source for your destination country before travelling.
-              </p>
-
-              {viajerosDelViaje.map((v) => {
-                const resultadosViajero = requisitos
-                  .filter((r) => r.viajeroId === v.id)
-                  .sort((a, b) => ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado]);
-                const peorEstado: EstadoRequisito = resultadosViajero.reduce<EstadoRequisito>(
-                  (peor, r) => (ORDEN_ESTADO[r.estado] < ORDEN_ESTADO[peor] ? r.estado : peor),
-                  "verde"
-                );
-                const abierto = requisitosAbiertos.has(v.id);
-
-                return (
-                  <div key={v.id} className="mb-3 border-b border-neutral-100 pb-3 last:mb-0 last:border-none last:pb-0">
-                    <button onClick={() => toggleRequisitosAbiertos(v.id)} className="flex w-full items-center justify-between text-left">
-                      <span className="font-medium">
-                        {v.tipo === "persona" ? "🧑" : "🐾"} {v.nombre}
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <EstadoBadge estado={peorEstado} />
-                        <span className="text-neutral-400">{abierto ? "−" : "+"}</span>
-                      </span>
-                    </button>
-                    {abierto && (
-                      <ul className="mt-3 space-y-2">
-                        {resultadosViajero.map((r, i) => (
-                          <li key={i} className="rounded-xl bg-neutral-50 px-4 py-3 text-sm">
-                            <div className="mb-1 flex items-center justify-between gap-3">
-                              <span className="font-medium">{r.titulo}</span>
-                              <EstadoBadge estado={r.estado} />
-                            </div>
-                            <p className="text-neutral-600">{r.motivo}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
-            </>
-          )}
         </section>
 
         <button onClick={borrarViaje} className="text-sm text-red-600 hover:text-red-800">
