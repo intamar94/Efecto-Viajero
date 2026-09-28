@@ -1,0 +1,50 @@
+name: Build Android APK
+
+# El sandbox donde trabaja Claude no tiene salida a dl.google.com (política
+# de red del entorno), así que el SDK de Android y la compilación real del
+# .apk se hacen aquí, en un runner de GitHub con internet completo. Cada
+# push a la rama de la app genera un .apk de depuración descargable —
+# instalable directo en el teléfono (activando "orígenes desconocidos"),
+# sin pasar por Google Play ni necesitar una cuenta de desarrollador.
+on:
+  push:
+    branches: [claude/efecto-viajero-platform-tl35wr]
+    paths:
+      - "android/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/android.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Sync Capacitor (Android)
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: efecto-viajero-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
