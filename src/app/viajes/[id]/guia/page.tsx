@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { Capacitor } from "@capacitor/core";
+import { Geolocation } from "@capacitor/geolocation";
 import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
@@ -9,6 +11,14 @@ import { etapasDe } from "@/lib/viaje";
 import { distanciaMetros, hablar, haySintesisDeVoz } from "@/lib/geoAudio";
 import { puntosConCoordenadas } from "@/lib/puntosGeo";
 import { obtenerResumenSitio, type ResumenWikipedia } from "@/lib/wikipedia";
+
+// En la app instalada (Android), el GPS lo da el sistema operativo real
+// (@capacitor/geolocation) en vez del navegador: un permiso nativo de
+// verdad, no el del WebView, y una posición más estable. Sigue siendo
+// primer plano — el plugin no cubre segundo plano con pantalla apagada,
+// eso es una pieza aparte que no está lista todavía — pero es un salto
+// real respecto a la web mientras la app está abierta.
+const NATIVO = Capacitor.isNativePlatform();
 
 const UMBRAL_METROS = 120;
 
@@ -38,7 +48,7 @@ export default function ModoGuiaPage() {
   const [pendiente, setPendiente] = useState<PuntoGuia | null>(null);
   const [silenciado, setSilenciado] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const watchId = useRef<number | null>(null);
+  const watchId = useRef<number | string | null>(null);
   // Evita preguntar dos veces por el mismo sitio con datos ya obsoletos de
   // un render anterior al cambiar de posición muy rápido (varias
   // actualizaciones de GPS seguidas). Incluye tanto lo ya narrado como lo
@@ -58,7 +68,10 @@ export default function ModoGuiaPage() {
 
   useEffect(() => {
     return () => {
-      if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
+      if (watchId.current !== null) {
+        if (NATIVO) Geolocation.clearWatch({ id: String(watchId.current) });
+        else navigator.geolocation.clearWatch(watchId.current as number);
+      }
       window.speechSynthesis?.cancel();
     };
   }, []);
@@ -140,7 +153,7 @@ export default function ModoGuiaPage() {
     })
   );
 
-  function manejarPosicion(pos: GeolocationPosition) {
+  function manejarPosicion(pos: { coords: { latitude: number; longitude: number } }) {
     const actual = { lat: pos.coords.latitude, lon: pos.coords.longitude };
     setPosicion(actual);
     // Un fallo de GPS puede ser puntual (túnel, señal débil un instante): si
@@ -169,8 +182,28 @@ export default function ModoGuiaPage() {
     setPendiente(null);
   }
 
-  function activar() {
+  async function activar() {
     setError(null);
+    if (NATIVO) {
+      try {
+        const permiso = await Geolocation.requestPermissions();
+        if (permiso.location === "denied") {
+          setError("We need location permission to turn on guide mode.");
+          return;
+        }
+        watchId.current = await Geolocation.watchPosition({ enableHighAccuracy: true }, (pos, err) => {
+          if (err || !pos) {
+            setError("We couldn't get your location.");
+            return;
+          }
+          manejarPosicion(pos);
+        });
+        setActivo(true);
+      } catch {
+        setError("We couldn't get your location.");
+      }
+      return;
+    }
     if (!("geolocation" in navigator)) {
       setError("This browser can't access your location.");
       return;
@@ -184,7 +217,10 @@ export default function ModoGuiaPage() {
   }
 
   function desactivar() {
-    if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
+    if (watchId.current !== null) {
+      if (NATIVO) Geolocation.clearWatch({ id: String(watchId.current) });
+      else navigator.geolocation.clearWatch(watchId.current as number);
+    }
     watchId.current = null;
     setActivo(false);
     setPosicion(null);
@@ -207,8 +243,9 @@ export default function ModoGuiaPage() {
         />
 
         <div className="mb-5 rounded-2xl border border-coral-200 bg-coral-50 p-4 text-sm text-coral-800">
-          ⚠️ It works while you keep this page open with GPS on. On iPhone it stops narrating if you lock
-          the screen or switch apps: that's not our limitation, it's how a website behaves on a phone.
+          {NATIVO
+            ? "⚠️ It works while the app is open and GPS is on. It still pauses if you switch to another app or lock the screen — real background tracking isn't built yet."
+            : "⚠️ It works while you keep this page open with GPS on. On iPhone it stops narrating if you lock the screen or switch apps: that's not our limitation, it's how a website behaves on a phone."}
           {!haySintesisDeVoz() && <p className="mt-2 font-medium">This browser doesn't support speech synthesis: it won't be able to read aloud.</p>}
         </div>
 

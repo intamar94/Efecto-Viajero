@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import { Capacitor } from "@capacitor/core";
+import { Camera } from "@capacitor/camera";
 import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { useData } from "@/lib/store";
@@ -9,6 +11,8 @@ import { generarId } from "@/lib/id";
 import { coordsDeImagen, fechaDeImagen, miniaturaDeImagen } from "@/lib/fotos";
 import { claveDeCoordenadas, lugarDeCoordenadas } from "@/lib/geocodificacionInversa";
 import { formatearFecha } from "@/lib/formatoFecha";
+
+const NATIVO = Capacitor.isNativePlatform();
 
 export default function RecuerdosPage() {
   const params = useParams<{ id: string }>();
@@ -31,9 +35,38 @@ export default function RecuerdosPage() {
     );
   }
 
-  async function importarFotos(e: React.ChangeEvent<HTMLInputElement>) {
+  function importarFotos(e: React.ChangeEvent<HTMLInputElement>) {
     const archivos = Array.from(e.target.files ?? []);
     e.target.value = "";
+    procesarArchivos(archivos);
+  }
+
+  // En la app instalada (Android) se usa el selector nativo de galería —
+  // el mismo picker que usa cualquier app con acceso real a fotos, no la
+  // ventanita limitada del navegador — y de ahí se pasan los archivos
+  // reales al mismo pipeline de siempre (EXIF, lugar, miniatura): una
+  // sola lógica para web y para la app instalada, no dos caminos que
+  // puedan desalinearse.
+  async function elegirDeGaleriaNativa() {
+    if (!viaje) return;
+    try {
+      const { results } = await Camera.chooseFromGallery({ allowMultipleSelection: true, quality: 80 });
+      const archivos = await Promise.all(
+        results
+          .filter((r) => r.webPath)
+          .map(async (r, i) => {
+            const blob = await (await fetch(r.webPath as string)).blob();
+            return new File([blob], `foto-${Date.now()}-${i}.jpg`, { type: blob.type || "image/jpeg" });
+          })
+      );
+      procesarArchivos(archivos);
+    } catch {
+      // El usuario canceló el selector, o el permiso fue denegado: no es
+      // un error que haya que mostrar como fallo de la app.
+    }
+  }
+
+  async function procesarArchivos(archivos: File[]) {
     if (archivos.length === 0 || !viaje) return;
 
     setProcesandoFotos(true);
@@ -109,12 +142,18 @@ export default function RecuerdosPage() {
         <Cabecera titulo="Recuerdos" subtitulo="Your real photos, arranged into a timeline on their own." volverA={`/viajes/${viaje.id}`} />
 
         <section className="card mb-6">
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">Pick photos from your device</span>
-            <input type="file" accept="image/*" multiple onChange={importarFotos} disabled={procesandoFotos} className="input" />
-          </label>
+          {NATIVO ? (
+            <button type="button" onClick={elegirDeGaleriaNativa} disabled={procesandoFotos} className="btn-primary w-full">
+              📸 Pick photos from your gallery
+            </button>
+          ) : (
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-neutral-700">Pick photos from your device</span>
+              <input type="file" accept="image/*" multiple onChange={importarFotos} disabled={procesandoFotos} className="input" />
+            </label>
+          )}
           <p className="mt-2 text-xs text-neutral-400">
-            They're processed in your browser (a light thumbnail, not the original photo), sorted by date and, when
+            They're processed on your device (a light thumbnail, not the original photo), sorted by date and, when
             the photo has location saved in it, matched to the real place it was taken. Automatically picking the
             best photos needs image processing — that isn't built in this version.
           </p>

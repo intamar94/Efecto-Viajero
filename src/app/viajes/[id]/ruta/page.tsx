@@ -17,7 +17,18 @@ import { GeneradorItinerario } from "@/lib/generador-itinerario";
 import { formatearFecha } from "@/lib/formatoFecha";
 import { puntosConCoordenadas, type PuntoGeo } from "@/lib/puntosGeo";
 import { descargarICS, generarICS, type EventoICS } from "@/lib/calendarioExport";
+import { Capacitor } from "@capacitor/core";
+import { CapacitorCalendar } from "@ebarooni/capacitor-calendar";
 import type { ActividadDestino, DiaItinerario, Etapa, Itinerario, PreferenciaItinerario } from "@/lib/types";
+
+const NATIVO = Capacitor.isNativePlatform();
+
+// "YYYY-MM-DD" o "YYYY-MM-DDTHH:mm" → milisegundos Unix, lo que pide el
+// plugin de calendario nativo (mismo criterio que ya usa el resto de la
+// app para fechas sin hora: mediodía local, nunca UTC a secas).
+function aTimestamp(valor: string): number {
+  return new Date(valor.includes("T") ? valor : `${valor}T00:00:00`).getTime();
+}
 
 // Solo las paradas del día que sí tienen ubicación exacta, en el orden en
 // que se visitan: las actividades a mano (sin sitio real detrás) no
@@ -62,6 +73,8 @@ export default function RutaPage() {
   // del día (amanece bastante distinto en Cartagena que en Bogotá).
   const [luz, setLuz] = useState<Record<string, LuzDelDia>>({});
   const [auroras, setAuroras] = useState<Record<string, PronosticoAuroras>>({});
+  const [exportandoCalendario, setExportandoCalendario] = useState(false);
+  const [errorCalendario, setErrorCalendario] = useState<string | null>(null);
 
   // El viaje se hidrata desde localStorage de forma asíncrona: si se lee
   // viaje.itinerario en el useState inicial, esa lectura llega demasiado
@@ -139,7 +152,7 @@ export default function RutaPage() {
   // Nombre real de cada actividad para el calendario exportado — misma
   // lógica que la página imprimible: catálogo orientativo salvo que el
   // viajero haya escrito la suya propia o una nota sobre el hueco.
-  function exportarCalendario() {
+  async function exportarCalendario() {
     if (!viaje) return;
     const catalogoPorId = new Map<string, ActividadDestino>();
     for (const etapa of etapas) {
@@ -187,6 +200,37 @@ export default function RutaPage() {
     }
 
     if (eventos.length === 0) return;
+
+    // En la app instalada se escribe directo en el calendario real del
+    // teléfono (con permiso nativo pedido en el momento); en la web se
+    // sigue ofreciendo el archivo .ics para importar a mano — cada
+    // plataforma con la vía que de verdad tiene disponible.
+    if (NATIVO) {
+      setExportandoCalendario(true);
+      try {
+        const permiso = await CapacitorCalendar.requestFullCalendarAccess();
+        if (permiso.result !== "granted") {
+          setErrorCalendario("We need calendar permission to add these dates.");
+          return;
+        }
+        for (const ev of eventos) {
+          await CapacitorCalendar.createEvent({
+            title: ev.titulo,
+            location: ev.ubicacion,
+            description: ev.descripcion,
+            startDate: aTimestamp(ev.inicio),
+            endDate: aTimestamp(ev.fin ?? ev.inicio),
+          });
+        }
+        setErrorCalendario(null);
+      } catch {
+        setErrorCalendario("We couldn't write to the calendar.");
+      } finally {
+        setExportandoCalendario(false);
+      }
+      return;
+    }
+
     const ics = generarICS(viaje.destino, eventos);
     descargarICS(ics, `${viaje.destino.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.ics`);
   }
@@ -305,11 +349,12 @@ export default function RutaPage() {
           <button onClick={() => window.print()} className="btn-primary text-xs">
             🖨️ Print or save as PDF
           </button>
-          <button onClick={exportarCalendario} className="btn-secondary text-xs">
-            📅 Export to calendar (.ics)
+          <button onClick={exportarCalendario} disabled={exportandoCalendario} className="btn-secondary text-xs">
+            {NATIVO ? "📅 Add to phone calendar" : "📅 Export to calendar (.ics)"}
           </button>
           <span className="self-center text-xs text-neutral-400">Works with no battery and no signal.</span>
         </div>
+        {errorCalendario && <p className="no-imprimir -mt-3 mb-5 text-xs text-red-600">{errorCalendario}</p>}
 
         {/* Generar / regenerar el itinerario completo del viaje: el ritmo y
             las horas se deciden aquí, antes de ver el día a día de cada
