@@ -7,17 +7,16 @@ import { Cabecera } from "@/components/Cabecera";
 import { EstadoBadge } from "@/components/EstadoBadge";
 import { useData } from "@/lib/store";
 import { calcularRequisitos, ORDEN_ESTADO } from "@/lib/requisitos";
-import { destinoPrincipal, esCircuito, etapasDe, paisesDelViaje } from "@/lib/viaje";
+import { destinoPrincipal, esCircuito, etapasDe } from "@/lib/viaje";
 import { alojamientosDe, actividadesDe } from "@/lib/catalogo";
 import { sugerirAjustePresupuesto, calcularPresupuesto as calcularPresupuestoDetalles } from "@/lib/compatibilidad";
 import { calcularPresupuesto, calcularImporteVault } from "@/lib/calcularPresupuesto";
-import { resumenViaje } from "@/lib/travelBrain";
 import { MODOS } from "@/lib/modos";
-import { invitar as compartirViaje } from "@/lib/viajes/compartidos";
 import { formatearRangoFechas } from "@/lib/formatoFecha";
 import type { ContextoViaje, EstadoRequisito, Viaje } from "@/lib/types";
 
 const SECCIONES = [
+  { href: "ruta", icono: "🧭", titulo: "Route" },
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
   { href: "actividades", icono: "🎒", titulo: "Actividades" },
@@ -29,12 +28,6 @@ const SECCIONES = [
   { href: "resolver", icono: "🆘", titulo: "Resolver SOS" },
   { href: "imprimir", icono: "🖨️", titulo: "Imprimir / PDF" },
 ] as const;
-
-const NIVEL_ESTILO: Record<string, string> = {
-  alerta: "border-red-200 bg-red-50 text-red-700",
-  aviso: "border-coral-200 bg-coral-50 text-coral-700",
-  ok: "border-emerald-200 bg-emerald-50 text-emerald-700",
-};
 
 function subtituloFechas(viaje: Viaje): string {
   if (viaje.fechaSalida && viaje.fechaRegreso) return formatearRangoFechas(viaje.fechaSalida, viaje.fechaRegreso);
@@ -72,9 +65,6 @@ export default function ViajeDetallePage() {
   const [editandoViajeros, setEditandoViajeros] = useState(false);
   const [editandoModo, setEditandoModo] = useState(false);
   const [requisitosAbiertos, setRequisitosAbiertos] = useState<Set<string>>(new Set());
-  const [mostrarCompartir, setMostrarCompartir] = useState(false);
-  const [emailACompartir, setEmailACompartir] = useState("");
-  const [compartiendo, setCompartiendo] = useState(false);
   const viaje = obtenerViaje(params.id);
 
   const destino = viaje ? destinoPrincipal(viaje) : undefined;
@@ -91,7 +81,6 @@ export default function ViajeDetallePage() {
     const totalConVault = calcularPresupuesto(viaje);
     return { ...desglose, total: totalConVault, excedido: viaje.contexto.presupuestoTotal !== undefined && totalConVault > viaje.contexto.presupuestoTotal };
   }, [viaje, destino]);
-  const insights = useMemo(() => (viaje ? resumenViaje(viaje, requisitos, destino) : []), [viaje, requisitos, destino]);
 
   if (!viaje) {
     return (
@@ -108,9 +97,9 @@ export default function ViajeDetallePage() {
   const numActividadesEnMarcha = viaje.actividades.filter((a) => a.estado !== "descartada").length;
   const etapas = etapasDe(viaje);
   const circuito = esCircuito(viaje);
-  const paises = paisesDelViaje(viaje);
 
   const estadoTexto: Record<(typeof SECCIONES)[number]["href"], string> = {
+    ruta: circuito ? `${etapas.length} stops · ${etapas.map((e) => e.nombre).join(" → ")}` : etapas.map((e) => e.nombre).join(", ") || "Not set",
     transporte: viaje.transporte.length > 0 ? `${viaje.transporte.length} leg(s)` : "Not set",
     alojamiento: alojamientoElegido ? alojamientoElegido.nombre : "Not chosen",
     actividades:
@@ -150,21 +139,6 @@ export default function ViajeDetallePage() {
     router.push("/viajes");
   }
 
-  async function handleCompartir() {
-    if (!viaje || !emailACompartir) return;
-    setCompartiendo(true);
-    try {
-      await compartirViaje(viaje.id, emailACompartir);
-      setEmailACompartir("");
-      setMostrarCompartir(false);
-    } catch (err) {
-      console.error("Error sharing trip:", err);
-      alert("Couldn't share the trip. Check the email address and try again.");
-    } finally {
-      setCompartiendo(false);
-    }
-  }
-
   return (
     <main className="flex-1 px-5 py-8">
       <div className="mx-auto max-w-2xl">
@@ -178,15 +152,6 @@ export default function ViajeDetallePage() {
             </button>
           </div>
         )}
-
-        <div className="mb-6 flex gap-2">
-          <button
-            onClick={() => setMostrarCompartir(true)}
-            className="flex-1 rounded-lg border border-marino-200 bg-marino-50 px-3 py-2 text-sm font-medium text-marino-700 hover:bg-marino-100 transition"
-          >
-            👥 Share
-          </button>
-        </div>
 
         <section className="mb-6">
           <h2 className="mb-4 font-medium">Trip sections</h2>
@@ -204,76 +169,6 @@ export default function ViajeDetallePage() {
             ))}
           </div>
         </section>
-
-        {mostrarCompartir && (
-          <div className="mb-6 rounded-xl border border-marino-200 bg-marino-50 p-4">
-            <p className="mb-3 text-sm font-medium">Share this trip with someone</p>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                placeholder="email@example.com"
-                value={emailACompartir}
-                onChange={(e) => setEmailACompartir(e.target.value)}
-                className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-              />
-              <button
-                onClick={handleCompartir}
-                disabled={compartiendo || !emailACompartir}
-                className="rounded-lg bg-marino-600 px-3 py-2 text-sm font-medium text-white hover:bg-marino-700 disabled:bg-neutral-300"
-              >
-                {compartiendo ? "..." : "Invite"}
-              </button>
-              <button
-                onClick={() => setMostrarCompartir(false)}
-                className="rounded-lg border border-neutral-200 px-3 py-2 text-sm hover:bg-neutral-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        {insights.length > 0 && (
-          <div className="mb-6 flex flex-wrap gap-2">
-            {insights.map((insight, i) => (
-              <span key={i} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${NIVEL_ESTILO[insight.nivel]}`}>
-                {insight.texto}
-                {insight.accion && (
-                  <Link href={insight.accion.href} className="underline">
-                    {insight.accion.texto}
-                  </Link>
-                )}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <Link
-          href={`/viajes/${viaje.id}/ruta`}
-          className="mb-4 block rounded-2xl border border-marino-200 bg-marino-50 p-4 transition hover:border-marino-500"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-marino-900">
-                {circuito ? `🧭 Route with ${etapas.length} stops` : "🧭 Your destination"}
-              </p>
-              <p className="mt-0.5 text-xs text-marino-700/80">
-                {etapas.map((e) => e.nombre).join(" → ")}
-                {paises.length > 1 && ` · ${paises.length} countries`}
-              </p>
-            </div>
-            <span className="shrink-0 text-marino-400">→</span>
-          </div>
-        </Link>
-
-        <div className="mb-6 flex gap-2">
-          <Link href={`/viajes/${viaje.id}/actividades`} className="btn-primary flex-1">
-            📍 Qué hacer ahora
-          </Link>
-          <Link href={`/viajes/${viaje.id}/resolver`} className="btn-secondary flex-1">
-            🆘 Necesito ayuda
-          </Link>
-        </div>
 
         <section className="card mb-6">
           <div className="mb-3 flex items-center justify-between">
