@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import type { PuntoGeo } from "@/lib/puntosGeo";
+import { crearCapaTilesConCache, descargarMapaDelDia, haySoporteMapaOffline, type ProgresoDescarga } from "@/lib/mapaOffline";
 
 interface Props {
   puntos: PuntoGeo[]; // en el orden en que se visitan ese día
@@ -24,6 +25,18 @@ export function MapaDia({ puntos }: Props) {
   const [tramos, setTramos] = useState<TramoRuta[] | null>(null);
   const [cargandoRuta, setCargandoRuta] = useState(false);
   const [errorRuta, setErrorRuta] = useState<string | null>(null);
+  const [descargandoMapa, setDescargandoMapa] = useState(false);
+  const [progresoMapa, setProgresoMapa] = useState<ProgresoDescarga | null>(null);
+  const [mapaDescargado, setMapaDescargado] = useState(false);
+  // false en el primer render (servidor y cliente coinciden) y solo se
+  // activa después, en el navegador: si se llamara a
+  // haySoporteMapaOffline() directo en el render, el servidor (sin
+  // `window`) y el cliente pintarían HTML distinto y React lo marcaría
+  // como error de hidratación.
+  const [soporteOffline, setSoporteOffline] = useState(false);
+  useEffect(() => {
+    setSoporteOffline(haySoporteMapaOffline());
+  }, []);
 
   useEffect(() => {
     if (!mapRef.current || puntos.length === 0) return;
@@ -37,10 +50,8 @@ export function MapaDia({ puntos }: Props) {
 
       if (!mapaInstancia.current) {
         mapaInstancia.current = L.map(mapRef.current);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-          maxZoom: 19,
-        }).addTo(mapaInstancia.current);
+        const capaTiles = await crearCapaTilesConCache(L);
+        capaTiles.addTo(mapaInstancia.current);
       }
       const mapa = mapaInstancia.current;
 
@@ -106,9 +117,38 @@ export function MapaDia({ puntos }: Props) {
   const distanciaTotal = tramos?.reduce((a, t) => a + t.distanciaM, 0) ?? null;
   const duracionTotal = tramos?.reduce((a, t) => a + t.duracionS, 0) ?? null;
 
+  async function descargarParaOffline() {
+    setDescargandoMapa(true);
+    setProgresoMapa(null);
+    try {
+      await descargarMapaDelDia(puntos, setProgresoMapa);
+      setMapaDescargado(true);
+    } finally {
+      setDescargandoMapa(false);
+    }
+  }
+
   return (
     <div>
       <div ref={mapRef} className="h-64 w-full overflow-hidden rounded-xl border border-neutral-200" />
+
+      {soporteOffline && (
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            onClick={descargarParaOffline}
+            disabled={descargandoMapa}
+            className="rounded-lg border border-marino-200 bg-marino-50 px-2.5 py-1.5 text-xs font-medium text-marino-700 hover:bg-marino-100 disabled:opacity-60"
+          >
+            {descargandoMapa
+              ? `📥 Downloading… ${progresoMapa ? `${progresoMapa.hechos}/${progresoMapa.total}` : ""}`
+              : mapaDescargado
+                ? "✅ Saved for offline use"
+                : "📥 Save this map for offline use"}
+          </button>
+          <span className="text-[11px] text-neutral-400">Do this before you lose signal — works without internet after.</span>
+        </div>
+      )}
+
       {cargandoRuta && <p className="mt-2 text-xs text-neutral-400">Calculando ruta a pie…</p>}
       {errorRuta && <p className="mt-2 text-xs text-neutral-400">{errorRuta}</p>}
       {distanciaTotal !== null && duracionTotal !== null && (
