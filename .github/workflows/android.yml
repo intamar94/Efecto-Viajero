@@ -35,7 +35,17 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - uses: android-actions/setup-android@v3
+      # El runner de ubuntu-latest ya trae el SDK de Android instalado
+      # (ANDROID_HOME). La acción de terceros que se usaba antes
+      # (android-actions/setup-android) intentaba además instalar el
+      # paquete "tools", retirado por Google hace años — fallaba siempre,
+      # sin relación con el código de la app. Aceptar las licencias basta:
+      # el plugin de Gradle para Android descarga solo, durante el build,
+      # la plataforma y las build-tools exactas que declara variables.gradle.
+      - name: Accept Android SDK licenses
+        run: |
+          SDKMANAGER=$(command -v sdkmanager || find "$ANDROID_HOME" -name sdkmanager -path '*cmdline-tools*' | sort -V | tail -1)
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
 
       - name: Sync Capacitor (Android)
         run: npx cap sync android
