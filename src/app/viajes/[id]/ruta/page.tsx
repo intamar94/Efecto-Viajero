@@ -10,7 +10,6 @@ import { MapaDia } from "@/components/MapaDia";
 import { useData } from "@/lib/store";
 import { crucesDe, esCircuito, etapasDe, paisDeEtapa, destinoParaCatalogo } from "@/lib/viaje";
 import { ETIQUETA_BLOQUE, REGLA_BLOQUE } from "@/lib/paises";
-import { mediosUtilesEnCiudad } from "@/lib/transporteLocal";
 import { festivosEnRango, luzDelDia, faseLunar, pronosticoAuroras, type FestivoPais, type LuzDelDia, type PronosticoAuroras } from "@/lib/calendarioViaje";
 import { actividadesDe } from "@/lib/catalogo";
 import { GeneradorItinerario } from "@/lib/generador-itinerario";
@@ -436,18 +435,6 @@ export default function RutaPage() {
                           <dd className="text-neutral-700">{pais.moneda}</dd>
                         </div>
                       )}
-                      <div className="flex gap-2">
-                        <dt className="w-28 shrink-0 text-neutral-400">Emergencias</dt>
-                        <dd className={pais.emergencias ? "font-medium text-red-700" : "text-neutral-500"}>
-                          {pais.emergencias ?? "no verified data — check when you arrive"}
-                        </dd>
-                      </div>
-                      {pais.telefonoTurista && (
-                        <div className="flex gap-2">
-                          <dt className="w-28 shrink-0 text-neutral-400">Turista</dt>
-                          <dd className="text-neutral-700">{pais.telefonoTurista}</dd>
-                        </div>
-                      )}
                       {luz[etapa.nombre] && (
                         <div className="flex gap-2">
                           <dt className="w-28 shrink-0 text-neutral-400">Luz</dt>
@@ -482,27 +469,24 @@ export default function RutaPage() {
                           </dd>
                         </div>
                       )}
-                      {(() => {
-                        if (!pais.transporteLocal) return null;
-                        // Solo lo que de verdad existe en ESTA ciudad: un
-                        // medio etiquetado para otra ciudad del país (el
-                        // Metrocable de Medellín en un viaje a Cali) no es
-                        // información, es ruido que confunde.
-                        const medios = mediosUtilesEnCiudad(pais.transporteLocal.medios, etapa.nombre);
-                        if (medios.length === 0) return null;
-                        return (
-                          <div className="flex gap-2">
-                            <dt className="w-28 shrink-0 text-neutral-400">Moverse</dt>
-                            <dd className="text-neutral-700">{medios.join(" · ")}</dd>
-                          </div>
-                        );
-                      })()}
                     </dl>
                   ) : (
                     <p className="mt-3 border-t border-neutral-100 pt-3 text-sm text-neutral-500">
-                      Sin país asignado no podemos darte moneda, emergencias ni transporte local de esta parada.
+                      No country set for this stop yet, so we can't show its currency.
                     </p>
                   )}
+
+                  {/* Emergencias y transporte local ya tienen su propia caja
+                      dedicada (Resolver SOS, Transporte) con mucho más
+                      detalle — aquí solo se enlaza, no se repite el dato. */}
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-neutral-100 pt-3 text-xs">
+                    <a href={`/viajes/${viaje.id}/resolver`} className="text-marino-600 underline hover:text-marino-800">
+                      🆘 Emergency numbers
+                    </a>
+                    <a href={`/viajes/${viaje.id}/transporte`} className="text-marino-600 underline hover:text-marino-800">
+                      🚆 Getting around {etapa.nombre}
+                    </a>
+                  </div>
 
                   {/* El itinerario específico de esta parada: es lo que
                       antes vivía en una sección aparte, sin relación visible

@@ -42,7 +42,7 @@ interface PuntoGuia {
 
 export default function ModoGuiaPage() {
   const params = useParams<{ id: string }>();
-  const { obtenerViaje, actualizarViaje } = useData();
+  const { obtenerViaje } = useData();
   const viaje = obtenerViaje(params.id);
 
   const [activo, setActivo] = useState(false);
@@ -260,32 +260,20 @@ export default function ModoGuiaPage() {
           {!haySintesisDeVoz() && <p className="mt-2 font-medium">This browser doesn't support speech synthesis: it won't be able to read aloud.</p>}
         </div>
 
-        <div className="mb-5">
-          <p className="mb-1.5 text-sm font-medium text-neutral-700">Choose your guide mode</p>
-          <p className="mb-2 text-xs text-neutral-500">
-            Pick what you're into — the guide narrates real sites nearby first, matching this (nothing is hidden, just reordered).
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {PERFILES_INTERES.map((p) => {
-              const activo = (viaje.contexto.perfilInteres ?? []).includes(p.id);
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    const actual = viaje.contexto.perfilInteres ?? [];
-                    const siguiente = activo ? actual.filter((id) => id !== p.id) : [...actual, p.id];
-                    actualizarViaje(viaje.id, { contexto: { ...viaje.contexto, perfilInteres: siguiente } });
-                  }}
-                  className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                    activo ? "border-marino-500 bg-marino-50 text-marino-700" : "border-neutral-200 text-neutral-600 hover:border-neutral-300"
-                  }`}
-                >
-                  {p.icono} {p.etiqueta}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* La elección de qué te interesa vive en Actividades (una sola
+            caja para eso, no dos): aquí solo se dice qué está aplicando
+            ahora mismo, con un enlace directo para cambiarlo. */}
+        <p className="mb-5 text-xs text-neutral-500">
+          {(viaje.contexto.perfilInteres ?? []).length > 0
+            ? `Narrating based on what you're into: ${(viaje.contexto.perfilInteres ?? [])
+                .map((id) => PERFILES_INTERES.find((p) => p.id === id)?.etiqueta)
+                .filter(Boolean)
+                .join(", ")}.`
+            : "Not narrating by interest yet."}{" "}
+          <a href={`/viajes/${viaje.id}/actividades`} className="text-marino-600 underline hover:text-marino-800">
+            Change in Activities
+          </a>
+        </p>
 
         {puntos.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-neutral-300 px-6 py-10 text-center text-neutral-500">
