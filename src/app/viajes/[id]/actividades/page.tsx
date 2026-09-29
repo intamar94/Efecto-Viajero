@@ -15,6 +15,7 @@ import { entornoCercanoDe } from "@/lib/entornoCercano";
 import { buscarEnLaWeb, describirResultadoWeb, type ResultadoBusquedaWeb } from "@/lib/busquedaWeb";
 import { enriquecerLugar, hayFuentesComerciales } from "@/lib/enriquecimiento";
 import { descubrirLugaresCercanos, VERSION_DESCUBRIMIENTO } from "@/lib/descubrimientoWikidata";
+import { resolveDestination } from "@/lib/travelBrain/destinationResolver";
 import { slug } from "@/lib/puntosGeo";
 import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
 import { acortarTexto } from "@/lib/texto";
@@ -635,11 +636,39 @@ export default function ActividadesPage() {
     (async () => {
       let investigacionActual = viaje.investigacion;
       if (!investigacionActual) return;
-      for (const etapa of etapasDe(viaje)) {
-        if (etapa.lat === undefined || etapa.lon === undefined) continue;
+      let etapasActuales = etapasDe(viaje);
+      for (const etapa of etapasActuales) {
+        let lat = etapa.lat;
+        let lon = etapa.lon;
+        // Viajes antiguos o creados escribiendo el nombre pueden no tener
+        // coordenadas guardadas. Geocodificamos la ciudad real antes de
+        // abandonar el descubrimiento de alrededores.
+        if (lat === undefined || lon === undefined) {
+          try {
+            const opciones = await resolveDestination(etapa.nombre, etapa.paisCodigo);
+            const resuelta = opciones.find((o) => Number.isFinite(o.latitude) && Number.isFinite(o.longitude) && o.type !== "country");
+            if (resuelta) {
+              lat = resuelta.latitude;
+              lon = resuelta.longitude;
+              etapasActuales = etapasActuales.map((e) => e.id === etapa.id ? { ...e, lat, lon } : e);
+              actualizarViaje(viaje.id, { etapas: etapasActuales });
+            }
+          } catch {
+            // Se deja el viaje intacto si el geocodificador no responde;
+            // una recarga o la actualización manual puede reintentarlo.
+          }
+        }
+        if (lat === undefined || lon === undefined) continue;
         if (investigacionActual.descubrimiento?.[etapa.nombre] === VERSION_DESCUBRIMIENTO) continue;
 
-        const descubiertos = await descubrirLugaresCercanos(etapa.lat, etapa.lon, 30);
+        let descubiertos: Awaited<ReturnType<typeof descubrirLugaresCercanos>>;
+        try {
+          descubiertos = await descubrirLugaresCercanos(lat, lon, 30);
+        } catch {
+          // No marcar como completa una ciudad si la fuente falló; se
+          // podrá volver a investigar al regresar a esta página.
+          continue;
+        }
         if (cancelado) return;
 
         const existentes: SitioReal[] = investigacionActual.sitios?.[etapa.nombre] ?? [];
@@ -663,7 +692,7 @@ export default function ActividadesPage() {
           sitios: { ...investigacionActual.sitios, [etapa.nombre]: [...existentes, ...nuevos] },
           descubrimiento: { ...investigacionActual.descubrimiento, [etapa.nombre]: VERSION_DESCUBRIMIENTO },
         };
-        actualizarViaje(viaje.id, { investigacion: investigacionActual });
+        actualizarViaje(viaje.id, { etapas: etapasActuales, investigacion: investigacionActual });
       }
     })();
     return () => {

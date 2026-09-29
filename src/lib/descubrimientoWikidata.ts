@@ -21,7 +21,7 @@ const ENDPOINT = "https://query.wikidata.org/sparql";
 // Sube cuando cambie de raíz QUÉ se pide o cómo se clasifica: una ciudad
 // ya explorada con una versión anterior se vuelve a explorar en vez de
 // quedarse con un resultado peor para siempre.
-export const VERSION_DESCUBRIMIENTO = 6;
+export const VERSION_DESCUBRIMIENTO = 7;
 
 export interface LugarDescubierto {
   nombre: string;
@@ -95,8 +95,10 @@ const TIPOS: Record<string, { categoria: CategoriaActividad; detalle: string }> 
   Q15284: { categoria: "pueblos", detalle: "municipio" },
 };
 
-function construirConsulta(lat: number, lon: number, radioKm: number): string {
-  const valores = Object.keys(TIPOS).map((q) => `wd:${q}`).join(" ");
+function construirConsulta(lat: number, lon: number, radioKm: number, categorias: CategoriaActividad[]): string {
+  const valores = Object.entries(TIPOS)
+    .filter(([, tipo]) => categorias.includes(tipo.categoria))
+    .map(([q]) => `wd:${q}`).join(" ");
   return `SELECT ?item ?itemLabel ?tipo ?lat ?lon WHERE {
   SERVICE wikibase:around {
     ?item wdt:P625 ?coord .
@@ -104,14 +106,14 @@ function construirConsulta(lat: number, lon: number, radioKm: number): string {
     bd:serviceParam wikibase:radius "${radioKm}" .
     bd:serviceParam wikibase:distance ?dist .
   }
-  ?item wdt:P31 ?tipo .
+  ?item wdt:P31/wdt:P279* ?tipo .
   VALUES ?tipo { ${valores} }
   ?item p:P625/psv:P625 ?nodo .
   ?nodo wikibase:geoLatitude ?lat ; wikibase:geoLongitude ?lon .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "es,en" . }
 }
 ORDER BY ?dist
-LIMIT 60`;
+LIMIT 80`;
 }
 
 interface FilaSparql {
@@ -130,15 +132,30 @@ function esIdentificadorSinNombre(nombre: string): boolean {
 }
 
 export async function descubrirLugaresCercanos(lat: number, lon: number, radioKm = 30): Promise<LugarDescubierto[]> {
-  try {
-    const url = `${ENDPOINT}?format=json&query=${encodeURIComponent(construirConsulta(lat, lon, radioKm))}`;
-    const res = await fetch(url, {
-      headers: { Accept: "application/sparql-results+json", "User-Agent": "Efecto-Viajero/1.0" },
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const filas: FilaSparql[] = data?.results?.bindings ?? [];
+    // Una consulta única de 60 resultados mezclaba todo: los sitios del
+    // centro podían llenar el cupo antes de que aparecieran pueblos o
+    // atracciones de interés específico. Se divide en búsquedas temáticas
+    // y se amplía el radio solo para municipios/pueblos, que suelen ser
+    // excursiones de día. Cada subconsulta conserva su propio cupo.
+    const consultas: { categorias: CategoriaActividad[]; radio: number }[] = [
+      { categorias: ["pueblos"], radio: Math.max(radioKm, 80) },
+      { categorias: ["naturaleza", "parque", "fauna", "playa", "nautica", "bienestar", "aventura"], radio: Math.max(radioKm, 60) },
+      { categorias: ["museo", "astronomia", "ciencia", "todos", "espiritual", "industrial", "memoria", "arte_urbano", "eventos", "experiencias"], radio: Math.max(radioKm, 35) },
+    ];
+    const respuestas = await Promise.allSettled(consultas.map(async ({ categorias, radio }) => {
+      const query = construirConsulta(lat, lon, radio, categorias);
+      const url = `${ENDPOINT}?format=json&query=${encodeURIComponent(query)}`;
+      const res = await fetch(url, {
+        headers: { Accept: "application/sparql-results+json", "User-Agent": "Efecto-Viajero/1.0" },
+        signal: AbortSignal.timeout(25000),
+      });
+      if (!res.ok) throw new Error(`Wikidata SPARQL respondió ${res.status}`);
+      const data = await res.json();
+      return (data?.results?.bindings ?? []) as FilaSparql[];
+    }));
+    const exitosas = respuestas.filter((r): r is PromiseFulfilledResult<FilaSparql[]> => r.status === "fulfilled");
+    if (exitosas.length === 0) throw new Error("No se pudo consultar Wikidata para este destino.");
+    const filas = exitosas.flatMap((r) => r.value);
 
     const porNombre = new Map<string, LugarDescubierto>();
     for (const fila of filas) {
@@ -161,7 +178,4 @@ export async function descubrirLugaresCercanos(lat: number, lon: number, radioKm
       porNombre.set(clave, { nombre, categoria: tipo.categoria, detalle: tipo.detalle, lat: latitud, lon: longitud, wikidataId });
     }
     return [...porNombre.values()];
-  } catch {
-    return [];
-  }
 }
