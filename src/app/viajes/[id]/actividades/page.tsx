@@ -25,7 +25,7 @@ import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } fro
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
   disponible: "Disponible",
-  planificada: "In your itinerary",
+  planificada: "En tu itinerario",
   reservada: "Reservada",
   realizada: "Realizada",
   descartada: "Descartada",
@@ -40,29 +40,29 @@ const ESTILO_ESTADO: Record<EstadoActividad, string> = {
 };
 
 const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: string }> = {
-  museo: { etiqueta: "Museums & culture", icono: "🏛️" },
-  parque: { etiqueta: "Parks & walks", icono: "🌳" },
-  restaurante: { etiqueta: "Local restaurants", icono: "🍽️" },
-  cine_teatro: { etiqueta: "Cinema & theatre", icono: "🎭" },
-  discoteca: { etiqueta: "Nightlife", icono: "🎶" },
-  compras: { etiqueta: "Shopping", icono: "🛍️" },
-  naturaleza: { etiqueta: "Nature", icono: "🌿" },
-  playa: { etiqueta: "Beach", icono: "🏖️" },
-  pueblos: { etiqueta: "Nearby villages", icono: "🏘️" },
-  aventura: { etiqueta: "Adventure & sport", icono: "🪂" },
-  bienestar: { etiqueta: "Hot springs & wellness", icono: "💆" },
-  todos: { etiqueta: "For all ages", icono: "🎡" },
-  experiencias: { etiqueta: "Local experiences", icono: "🎒" },
-  eventos: { etiqueta: "Events & festivals", icono: "🎪" },
-  espiritual: { etiqueta: "Spiritual & religious", icono: "⛪" },
-  fauna: { etiqueta: "Wildlife & birds", icono: "🦜" },
-  astronomia: { etiqueta: "Stars & sky", icono: "🔭" },
-  ciencia: { etiqueta: "Science & books", icono: "📚" },
-  arte_urbano: { etiqueta: "Street art", icono: "🎨" },
-  memoria: { etiqueta: "Memory & history", icono: "🕯️" },
-  industrial: { etiqueta: "Lighthouses, mines & trains", icono: "🏭" },
-  nautica: { etiqueta: "Water, boats & fishing", icono: "🛥️" },
-  otro: { etiqueta: "Other plans", icono: "✨" },
+  museo: { etiqueta: "Museos y cultura", icono: "🏛️" },
+  parque: { etiqueta: "Parques y paseos", icono: "🌳" },
+  restaurante: { etiqueta: "Comida local", icono: "🍽️" },
+  cine_teatro: { etiqueta: "Cine y teatro", icono: "🎭" },
+  discoteca: { etiqueta: "Vida nocturna", icono: "🎶" },
+  compras: { etiqueta: "Artesanía y compras", icono: "🛍️" },
+  naturaleza: { etiqueta: "Naturaleza", icono: "🌿" },
+  playa: { etiqueta: "Playas", icono: "🏖️" },
+  pueblos: { etiqueta: "Pueblos cercanos", icono: "🏘️" },
+  aventura: { etiqueta: "Deportes de aventura", icono: "🪂" },
+  bienestar: { etiqueta: "Bienestar y termas", icono: "💆" },
+  todos: { etiqueta: "Para todas las edades", icono: "🎡" },
+  experiencias: { etiqueta: "Vida local", icono: "🎒" },
+  eventos: { etiqueta: "Eventos y conciertos", icono: "🎪" },
+  espiritual: { etiqueta: "Espiritualidad", icono: "⛪" },
+  fauna: { etiqueta: "Aves y fauna", icono: "🦜" },
+  astronomia: { etiqueta: "Astronomía y cielos", icono: "🔭" },
+  ciencia: { etiqueta: "Ciencia y bibliotecas", icono: "📚" },
+  arte_urbano: { etiqueta: "Arte urbano", icono: "🎨" },
+  memoria: { etiqueta: "Historia y memoria", icono: "🕯️" },
+  industrial: { etiqueta: "Turismo industrial", icono: "🏭" },
+  nautica: { etiqueta: "Agua, barcos y pesca", icono: "🛥️" },
+  otro: { etiqueta: "Más ideas", icono: "✨" },
 };
 
 // Frase de búsqueda real para cuando OpenStreetMap no tiene NADA mapeado
@@ -145,21 +145,21 @@ function descripcionDeSitio(s: SitioReal): string {
 // da una doble conjunción rara de leer ("su historia y su cultura y su
 // gastronomía").
 const DESEO_CATEGORIA: Partial<Record<CategoriaActividad, string>> = {
-  museo: "its cultural heritage",
-  restaurante: "its food",
-  cine_teatro: "its cultural scene",
-  discoteca: "its nightlife",
-  compras: "its local crafts",
-  naturaleza: "its nature",
-  playa: "its beaches",
-  pueblos: "the villages around it",
+  museo: "su patrimonio cultural",
+  restaurante: "su gastronomía",
+  cine_teatro: "su escena cultural",
+  discoteca: "su vida nocturna",
+  compras: "su artesanía local",
+  naturaleza: "su naturaleza",
+  playa: "sus playas",
+  pueblos: "los pueblos de alrededor",
 };
 
 function fraseDeseo(categorias: CategoriaActividad[]): string {
   const frases = categorias.map((c) => DESEO_CATEGORIA[c]).filter((f): f is string => Boolean(f));
   if (frases.length === 0) return "everything it has to discover";
   if (frases.length === 1) return frases[0];
-  return `${frases.slice(0, -1).join(", ")} and ${frases[frases.length - 1]}`;
+  return `${frases.slice(0, -1).join(", ")} y ${frases[frases.length - 1]}`;
 }
 
 // Nombrar algo genérico como "especial" no convence a nadie: lo que de
@@ -176,7 +176,7 @@ function nombresDestacadosDe(items: Item[], categoria: CategoriaActividad): stri
 }
 
 function fraseEjemplo(nombresReales: string[], pais: string | undefined, ciudad: string): string {
-  if (nombresReales.length > 0) return ` Like ${nombresReales.join(" or ")}.`;
+  if (nombresReales.length > 0) return ` Por ejemplo: ${nombresReales.join(" o ")}.`;
   // Sin un sitio real todavía para presumir, un plato típico real de la
   // ciudad (o del país, si no hay uno propio de esta ciudad) da algo
   // concreto igual — pero solo el nombre no basta: decir de qué se trata
@@ -191,7 +191,7 @@ function fraseEjemplo(nombresReales: string[], pais: string | undefined, ciudad:
   // "Portugal" en "portugal".
   const sinPunto = primero.descripcion.replace(/\.$/, "");
   const detalle = sinPunto.charAt(0).toLowerCase() + sinPunto.slice(1);
-  return segundo ? ` Try ${primero.nombre} — ${detalle} — or ${segundo.nombre}.` : ` Try ${primero.nombre}: ${detalle}.`;
+  return segundo ? ` Prueba ${primero.nombre} — ${detalle} — o ${segundo.nombre}.` : ` Prueba ${primero.nombre}: ${detalle}.`;
 }
 
 // Tres tonos simples según lo que de verdad promete la ciudad (naturaleza,
@@ -205,38 +205,38 @@ function fraseInspiradora(etapaNombre: string, categorias: CategoriaActividad[],
   const deseo = fraseDeseo(top);
   const ejemplo = fraseEjemplo(nombresReales, pais, etapaNombre);
   if (top.some((c) => c === "naturaleza" || c === "playa")) {
-    return `🌴 This could be your own paradise — with ${deseo} waiting for you.${ejemplo}`;
+    return `🌴 Descubre ${etapaNombre} a través de ${deseo}.${ejemplo}`;
   }
   if (top.some((c) => c === "museo" || c === "cine_teatro")) {
-    return `🏛️ A gem to discover, with ${deseo} within reach.${ejemplo}`;
+    return `🏛️ Una ciudad llena de historia y cultura por descubrir: ${deseo}.${ejemplo}`;
   }
   if (top.length > 0) {
-    return `✨ It has ${deseo} waiting for you to live it.${ejemplo}`;
+    return `✨ Descubre ${deseo} en ${etapaNombre}.${ejemplo}`;
   }
-  return `✨ Get ready to discover ${etapaNombre}.`;
+  return `✨ Prepárate para descubrir ${etapaNombre}.`;
 }
 
 const ORDEN_CATEGORIAS: CategoriaActividad[] = [
-  "museo",
-  "parque",
-  "restaurante",
-  "cine_teatro",
-  "discoteca",
-  "compras",
   "naturaleza",
-  "playa",
-  "pueblos",
+  "museo",
+  "discoteca",
+  "restaurante",
+  "fauna",
   "aventura",
-  "bienestar",
-  "todos",
+  "parque",
   "experiencias",
+  "cine_teatro",
   "eventos",
   "espiritual",
-  "fauna",
+  "todos",
+  "memoria",
+  "arte_urbano",
+  "compras",
+  "playa",
+  "pueblos",
+  "bienestar",
   "astronomia",
   "ciencia",
-  "arte_urbano",
-  "memoria",
   "industrial",
   "nautica",
   "otro",
@@ -260,6 +260,10 @@ type Item = ActividadDestino & {
   etapaId: string;
   etapaNombre: string;
   pais?: string;
+  descripcionCompleta?: string;
+  especialidad?: string;
+  fuenteLecturaUrl?: string;
+  fuenteLecturaNombre?: string;
   notaPrecio?: string;
   horario?: string;
   direccion?: string;
@@ -314,7 +318,7 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium">{it.nombre}</p>
-          <p className="text-xs text-neutral-500">{it.descripcion}</p>
+          <p className="text-sm leading-relaxed text-neutral-600">{it.descripcion}</p>
         </div>
         {/* "Disponible" es el estado por defecto de todo lo que se
             muestra: decirlo en cada tarjeta era obvio y redundante — la
@@ -333,12 +337,12 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
         ) : (
           <span className="chip">{it.costeEstimado > 0 ? `💵 ${it.costeEstimado}€` : "🆓 Gratis"}</span>
         )}
-        {it.admiteMascotas && <span className="chip">🐾 Mascotas</span>}
+        {it.admiteMascotas && <span className="chip">🐾 Admite mascotas</span>}
         {/* Solo cuando OpenStreetMap lo dice de verdad: sin etiqueta no
             se muestra nada, porque "no sabemos" no es "no accesible". */}
-        {it.accesible === "si" && <span className="chip">♿ Accessible</span>}
-        {it.accesible === "parcial" && <span className="chip">♿ Partly accessible</span>}
-        {it.accesible === "no" && <span className="chip">♿ Not accessible</span>}
+        {it.accesible === "si" && <span className="chip">♿ Accesible</span>}
+        {it.accesible === "parcial" && <span className="chip">♿ Accesibilidad parcial</span>}
+        {it.accesible === "no" && <span className="chip">♿ No accesible</span>}
         {it.sendero && <span className="chip">🥾 {it.sendero}</span>}
         {it.esPropia && <span className="chip">✍️ Tuya</span>}
       </div>
@@ -350,9 +354,25 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
         <p className="mt-1.5 text-xs text-neutral-600">🕐 {it.horario ?? it.horarioHabitual}</p>
       )}
 
+      {it.especialidad && <p className="mt-1.5 text-xs text-neutral-600">🍴 Especialidad: {it.especialidad}</p>}
+
+      {(it.descripcionCompleta && it.descripcionCompleta !== it.descripcion || it.fuenteLecturaUrl) && (
+        <details className="mt-2 rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <summary className="cursor-pointer text-xs font-medium text-marino-700">Leer más sobre este lugar</summary>
+          {it.descripcionCompleta && it.descripcionCompleta !== it.descripcion && (
+            <p className="mt-2 text-sm leading-relaxed text-neutral-700">{it.descripcionCompleta}</p>
+          )}
+          {it.fuenteLecturaUrl && (
+            <a href={it.fuenteLecturaUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs text-marino-700 underline">
+              Abrir artículo completo{it.fuenteLecturaNombre ? ` (${it.fuenteLecturaNombre})` : ""}
+            </a>
+          )}
+        </details>
+      )}
+
       {it.esGenerica && (
         <p className="mt-2 text-xs text-amber-700">
-          💡 Idea orientativa, no un lugar concreto — el coste es una referencia, no un precio real.
+          💡 Idea orientativa, no es un lugar concreto. El coste es una estimación.
         </p>
       )}
 
@@ -368,7 +388,7 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
           para los dos. */}
       {it.categoria === "restaurante" && it.pais && platosTipicosDe(it.pais, it.etapaNombre).length > 0 && (
         <div className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2">
-          <p className="text-xs font-medium text-amber-800">🍴 Not sure what to order? Try:</p>
+          <p className="text-xs font-medium text-amber-800">🍴 Platos locales para probar:</p>
           <ul className="mt-1 space-y-0.5 text-xs text-amber-700">
             {platosTipicosDe(it.pais, it.etapaNombre).map((s) => (
               <li key={s.id}>
@@ -386,7 +406,7 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
             completa. Mapa y web solo aparecen cuando hay un lugar real. */}
         {!it.esGenerica && it.mapaUrl && (
           <a href={it.mapaUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-marino-500">
-            📍 Mapa
+            📍 Ver en el mapa
           </a>
         )}
         {!it.esGenerica && it.webUrl && it.webEsDirecta && (
@@ -394,9 +414,9 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
             🔗 Sitio web
           </a>
         )}
-        {estado === "disponible" && (
-          <button onClick={() => onCambiarEstado("planificada")} className="btn-primary px-2.5 py-1 text-xs shadow-none">
-            + Añadir
+            {estado === "disponible" && (
+          <button onClick={() => onCambiarEstado("planificada")} className="btn-primary px-3 py-1.5 text-sm shadow-none">
+            + Añadir al itinerario
           </button>
         )}
         {(estado === "planificada" || estado === "reservada") && (
@@ -888,6 +908,10 @@ export default function ActividadesPage() {
         // dice una vez para todos los sitios reales) y no aportaba nada que
         // el usuario no supiera ya.
         descripcion: descripcionDeSitio(s),
+        descripcionCompleta: s.resumenWikipedia || undefined,
+        especialidad: s.cocina,
+        fuenteLecturaUrl: s.enlaceWikipedia,
+        fuenteLecturaNombre: s.enlaceWikipedia ? "Wikipedia" : undefined,
         esPropia: false,
         esSitioReal: true,
         fuenteEtiqueta: "OpenStreetMap",
@@ -963,10 +987,13 @@ export default function ActividadesPage() {
           entorno: "mixto" as const,
           admiteMascotas: false,
           descripcion: esEvento
-            ? `${l.contenido ? acortarTexto(l.contenido, 140) + " " : ""}Check the date before counting on it: this is an event, not a place open all year.`
+            ? `${l.contenido ? acortarTexto(l.contenido, 140) + " " : ""}Comprueba las fechas: es un evento, no un lugar abierto todo el año.`
             : l.contenido
               ? acortarTexto(l.contenido, 160)
-              : "Recommended in the city's Wikivoyage guide.",
+              : "Recomendado en la guía local de Wikivoyage.",
+          descripcionCompleta: l.contenido,
+          fuenteLecturaUrl: guiaWikivoyage?.url,
+          fuenteLecturaNombre: "guía completa de Wikivoyage",
           esPropia: false,
           esSitioReal: true,
           fuenteEtiqueta: "Wikivoyage",
@@ -986,7 +1013,7 @@ export default function ActividadesPage() {
     });
 
     const propiasDeEtapa: Item[] = viaje!.actividades
-      .filter((a) => a.propia && !a.propia.esSitioReal && (a.etapaId === etapa.id || (!a.etapaId && etapas.length === 1)))
+      .filter((a) => a.propia && (a.etapaId === etapa.id || (!a.etapaId && etapas.length === 1)))
       .map((a) => ({
         id: a.actividadId,
         nombre: a.propia!.nombre,
@@ -997,8 +1024,19 @@ export default function ActividadesPage() {
         apta: [],
         entorno: a.propia!.entorno ?? "mixto",
         admiteMascotas: a.propia!.admiteMascotas ?? false,
-        descripcion: "Activity you added.",
-        esPropia: true,
+        descripcion: a.propia!.descripcion ?? "Añadida a tu itinerario.",
+        descripcionCompleta: a.propia!.descripcionCompleta,
+        especialidad: a.propia!.especialidad,
+        direccion: a.propia!.direccion,
+        fuenteLecturaUrl: a.propia!.fuenteUrl,
+        fuenteLecturaNombre: a.propia!.fuenteNombre,
+        mapaUrl: a.propia!.mapaUrl,
+        webUrl: a.propia!.webUrl,
+        webEsDirecta: Boolean(a.propia!.webUrl),
+        notaPrecio: a.propia!.notaPrecio,
+        horario: a.propia!.horario,
+        esPropia: !a.propia!.esSitioReal,
+        esSitioReal: a.propia!.esSitioReal,
         etapaId: etapa.id,
         etapaNombre: etapa.nombre,
       }));
@@ -1014,6 +1052,11 @@ export default function ActividadesPage() {
     function fusionarSitio(base: Item, extra: Item): Item {
       return {
         ...base,
+        descripcionCompleta:
+          base.descripcionCompleta ?? (guiaWikivoyage?.idioma === "es" ? extra.descripcionCompleta : undefined),
+        fuenteLecturaUrl: base.fuenteLecturaUrl ?? extra.fuenteLecturaUrl,
+        fuenteLecturaNombre: base.fuenteLecturaNombre ?? extra.fuenteLecturaNombre,
+        especialidad: base.especialidad ?? extra.especialidad,
         notaPrecio: base.notaPrecio ?? extra.notaPrecio,
         horario: base.horario ?? extra.horario,
         // La de Wikivoyage suele traer dirección real de calle además de
@@ -1092,8 +1135,16 @@ export default function ActividadesPage() {
               ? {
                   propia: {
                     nombre: item.nombre,
+                    descripcion: item.descripcion,
+                    descripcionCompleta: item.descripcionCompleta,
+                    especialidad: item.especialidad,
                     notaPrecio: item.notaPrecio,
                     horario: item.horario,
+                    direccion: item.direccion,
+                    fuenteUrl: item.fuenteLecturaUrl,
+                    fuenteNombre: item.fuenteLecturaNombre,
+                    mapaUrl: item.mapaUrl,
+                    webUrl: item.webEsDirecta ? item.webUrl : undefined,
                     entorno: item.entorno,
                     esSitioReal: true,
                   },
@@ -1178,23 +1229,22 @@ export default function ActividadesPage() {
         <ViajeToolsNav viajeId={viaje.id} />
         <Cabecera
           titulo="Actividades"
-          subtitulo="Pick what to do in each city and add it straight to your itinerary."
+          subtitulo="Explora cada ciudad por temas, conoce sus lugares y añade tus favoritos al itinerario."
           volverA={`/viajes/${viaje.id}`}
         />
 
         <div className="mb-4 flex items-center justify-between gap-3 text-xs">
-          <button onClick={actualizarInvestigacion} disabled={refrescando} className="text-neutral-400 underline hover:text-neutral-700 disabled:opacity-50">
-            {refrescando ? "🔄 Refreshing real research…" : "🔄 Refresh real research"}
+          <button onClick={actualizarInvestigacion} disabled={refrescando} className="text-neutral-500 underline hover:text-neutral-700 disabled:opacity-50">
+            {refrescando ? "🔄 Actualizando información…" : "🔄 Actualizar información de las ciudades"}
           </button>
         </div>
         {errorRefresco && <p className="mb-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">{errorRefresco}</p>}
 
-        <section className="mb-6">
-          <h2 className="mb-1 font-medium">What are you into?</h2>
-          <p className="mb-3 text-xs text-neutral-500">
-            Pick as many as you like — the categories below and Guide mode will bring these up first, without hiding anything else.
-          </p>
-          <div className="flex flex-wrap gap-2">
+        <details className="mb-3 rounded-xl border border-neutral-200 bg-white px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium text-neutral-700">Ajustar sugerencias a mis intereses</summary>
+          <div className="pt-3">
+            <p className="mb-3 text-xs text-neutral-500">Tus intereses aparecen primero, pero nunca ocultan las demás categorías.</p>
+            <div className="flex flex-wrap gap-2">
             {PERFILES_INTERES.map((p) => {
               const activo = (viaje.contexto.perfilInteres ?? []).includes(p.id);
               return (
@@ -1213,16 +1263,18 @@ export default function ActividadesPage() {
                 </button>
               );
             })}
+            </div>
           </div>
-        </section>
+        </details>
 
-        <section className="card mb-6">
-          <h2 className="mb-3 font-medium">Something changed</h2>
+        <details className="card mb-6">
+          <summary className="cursor-pointer text-sm font-medium">¿Cambió el tiempo o el nivel de energía?</summary>
+          <div className="mt-3">
           <div className="flex flex-wrap gap-2">
             {(
               [
-                ["lluvia", "🌧️ It's raining"],
-                ["cansancio", "😴 We're tired"],
+                ["lluvia", "🌧️ Está lloviendo"],
+                ["cansancio", "😴 Estamos cansados"],
               ] as const
             ).map(([valor, etiqueta]) => (
               <button
@@ -1239,7 +1291,7 @@ export default function ActividadesPage() {
 
           {adaptacion === "lluvia" && (
             <ul className="mt-3 space-y-2">
-              {sugerenciasAdaptacion.length === 0 && <li className="text-sm text-neutral-400">There are no clear indoor alternatives in your list.</li>}
+              {sugerenciasAdaptacion.length === 0 && <li className="text-sm text-neutral-400">No hay alternativas claras de interior en las opciones actuales.</li>}
               {sugerenciasAdaptacion.map((a) => (
                 <li key={a.id} className="rounded-xl bg-neutral-50 px-3 py-2 text-sm">
                   <span className="font-medium">{a.nombre}</span>
@@ -1251,9 +1303,9 @@ export default function ActividadesPage() {
 
           {adaptacion === "cansancio" && (
             <div className="mt-3 rounded-xl bg-neutral-50 px-3 py-3 text-sm">
-              <p className="mb-2 text-neutral-600">Cancel what you won't be able to do — it's marked as dropped, not deleted:</p>
+              <p className="mb-2 text-neutral-600">Quita del itinerario lo que ya no encaje; no se borra definitivamente:</p>
               {actividadesEnCurso.length === 0 ? (
-                <p className="text-neutral-400">You don't have any planned or booked activities yet.</p>
+                <p className="text-neutral-400">Aún no tienes actividades planificadas o reservadas.</p>
               ) : (
                 <ul className="space-y-1.5">
                   {actividadesEnCurso.map((a) => (
@@ -1270,11 +1322,12 @@ export default function ActividadesPage() {
               )}
             </div>
           )}
-        </section>
+          </div>
+        </details>
 
         <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="font-medium">Explore by city</h2>
-          <span className="text-xs text-neutral-400">{actividadesPendientes} en tu itinerario</span>
+          <h2 className="font-medium">Explora por ciudad</h2>
+          <span className="text-xs text-neutral-500">{actividadesPendientes} en el itinerario</span>
         </div>
 
         <div className="space-y-4">
@@ -1285,18 +1338,11 @@ export default function ActividadesPage() {
             ).length;
             const abierta = etapasAbiertas.has(etapa.id) || etapas.length === 1;
 
-            // Solo se ofrecen cajas de categorías que de verdad tienen algo
-            // detrás: antes se mostraban las 10 categorías siempre, así que
-            // tocar "Playa" en un destino sin nada investigado ahí llevaba a
-            // una pantalla vacía — una caja que no lleva a ningún lado no
-            // ayuda a nadie.
-            const categoriasConContenido = new Set(items.map((it) => it.categoria));
-            // Las cajas que coinciden con el perfil de interés del viaje van
-            // primero — sigue habiendo que tocar una para ver algo, nada se
-            // auto-abre; solo cambia cuál está más a mano.
-            const categoriasDisponibles = [...ORDEN_CATEGORIAS.filter((c) => categoriasConContenido.has(c))].sort(
-              comparadorPorInteres((c) => c, viaje.contexto.perfilInteres)
-            );
+            // Todas las categorías permanecen visibles aunque la primera
+            // búsqueda todavía no haya encontrado lugares para esa ciudad.
+            // Así se puede explorar turismo especializado (aves, astronomía,
+            // espiritualidad, eventos) sin depender del catálogo inicial.
+            const categoriasDisponibles = [...ORDEN_CATEGORIAS].sort(comparadorPorInteres((c) => c, viaje.contexto.perfilInteres));
 
             // El viajero decide qué mirar tocando una caja: nada se
             // preselecciona a partir de lo que escribió al crear el
@@ -1342,7 +1388,9 @@ export default function ActividadesPage() {
             // (nunca del catálogo genérico) para que la presentación se
             // sienta hecha para ESTA ciudad, no una frase que serviría
             // para cualquier destino.
-            const categoriasParaTono = categoriasDisponibles;
+            const categoriasParaTono = [...new Set(items.map((it) => it.categoria))].sort(
+              comparadorPorInteres((c) => c, viaje.contexto.perfilInteres)
+            );
             const nombresRealesTono = categoriasParaTono.slice(0, 2).flatMap((c) => nombresDestacadosDe(items, c)).slice(0, 2);
             const paisEtapa = paisDeEtapa(etapa)?.nombre;
 
@@ -1358,7 +1406,7 @@ export default function ActividadesPage() {
                   </span>
                   <span className="flex items-center gap-2 text-xs text-marino-700">
                     {estadoWikivoyage[etapa.nombre] === "cargando" && <span className="animate-pulse">📖 Investigando…</span>}
-                    {enItinerarioDeEtapa} en tu itinerario
+                    {enItinerarioDeEtapa} en el itinerario
                     <span className="text-marino-400">{abierta ? "−" : "+"}</span>
                   </span>
                 </button>
@@ -1384,8 +1432,8 @@ export default function ActividadesPage() {
 
                     {categoriasDisponibles.length > 0 && (
                       <div className="rounded-xl border border-dashed border-marino-200 bg-marino-50/50 p-3">
-                        <p className="mb-2 text-sm font-medium text-marino-900">✨ ¿Qué te gustaría hacer en {etapa.nombre}?</p>
-                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                        <p className="mb-2 text-sm font-medium text-marino-900">✨ ¿Qué te gustaría descubrir en {etapa.nombre}?</p>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                           {categoriasDisponibles.map((c) => {
                             // Se marca CADA categoría activa, no solo cuando
                             // hay exactamente una: si el viaje pedía "comida
@@ -1408,8 +1456,8 @@ export default function ActividadesPage() {
                                     [etapa.id]: activo && categoriasBuscadas!.length === 1 ? null : [c],
                                   }))
                                 }
-                                className={`flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition ${
-                                  activo ? "border-coral-300 bg-coral-50" : "border-neutral-200 bg-white hover:border-neutral-300"
+                                className={`flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-center transition ${
+                                  activo ? "border-coral-300 bg-coral-50 ring-1 ring-coral-200" : "border-neutral-200 bg-white hover:border-marino-300 hover:bg-marino-50"
                                 }`}
                               >
                                 <span className="text-xl">{ETIQUETA_CATEGORIA[c].icono}</span>
@@ -1431,9 +1479,9 @@ export default function ActividadesPage() {
                     {categoriasBuscadas !== null && categoriasBuscadas.length > 0 && (
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-marino-50 px-3 py-2 text-xs text-marino-800">
                         <span>
-                          You&apos;re only seeing:{" "}
+                          Mostrando:{" "}
                           <span className="font-medium">
-                            {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta.toLowerCase()).join(" and ")}
+                            {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta.toLowerCase()).join(" y ")}
                           </span>
                           .
                         </span>
@@ -1464,14 +1512,14 @@ export default function ActividadesPage() {
                         if (estado === "cargando") {
                           return (
                             <p className="text-xs text-neutral-400">
-                              🔎 OpenStreetMap no tiene esto mapeado en {etapa.nombre} — buscando en la web…
+                              🔎 No hay lugares de esta categoría en el mapa local; buscando más opciones…
                             </p>
                           );
                         }
                         return (
                           <div className="rounded-xl border border-dashed border-coral-200 bg-coral-50/50 p-3">
                             <p className="mb-1.5 text-xs font-medium text-coral-800">
-                              🔎 OpenStreetMap no tiene esto mapeado en {etapa.nombre}, pero esto se encontró buscando en la web:
+                              🔎 Otras opciones encontradas en la web para {etapa.nombre}:
                             </p>
                             <ul className="space-y-1.5">
                               {estado.map((r, i) => (
@@ -1494,8 +1542,8 @@ export default function ActividadesPage() {
                     {listaMostrada.length === 0 ? (
                       <p className="text-sm text-neutral-400">
                         {categoriasBuscadas !== null
-                          ? `We haven't researched anything like that in ${etapa.nombre} yet.`
-                          : `Pick a category above to see what's there in ${etapa.nombre}.`}
+                          ? `Aún no encontramos opciones de esta categoría para ${etapa.nombre}. Puedes actualizar la información o añadir un lugar manualmente.`
+                          : `Elige un tema para ver lugares y actividades de ${etapa.nombre}.`}
                       </p>
                     ) : (
                       <ul className="space-y-2">
@@ -1510,10 +1558,10 @@ export default function ActividadesPage() {
                     {formEtapaId === etapa.id ? (
                       <form onSubmit={(e) => anadirPropia(e, etapa)} className="rounded-xl border border-dashed border-neutral-300 p-3 space-y-2.5">
                         <p className="text-xs font-medium text-neutral-600">Añadir tu propio plan en {etapa.nombre}</p>
-                        <input className="input text-sm" placeholder="What do you feel like doing?" value={nombreNueva} onChange={(e) => setNombreNueva(e.target.value)} />
+                        <input className="input text-sm" placeholder="¿Qué te gustaría hacer?" value={nombreNueva} onChange={(e) => setNombreNueva(e.target.value)} />
                         <div className="grid grid-cols-2 gap-2">
                           <input type="number" step="0.5" min="0" className="input text-sm" placeholder="Horas" value={horasNueva} onChange={(e) => setHorasNueva(e.target.value)} />
-                          <input type="number" min="0" className="input text-sm" placeholder="Coste €" value={costeNueva} onChange={(e) => setCosteNueva(e.target.value)} />
+                          <input type="number" min="0" className="input text-sm" placeholder="Coste estimado (€)" value={costeNueva} onChange={(e) => setCosteNueva(e.target.value)} />
                         </div>
                         <select className="input text-sm" value={categoriaNueva} onChange={(e) => setCategoriaNueva(e.target.value as CategoriaActividad)}>
                           {ORDEN_CATEGORIAS.map((c) => (
@@ -1523,9 +1571,9 @@ export default function ActividadesPage() {
                           ))}
                         </select>
                         <select className="input text-sm" value={entornoNueva} onChange={(e) => setEntornoNueva(e.target.value as typeof entornoNueva)}>
-                          <option value="exterior">☀️ Outdoors</option>
+                          <option value="exterior">☀️ Al aire libre</option>
                           <option value="interior">🏛️ En interior</option>
-                          <option value="mixto">🌤️ Indoors and out</option>
+                          <option value="mixto">🌤️ Interior y exterior</option>
                         </select>
                         <label className="flex items-center gap-2 text-xs text-neutral-600">
                           <input type="checkbox" checked={mascotaNueva} onChange={(e) => setMascotaNueva(e.target.checked)} />
@@ -1553,9 +1601,8 @@ export default function ActividadesPage() {
         </div>
 
         <p className="mt-4 text-xs text-neutral-400">
-          El catálogo por categoría es orientativo (duración, coste y días gratis son estimaciones para organizar el día
-          y el presupuesto). Los sitios marcados como &quot;Sitio real&quot; existen de verdad en OpenStreetMap: confirma
-          horario y precio antes de ir.
+          Los precios y horarios son estimados cuando se indica. Para los datos reales se muestra la fuente disponible;
+          confirma la información con el lugar antes de ir, especialmente para eventos con fecha.
         </p>
 
         {destino && (

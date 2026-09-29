@@ -210,6 +210,14 @@ export interface ActividadViaje {
     nombre: string;
     duracionHoras?: number;
     costeEstimado?: number;
+    descripcion?: string;
+    descripcionCompleta?: string;
+    especialidad?: string;
+    direccion?: string;
+    fuenteUrl?: string;
+    fuenteNombre?: string;
+    mapaUrl?: string;
+    webUrl?: string;
     // Cuando la actividad viene de un sitio real (OpenStreetMap) en vez de
     // un formulario a mano: su precio y horario originales, tal cual se
     // conocen, en vez de forzarlos a un número que no tenemos.
