@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Capacitor } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
 import { Cabecera } from "@/components/Cabecera";
 import { ViajeToolsNav } from "@/components/ViajeToolsNav";
@@ -12,15 +11,21 @@ import { distanciaMetros, hablar, haySintesisDeVoz } from "@/lib/geoAudio";
 import { puntosConCoordenadas } from "@/lib/puntosGeo";
 import { obtenerResumenSitio, type ResumenWikipedia } from "@/lib/wikipedia";
 import { comparadorPorInteres, PERFILES_INTERES } from "@/lib/perfilInteres";
+import {
+  getBackgroundGuideStatus,
+  onBackgroundGuideError,
+  onBackgroundGuideLocation,
+  onBackgroundGuideSpoken,
+  muteBackgroundGuide,
+  startBackgroundGuide,
+  stopBackgroundGuide,
+  supportsBackgroundGuide,
+} from "@/lib/backgroundGuide";
 import type { CategoriaActividad } from "@/lib/types";
 
-// En la app instalada (Android), el GPS lo da el sistema operativo real
-// (@capacitor/geolocation) en vez del navegador: un permiso nativo de
-// verdad, no el del WebView, y una posición más estable. Sigue siendo
-// primer plano — el plugin no cubre segundo plano con pantalla apagada,
-// eso es una pieza aparte que no está lista todavía — pero es un salto
-// real respecto a la web mientras la app está abierta.
-const NATIVO = Capacitor.isNativePlatform();
+// Solo Android dispone aquí del servicio nativo persistente. La web y otras
+// plataformas usan la geolocalización del navegador mientras la página siga abierta.
+const NATIVO = supportsBackgroundGuide();
 
 const UMBRAL_METROS = 120;
 
@@ -48,34 +53,70 @@ export default function ModoGuiaPage() {
   const [activo, setActivo] = useState(false);
   const [posicion, setPosicion] = useState<{ lat: number; lon: number } | null>(null);
   const [narrados, setNarrados] = useState<Set<string>>(new Set());
-  const [pendiente, setPendiente] = useState<PuntoGuia | null>(null);
   const [silenciado, setSilenciado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const watchId = useRef<number | string | null>(null);
-  // Evita preguntar dos veces por el mismo sitio con datos ya obsoletos de
-  // un render anterior al cambiar de posición muy rápido (varias
-  // actualizaciones de GPS seguidas). Incluye tanto lo ya narrado como lo
-  // que se preguntó y se respondió "ahora no": no se vuelve a interrumpir
-  // por el mismo sitio en la misma sesión.
+  // Evita repetir una narración durante la misma sesión de guía.
   const preguntadosRef = useRef<Set<string>>(new Set());
   const silenciadoRef = useRef(false);
-  const pendienteRef = useRef<PuntoGuia | null>(null);
   const [resumenesSitio, setResumenesSitio] = useState<Record<string, ResumenWikipedia | "sin_datos">>({});
 
   useEffect(() => {
     silenciadoRef.current = silenciado;
   }, [silenciado]);
   useEffect(() => {
-    pendienteRef.current = pendiente;
-  }, [pendiente]);
-
-  useEffect(() => {
     return () => {
       if (watchId.current !== null) {
         if (NATIVO) Geolocation.clearWatch({ id: String(watchId.current) });
         else navigator.geolocation.clearWatch(watchId.current as number);
       }
-      window.speechSynthesis?.cancel();
+      if (!NATIVO) window.speechSynthesis?.cancel();
+    };
+  }, []);
+
+  // El servicio nativo conserva el GPS y la voz aunque Android bloquee la
+  // pantalla o deje la app en segundo plano. Al volver, recuperamos el estado
+  // persistido para que la pantalla refleje lo que ocurrió mientras estaba bloqueada.
+  useEffect(() => {
+    if (!NATIVO) return;
+    let montado = true;
+    const handles: Array<{ remove: () => Promise<void> }> = [];
+    const sincronizar = async () => {
+      try {
+        const status = await getBackgroundGuideStatus();
+        if (!montado) return;
+        setActivo(status.active);
+        setSilenciado(status.muted);
+        setPosicion(status.lat !== undefined && status.lon !== undefined ? { lat: status.lat, lon: status.lon } : null);
+        setNarrados(new Set(status.narratedIds));
+        preguntadosRef.current = new Set(status.narratedIds);
+      } catch {
+        // El plugin puede no estar listo durante el primer render del WebView.
+      }
+    };
+    void (async () => {
+      try {
+        handles.push(await onBackgroundGuideLocation((event) => {
+          if (montado) setPosicion({ lat: event.lat, lon: event.lon });
+        }));
+        handles.push(await onBackgroundGuideSpoken((event) => {
+          if (!montado) return;
+          preguntadosRef.current = new Set(preguntadosRef.current).add(event.id);
+          setNarrados((previous) => new Set(previous).add(event.id));
+        }));
+        handles.push(await onBackgroundGuideError((event) => {
+          if (montado) setError(event.message);
+        }));
+        await sincronizar();
+      } catch {
+        if (montado) setError("No se pudo conectar con la guía en segundo plano.");
+      }
+    })();
+    document.addEventListener("visibilitychange", sincronizar);
+    return () => {
+      montado = false;
+      document.removeEventListener("visibilitychange", sincronizar);
+      for (const handle of handles) void handle.remove();
     };
   }, []);
 
@@ -145,7 +186,7 @@ export default function ModoGuiaPage() {
       return {
         id: p.id,
         nombre: p.nombre,
-        texto: `You're near ${p.nombre}. ${rico?.extracto ?? p.detalle ?? `Un sitio recomendado en ${etapa.nombre}.`}`,
+        texto: `Estás cerca de ${p.nombre}. ${rico?.extracto ?? p.detalle ?? `Un sitio recomendado en ${etapa.nombre}.`}`,
         lat: p.lat,
         lon: p.lon,
         etapaNombre: etapa.nombre,
@@ -170,27 +211,17 @@ export default function ModoGuiaPage() {
     // Un fallo de GPS puede ser puntual (túnel, señal débil un instante): si
     // después llega una posición válida, el aviso de error ya no aplica.
     setError(null);
-    // No habla solo: al detectar cercanía se pregunta primero (como una
-    // notificación), nunca se reproduce audio sin que el viajero lo pida.
-    if (silenciadoRef.current || pendienteRef.current) return;
+    if (silenciadoRef.current) return;
     for (const p of puntos) {
       if (preguntadosRef.current.has(p.id)) continue;
       const d = distanciaMetros(actual.lat, actual.lon, p.lat, p.lon);
       if (d <= UMBRAL_METROS) {
-        setPendiente(p);
-        break; // una notificación a la vez, aunque haya varios sitios cerca
+        preguntadosRef.current = new Set(preguntadosRef.current).add(p.id);
+        hablar(p.texto);
+        setNarrados((previous) => new Set(previous).add(p.id));
+        break;
       }
     }
-  }
-
-  function responderPendiente(escuchar: boolean) {
-    if (!pendiente) return;
-    preguntadosRef.current = new Set(preguntadosRef.current).add(pendiente.id);
-    if (escuchar) {
-      hablar(pendiente.texto);
-      setNarrados((prev) => new Set(prev).add(pendiente.id));
-    }
-    setPendiente(null);
   }
 
   async function activar() {
@@ -199,44 +230,62 @@ export default function ModoGuiaPage() {
       try {
         const permiso = await Geolocation.requestPermissions();
         if (permiso.location === "denied") {
-          setError("We need location permission to turn on guide mode.");
+          setError("Permite la ubicación para iniciar la guía.");
           return;
         }
-        watchId.current = await Geolocation.watchPosition({ enableHighAccuracy: true }, (pos, err) => {
-          if (err || !pos) {
-            setError("We couldn't get your location.");
-            return;
-          }
-          manejarPosicion(pos);
+        await startBackgroundGuide({
+          tripId: params.id,
+          thresholdMeters: UMBRAL_METROS,
+          points: puntos.map(({ id, nombre, texto, lat, lon }) => ({ id, nombre, texto, lat, lon })),
         });
+        preguntadosRef.current = new Set();
+        setNarrados(new Set());
         setActivo(true);
-      } catch {
-        setError("We couldn't get your location.");
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "No se pudo iniciar la guía.");
       }
       return;
     }
     if (!("geolocation" in navigator)) {
-      setError("This browser can't access your location.");
+      setError("Este navegador no puede acceder a la ubicación.");
       return;
     }
     watchId.current = navigator.geolocation.watchPosition(
       manejarPosicion,
-      (err) => setError(err.code === err.PERMISSION_DENIED ? "We need location permission to turn on guide mode." : "We couldn't get your location."),
+      (err) => setError(err.code === err.PERMISSION_DENIED ? "Permite la ubicación para iniciar la guía." : "No se pudo obtener tu ubicación."),
       { enableHighAccuracy: true, maximumAge: 5000 }
     );
     setActivo(true);
   }
 
-  function desactivar() {
+  async function desactivar() {
+    if (NATIVO) {
+      try {
+        await stopBackgroundGuide();
+      } catch {
+        setError("No se pudo detener la guía nativa.");
+      }
+    }
     if (watchId.current !== null) {
-      if (NATIVO) Geolocation.clearWatch({ id: String(watchId.current) });
-      else navigator.geolocation.clearWatch(watchId.current as number);
+      navigator.geolocation.clearWatch(watchId.current as number);
     }
     watchId.current = null;
     setActivo(false);
     setPosicion(null);
-    setPendiente(null);
     window.speechSynthesis?.cancel();
+  }
+
+  async function cambiarSilencio() {
+    const nuevoSilencio = !silenciado;
+    setSilenciado(nuevoSilencio);
+    silenciadoRef.current = nuevoSilencio;
+    if (NATIVO) {
+      try {
+        await muteBackgroundGuide(nuevoSilencio);
+      } catch {
+        setError("No se pudo cambiar el audio de la guía.");
+      }
+    }
   }
 
   const ordenados = posicion
@@ -255,9 +304,9 @@ export default function ModoGuiaPage() {
 
         <div className="mb-5 rounded-2xl border border-coral-200 bg-coral-50 p-4 text-sm text-coral-800">
           {NATIVO
-            ? "⚠️ It works while the app is open and GPS is on. It still pauses if you switch to another app or lock the screen — real background tracking isn't built yet."
-            : "⚠️ It works while you keep this page open with GPS on. On iPhone it stops narrating if you lock the screen or switch apps: that's not our limitation, it's how a website behaves on a phone."}
-          {!haySintesisDeVoz() && <p className="mt-2 font-medium">This browser doesn't support speech synthesis: it won't be able to read aloud.</p>}
+            ? "La guía de Android sigue activa con la pantalla bloqueada. Verás una notificación persistente mientras GPS y voz estén funcionando."
+            : "En web, mantén esta página abierta para que la ubicación y la voz sigan funcionando. La guía con pantalla bloqueada requiere la app Android."}
+          {!NATIVO && !haySintesisDeVoz() && <p className="mt-2 font-medium">Este navegador no admite lectura en voz alta.</p>}
         </div>
 
         {/* La elección de qué te interesa vive en Actividades (una sola
@@ -293,37 +342,18 @@ export default function ModoGuiaPage() {
                 </button>
               )}
               <button
-                onClick={() => setSilenciado((v) => !v)}
+                onClick={cambiarSilencio}
                 className={`rounded-lg border px-3 py-2 text-sm ${silenciado ? "border-neutral-300 bg-neutral-100 text-neutral-500" : "border-marino-200 bg-marino-50 text-marino-700"}`}
               >
-                {silenciado ? "🔇 Silenciado" : "🔊 With voice"}
+                {silenciado ? "🔇 Silenciado" : "🔊 Voz activa"}
               </button>
             </div>
 
             {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-            {/* La notificación: nunca habla sola, siempre pregunta primero. */}
-            {pendiente && (
-              <div className="mb-5 rounded-2xl border-2 border-marino-400 bg-marino-50 p-4">
-                <p className="text-sm font-medium text-marino-900">📍 Estás cerca de {pendiente.nombre}</p>
-                <p className="mt-1 text-xs text-marino-700">Want to hear about this place?</p>
-                {pendiente.tieneResumenRico && (
-                  <p className="mt-2 line-clamp-2 text-xs text-marino-600">{pendiente.texto}</p>
-                )}
-                <div className="mt-3 flex gap-2">
-                  <button onClick={() => responderPendiente(true)} className="btn-primary flex-1 text-sm">
-                    🔊 Sí, cuéntame
-                  </button>
-                  <button onClick={() => responderPendiente(false)} className="btn-secondary flex-1 text-sm">
-                    Ahora no
-                  </button>
-                </div>
-              </div>
-            )}
-
             {activo && (
               <p className="mb-4 text-xs text-neutral-500">
-                {posicion ? `📍 Location on · ${narrados.size} place(s) narrated` : "Finding your location…"}
+                {posicion ? `📍 Ubicación activa · ${narrados.size} lugares narrados` : "Buscando tu ubicación…"}
               </p>
             )}
 
