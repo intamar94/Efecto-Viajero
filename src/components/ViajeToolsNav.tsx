@@ -4,16 +4,16 @@ import { useRouter, usePathname } from "next/navigation";
 
 const HERRAMIENTAS = [
   { href: "", icono: "🏠", titulo: "Resumen" },
-  { href: "ruta", icono: "🧭", titulo: "Ruta e itinerario" },
+  { href: "actividades", icono: "🎒", titulo: "Actividades" },
+  { href: "guia", icono: "🎧", titulo: "Modo Guía" },
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
-  { href: "actividades", icono: "🎒", titulo: "Actividades" },
-  { href: "guia", icono: "🎧", titulo: "Guide mode" },
-  { href: "vault", icono: "📁", titulo: "Travel Vault" },
-  { href: "souvenirs", icono: "🎁", titulo: "Qué comprar" },
-  { href: "compartido", icono: "👥", titulo: "Compartido" },
+  { href: "vault", icono: "📁", titulo: "Documentos" },
   { href: "recuerdos", icono: "📸", titulo: "Recuerdos" },
-  { href: "resolver", icono: "🆘", titulo: "Resolver SOS" },
+  { href: "souvenirs", icono: "🎁", titulo: "Qué comprar" },
+  { href: "compartido", icono: "👥", titulo: "Incluir viajero" },
+  { href: "ruta", icono: "🧭", titulo: "Ruta e itinerario" },
+  { href: "resolver", icono: "🆘", titulo: "Emergencias" },
   { href: "imprimir", icono: "🖨️", titulo: "Imprimir / PDF" },
 ] as const;
 
