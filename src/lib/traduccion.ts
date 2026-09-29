@@ -43,3 +43,26 @@ export async function traducirAlIngles(texto: string, idiomaOrigen: "es" | "pt")
     return texto;
   }
 }
+
+export async function traducirAlEspanol(texto: string): Promise<string> {
+  const original = texto.trim();
+  if (!original) return texto;
+  const clave = `en|es:${original}`;
+  const cacheado = cache.get(clave);
+  if (cacheado !== undefined) return cacheado;
+
+  try {
+    const consulta = original.slice(0, 480);
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(consulta)}&langpair=en|es`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return texto;
+    const data = await res.json();
+    const traducido = data?.responseData?.translatedText;
+    if (typeof traducido !== "string" || !traducido.trim() || pareceAvisoDeCuota(traducido)) return texto;
+    const resultado = consulta.length < original.length ? `${traducido.trim()}…` : traducido.trim();
+    cache.set(clave, resultado);
+    return resultado;
+  } catch {
+    return texto;
+  }
+}

@@ -18,6 +18,7 @@ import { descubrirLugaresCercanos, VERSION_DESCUBRIMIENTO } from "@/lib/descubri
 import { slug } from "@/lib/puntosGeo";
 import { distanciaMetros, formatearDistancia } from "@/lib/geoAudio";
 import { acortarTexto } from "@/lib/texto";
+import { traducirAlEspanol } from "@/lib/traduccion";
 import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
 import { VERSION_INVESTIGACION, VERSION_ENRIQUECIMIENTO_SITIO, esCadenaConocida, type Investigacion, type SitioReal } from "@/lib/investigacion";
 import { comparadorPorInteres, coincideConInteres, PERFILES_INTERES } from "@/lib/perfilInteres";
@@ -134,101 +135,6 @@ function descripcionDeSitio(s: SitioReal): string {
   if (s.entornoCercano) return `${base} ${s.entornoCercano}`;
   if (s.resumenWeb) return `${base} ${s.resumenWeb}`;
   return base;
-}
-
-// Lo que cada categoría promete, en un lenguaje que invita en vez de
-// describir con frialdad: se usa para presentar la ciudad conectando lo
-// que el viajero pidió al crear el viaje (o lo que de verdad encontramos)
-// con la emoción de ir a descubrirlo, no solo el dato duro de Wikipedia.
-// Sin "y" dentro de cada frase: al combinar dos categorías con el
-// conector de fraseDeseo ("A y B"), una frase que ya trae su propio "y"
-// da una doble conjunción rara de leer ("su historia y su cultura y su
-// gastronomía").
-const DESEO_CATEGORIA: Partial<Record<CategoriaActividad, string>> = {
-  museo: "su patrimonio cultural",
-  parque: "sus parques y paseos",
-  restaurante: "su gastronomía",
-  cine_teatro: "su escena cultural",
-  discoteca: "su vida nocturna",
-  compras: "su artesanía local",
-  naturaleza: "su naturaleza",
-  playa: "sus playas",
-  pueblos: "los pueblos de alrededor",
-  aventura: "sus deportes y aventuras",
-  bienestar: "sus espacios de bienestar",
-  todos: "sus planes para todas las edades",
-  experiencias: "la vida que hacen sus habitantes",
-  eventos: "sus eventos y conciertos",
-  espiritual: "sus espacios espirituales y religiosos",
-  fauna: "sus aves y fauna local",
-  astronomia: "sus cielos y lugares para observar estrellas",
-  ciencia: "sus espacios de ciencia y lectura",
-  arte_urbano: "su arte urbano",
-  memoria: "su historia y memoria",
-  industrial: "su patrimonio industrial",
-  nautica: "sus actividades en el agua",
-  otro: "sus propuestas para descubrir",
-};
-
-function fraseDeseo(categorias: CategoriaActividad[]): string {
-  const frases = categorias.map((c) => DESEO_CATEGORIA[c]).filter((f): f is string => Boolean(f));
-  if (frases.length === 0) return "todo lo que ofrece la ciudad";
-  if (frases.length === 1) return frases[0];
-  return `${frases.slice(0, -1).join(", ")} y ${frases[frases.length - 1]}`;
-}
-
-// Nombrar algo genérico como "especial" no convence a nadie: lo que de
-// verdad da sensación de viaje hecho a la medida es citar sitios reales
-// que ya encontramos en ESA ciudad (nunca una idea orientativa del
-// catálogo). Para restaurantes se evita destacar una cadena de comida
-// rápida o café — real, pero no lo que alguien imagina al pensar en "una
-// experiencia gastronómica inolvidable" en un destino nuevo.
-function nombresDestacadosDe(items: Item[], categoria: CategoriaActividad): string[] {
-  const reales = items.filter((it) => it.categoria === categoria && !it.esGenerica);
-  const preferidos = categoria === "restaurante" ? reales.filter((it) => !it.cadenaGenerica) : reales;
-  const elegidos = preferidos.length > 0 ? preferidos : reales;
-  return elegidos.map((it) => it.nombre).slice(0, 2);
-}
-
-function fraseEjemplo(nombresReales: string[], pais: string | undefined, ciudad: string): string {
-  if (nombresReales.length > 0) return ` Por ejemplo: ${nombresReales.join(" o ")}.`;
-  // Sin un sitio real todavía para presumir, un plato típico real de la
-  // ciudad (o del país, si no hay uno propio de esta ciudad) da algo
-  // concreto igual — pero solo el nombre no basta: decir de qué se trata
-  // es lo que hace sentir que vale la pena probarlo, no solo un nombre
-  // suelto.
-  if (!pais) return "";
-  const sabores = platosTipicosDe(pais, ciudad);
-  if (sabores.length === 0) return "";
-  const [primero, segundo] = sabores;
-  // Solo la primera letra en minúscula (para que fluya tras el guion): en
-  // minúscula la frase entera también convertía nombres propios como
-  // "Portugal" en "portugal".
-  const sinPunto = primero.descripcion.replace(/\.$/, "");
-  const detalle = sinPunto.charAt(0).toLowerCase() + sinPunto.slice(1);
-  return segundo ? ` Prueba ${primero.nombre} — ${detalle} — o ${segundo.nombre}.` : ` Prueba ${primero.nombre}: ${detalle}.`;
-}
-
-// Tres tonos simples según lo que de verdad promete la ciudad (naturaleza,
-// cultura, o sin un tema claro todavía): no inventa nada sobre el lugar,
-// solo cambia cómo se presenta lo que ya sabemos que hay. Sin repetir el
-// nombre de la ciudad: ya aparece justo arriba, en la cabecera de la
-// tarjeta y otra vez al inicio del resumen de Wikipedia que sigue debajo
-// — nombrarla una tercera vez aquí era la redundancia que se notaba.
-function fraseInspiradora(etapaNombre: string, categorias: CategoriaActividad[], nombresReales: string[], pais: string | undefined): string {
-  const top = categorias.slice(0, 2);
-  const deseo = fraseDeseo(top);
-  const ejemplo = fraseEjemplo(nombresReales, pais, etapaNombre);
-  if (top.some((c) => c === "naturaleza" || c === "playa")) {
-    return `🌴 Descubre ${etapaNombre} a través de ${deseo}.${ejemplo}`;
-  }
-  if (top.some((c) => c === "museo" || c === "cine_teatro")) {
-    return `🏛️ Una ciudad llena de historia y cultura por descubrir: ${deseo}.${ejemplo}`;
-  }
-  if (top.length > 0) {
-    return `✨ Descubre ${deseo} en ${etapaNombre}.${ejemplo}`;
-  }
-  return `✨ Prepárate para descubrir ${etapaNombre}.`;
 }
 
 const ORDEN_CATEGORIAS: CategoriaActividad[] = [
@@ -575,7 +481,11 @@ export default function ActividadesPage() {
           etapa.lat !== undefined && etapa.lon !== undefined ? { lat: etapa.lat, lon: etapa.lon } : undefined
         );
         if (cancelado) return;
-        setResumenCiudad((prev) => ({ ...prev, [etapa.nombre]: resumen ?? "sin_datos" }));
+        const resumenLocal = resumen
+          ? { ...resumen, extracto: await traducirAlEspanol(resumen.extracto) }
+          : null;
+        if (cancelado) return;
+        setResumenCiudad((prev) => ({ ...prev, [etapa.nombre]: resumenLocal ?? "sin_datos" }));
       }
     })();
     return () => {
@@ -1403,12 +1313,6 @@ export default function ActividadesPage() {
             // (nunca del catálogo genérico) para que la presentación se
             // sienta hecha para ESTA ciudad, no una frase que serviría
             // para cualquier destino.
-            const categoriasParaTono = [...new Set(items.map((it) => it.categoria))].sort(
-              comparadorPorInteres((c) => c, viaje.contexto.perfilInteres)
-            );
-            const nombresRealesTono = categoriasParaTono.slice(0, 2).flatMap((c) => nombresDestacadosDe(items, c)).slice(0, 2);
-            const paisEtapa = paisDeEtapa(etapa)?.nombre;
-
             return (
               <div key={etapa.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
                 <button
@@ -1433,9 +1337,7 @@ export default function ActividadesPage() {
                       const extracto = resumen && resumen !== "cargando" && resumen !== "sin_datos" ? resumen.extracto : undefined;
                       return (
                         <div className="rounded-xl bg-gradient-to-br from-marino-50 to-coral-50 p-4">
-                          <p className="mb-1 text-sm font-medium text-marino-900">
-                            {fraseInspiradora(etapa.nombre, categoriasParaTono, nombresRealesTono, paisEtapa)}
-                          </p>
+                          <p className="mb-1 text-sm font-medium text-marino-900">Sobre {etapa.nombre}</p>
                           {extracto ? (
                             <p className="text-sm leading-relaxed text-neutral-700">{extracto}</p>
                           ) : resumen === "cargando" ? (
