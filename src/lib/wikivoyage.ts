@@ -8,7 +8,7 @@
 // (por ejemplo el horario), el campo queda vacío y así se muestra.
 
 import { acortarTexto } from "./texto";
-import { traducirAlIngles } from "./traduccion";
+import { traducirAlEspanol } from "./traduccion";
 import { geosearchWiki, mejorCoincidenciaPorNombre, mejorTituloPorNombre } from "./wikiGeosearch";
 
 export type TipoListingWikivoyage = "see" | "do" | "buy" | "eat" | "drink" | "sleep";
@@ -31,7 +31,7 @@ export interface WikivoyageListing {
 // una versión anterior se vuelve a buscar en vez de quedarse con el
 // contenido en español sin traducir, o con nombres fabricados a partir
 // de fragmentos de frase, para siempre.
-export const VERSION_WIKIVOYAGE = 8;
+export const VERSION_WIKIVOYAGE = 9;
 
 export interface WikivoyageResumen {
   articulo: string;
@@ -337,12 +337,12 @@ async function obtenerWikitext(titulo: string, idioma: "es" | "en"): Promise<str
 // falla, `traducirAlIngles` ya devuelve el texto original tal cual, así
 // que esto nunca se queda sin contenido por un fallo del servicio de
 // traducción — un dato real sin traducir sigue siendo mejor que ninguno.
-async function traducirListings(listings: WikivoyageListing[], idiomaOrigen: "es" | "pt"): Promise<WikivoyageListing[]> {
+async function traducirListings(listings: WikivoyageListing[]): Promise<WikivoyageListing[]> {
   return Promise.all(
     listings.map(async (l) => {
       if (!l.contenido) return l;
       const recortado = acortarTexto(l.contenido, 220);
-      const traducido = await traducirAlIngles(recortado, idiomaOrigen);
+      const traducido = await traducirAlEspanol(recortado);
       return { ...l, contenido: traducido };
     })
   );
@@ -364,7 +364,7 @@ export async function obtenerGuiaWikivoyage(ciudad: string, contexto?: string, c
       console.warn(`Wikivoyage (${idioma}): "${titulo}" no trajo listings extraíbles`);
       continue;
     }
-    if (idioma !== "en") listings = await traducirListings(listings, idioma);
+    if (idioma === "en") listings = await traducirListings(listings);
     return {
       articulo: titulo,
       idioma,

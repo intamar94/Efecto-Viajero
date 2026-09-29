@@ -5,23 +5,20 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Cabecera } from "@/components/Cabecera";
 import { useData } from "@/lib/store";
-import { destinoPrincipal, esCircuito, etapasDe } from "@/lib/viaje";
+import { destinoPrincipal } from "@/lib/viaje";
 import { alojamientosDe, actividadesDe } from "@/lib/catalogo";
 import { formatearRangoFechas } from "@/lib/formatoFecha";
 import type { Viaje } from "@/lib/types";
 
 const SECCIONES = [
-  { href: "ruta", icono: "🧭", titulo: "Route" },
+  { href: "actividades", icono: "🎒", titulo: "Actividades" },
+  { href: "guia", icono: "🎧", titulo: "Modo Guía" },
   { href: "transporte", icono: "🚆", titulo: "Transporte" },
   { href: "alojamiento", icono: "🏨", titulo: "Alojamiento" },
-  { href: "actividades", icono: "🎒", titulo: "Actividades" },
-  { href: "guia", icono: "🎧", titulo: "Guide mode" },
-  { href: "vault", icono: "📁", titulo: "Travel Vault" },
-  { href: "souvenirs", icono: "🎁", titulo: "Qué comprar" },
-  { href: "compartido", icono: "👥", titulo: "Compartido" },
+  { href: "vault", icono: "📁", titulo: "Documentos" },
   { href: "recuerdos", icono: "📸", titulo: "Recuerdos" },
-  { href: "resolver", icono: "🆘", titulo: "Resolver SOS" },
-  { href: "imprimir", icono: "🖨️", titulo: "Imprimir / PDF" },
+  { href: "souvenirs", icono: "🎁", titulo: "Qué comprar" },
+  { href: "compartido", icono: "👥", titulo: "Incluir viajero" },
 ] as const;
 
 function subtituloFechas(viaje: Viaje): string {
@@ -65,24 +62,18 @@ export default function ViajeDetallePage() {
   const alojamientoElegido = destino ? alojamientosDe(destino).find((a) => a.id === viaje.alojamientoId) : undefined;
   const numActividadesDisponibles = destino ? actividadesDe(destino).length : 0;
   const numActividadesEnMarcha = viaje.actividades.filter((a) => a.estado !== "descartada").length;
-  const etapas = etapasDe(viaje);
-  const circuito = esCircuito(viaje);
-
   const estadoTexto: Record<(typeof SECCIONES)[number]["href"], string> = {
-    ruta: circuito ? `${etapas.length} stops · ${etapas.map((e) => e.nombre).join(" → ")}` : etapas.map((e) => e.nombre).join(", ") || "Not set",
-    transporte: viaje.transporte.length > 0 ? `${viaje.transporte.length} leg(s)` : "Not set",
-    alojamiento: alojamientoElegido ? alojamientoElegido.nombre : "Not chosen",
     actividades:
       numActividadesDisponibles > 0
         ? `${numActividadesEnMarcha} en marcha · ${numActividadesDisponibles} disponibles`
         : `${numActividadesEnMarcha} en marcha`,
-    guia: "GPS + audio about the place",
-    vault: viaje.documentos.length > 0 ? `${viaje.documentos.length} document(s)` : "Empty",
-    souvenirs: "Shopping tips",
-    compartido: viaje.participantes.length > 0 ? `${viaje.participantes.length} participant(s)` : "Just you",
-    recuerdos: viaje.recuerdos.length > 0 ? `${viaje.recuerdos.length} moment(s)` : "No moments yet",
-    resolver: "Emergencies and contacts",
-    imprimir: "Itinerary + bookings as a PDF",
+    guia: "Historias y datos por GPS",
+    transporte: viaje.transporte.length > 0 ? `${viaje.transporte.length} tramo(s)` : "Añade tus trayectos",
+    alojamiento: alojamientoElegido ? alojamientoElegido.nombre : "Sin elegir",
+    vault: viaje.documentos.length > 0 ? `${viaje.documentos.length} documento(s)` : "Guarda reservas y archivos",
+    recuerdos: viaje.recuerdos.length > 0 ? `${viaje.recuerdos.length} recuerdo(s)` : "Aún no hay recuerdos",
+    souvenirs: "Ideas locales para llevar",
+    compartido: viaje.participantes.length > 0 ? `${viaje.participantes.length} viajero(s) añadido(s)` : "Participantes del viaje",
   };
 
   function borrarViaje() {
@@ -107,7 +98,7 @@ export default function ViajeDetallePage() {
         )}
 
         <section className="mb-6">
-          <h2 className="mb-4 font-medium">Trip sections</h2>
+          <h2 className="mb-4 font-medium">Secciones del viaje</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {SECCIONES.map((s) => (
               <Link
