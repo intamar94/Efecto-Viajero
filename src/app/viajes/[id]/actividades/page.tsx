@@ -66,39 +66,6 @@ const ETIQUETA_CATEGORIA: Record<CategoriaActividad, { etiqueta: string; icono: 
   otro: { etiqueta: "Más ideas", icono: "✨" },
 };
 
-// Frase de búsqueda real para cuando OpenStreetMap no tiene NADA mapeado
-// de esta categoría en la ciudad (pasa sobre todo con vida nocturna: los
-// bares/discotecas reales rara vez están bien etiquetados en OSM fuera de
-// las grandes capitales). En vez de resignarse a la idea genérica del
-// catálogo, se prueba una búsqueda web real con el mismo buscador que ya
-// se usa por sitio — así Cali (famosa por su vida nocturna) puede mostrar
-// discotecas reales encontradas en blogs, en vez de solo "idea orientativa".
-const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
-  museo: "best museums",
-  parque: "must-see parks",
-  restaurante: "best traditional local restaurants",
-  cine_teatro: "cinemas and theatres",
-  discoteca: "best nightclubs and bars",
-  compras: "best places to shop",
-  naturaleza: "nature and hiking trails",
-  playa: "best beaches",
-  pueblos: "nearby villages worth visiting",
-  aventura: "adventure sports and adrenaline",
-  bienestar: "hot springs and spa",
-  todos: "things to do for the whole family",
-  experiencias: "local tours and experiences",
-  eventos: "concerts, festivals and events",
-  espiritual: "churches, shrines and pilgrimage sites",
-  fauna: "birdwatching and wildlife spotting",
-  astronomia: "observatories and where to see the stars",
-  ciencia: "libraries and science centres",
-  arte_urbano: "street art and murals",
-  memoria: "memorials and places with history",
-  industrial: "lighthouses, visitable mines and historic trains",
-  nautica: "diving, boat rental, marinas and fishing spots",
-  otro: "recommended things to do",
-};
-
 // Un punto de referencia real ("~800 m del centro") ayuda mucho más que
 // una dirección suelta a decidir si vale la pena ir — pero solo cuando de
 // verdad sabemos dónde está el centro de la ciudad (etapa.lat/lon, que se
@@ -167,6 +134,10 @@ function fichaUtil(it: Item): boolean {
   if (it.esPropia) return true;
   const descripcion = it.descripcion.trim();
   const soloEtiqueta = /^(restaurant|café|fast food|museum|gallery|attraction|viewpoint|park|nature reserve|beach|waterfall|monument|memorial|castle|ruins|archaeological site|pub|nightclub|market|city|pueblo|municipio)\.?$/i;
+  // Una reseña enciclopédica que solo identifica un municipio no ayuda a
+  // decidir una escapada. Exigimos alguna pista turística concreta antes
+  // de recomendar un pueblo como plan.
+  if (it.categoria === "pueblos" && !/turis|termal|termas|balneario|parque|cascad|avistamiento|café|cafetal|montañ|paisaj|aventur|río|rio|bosque|patrimonio|arquitect|festival|reserva|sender|valle|canyon|waterfall|hot spring|coffee|landscape|adventure|heritage/i.test(descripcion)) return false;
   return (descripcion.length >= 65 && !soloEtiqueta.test(descripcion)) || Boolean(
     it.horario || it.notaPrecio || it.especialidad || it.sendero || it.accesible || it.cocinaLocal
   );
@@ -521,7 +492,7 @@ export default function ActividadesPage() {
             huboCambios = true;
             siguiente = {
               ...siguiente,
-              resumenWikipedia: resumen?.extracto ?? "",
+              resumenWikipedia: resumen?.extracto ? await traducirAlEspanol(resumen.extracto) : "",
               // La foto viene en la MISMA respuesta que el resumen: se
               // guarda aquí para no pedirla aparte.
               imagen: resumen?.imagen ?? "",
