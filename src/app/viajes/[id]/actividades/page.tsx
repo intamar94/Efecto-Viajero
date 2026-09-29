@@ -146,6 +146,7 @@ function descripcionDeSitio(s: SitioReal): string {
 // gastronomía").
 const DESEO_CATEGORIA: Partial<Record<CategoriaActividad, string>> = {
   museo: "su patrimonio cultural",
+  parque: "sus parques y paseos",
   restaurante: "su gastronomía",
   cine_teatro: "su escena cultural",
   discoteca: "su vida nocturna",
@@ -153,11 +154,25 @@ const DESEO_CATEGORIA: Partial<Record<CategoriaActividad, string>> = {
   naturaleza: "su naturaleza",
   playa: "sus playas",
   pueblos: "los pueblos de alrededor",
+  aventura: "sus deportes y aventuras",
+  bienestar: "sus espacios de bienestar",
+  todos: "sus planes para todas las edades",
+  experiencias: "la vida que hacen sus habitantes",
+  eventos: "sus eventos y conciertos",
+  espiritual: "sus espacios espirituales y religiosos",
+  fauna: "sus aves y fauna local",
+  astronomia: "sus cielos y lugares para observar estrellas",
+  ciencia: "sus espacios de ciencia y lectura",
+  arte_urbano: "su arte urbano",
+  memoria: "su historia y memoria",
+  industrial: "su patrimonio industrial",
+  nautica: "sus actividades en el agua",
+  otro: "sus propuestas para descubrir",
 };
 
 function fraseDeseo(categorias: CategoriaActividad[]): string {
   const frases = categorias.map((c) => DESEO_CATEGORIA[c]).filter((f): f is string => Boolean(f));
-  if (frases.length === 0) return "everything it has to discover";
+  if (frases.length === 0) return "todo lo que ofrece la ciudad";
   if (frases.length === 1) return frases[0];
   return `${frases.slice(0, -1).join(", ")} y ${frases[frases.length - 1]}`;
 }
