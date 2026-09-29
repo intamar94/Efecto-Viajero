@@ -21,7 +21,7 @@ import { acortarTexto } from "@/lib/texto";
 import { traducirAlEspanol } from "@/lib/traduccion";
 import { refrescarAnalisis } from "@/lib/viajes/refrescar-analisis";
 import { VERSION_INVESTIGACION, VERSION_ENRIQUECIMIENTO_SITIO, esCadenaConocida, type Investigacion, type SitioReal } from "@/lib/investigacion";
-import { comparadorPorInteres, coincideConInteres, PERFILES_INTERES } from "@/lib/perfilInteres";
+import { coincideConInteres, PERFILES_INTERES } from "@/lib/perfilInteres";
 import type { ActividadDestino, CategoriaActividad, EstadoActividad, Etapa } from "@/lib/types";
 
 const ETIQUETA_ESTADO: Record<EstadoActividad, string> = {
@@ -137,31 +137,24 @@ function descripcionDeSitio(s: SitioReal): string {
   return base;
 }
 
-const ORDEN_CATEGORIAS: CategoriaActividad[] = [
-  "naturaleza",
-  "museo",
-  "discoteca",
-  "restaurante",
-  "fauna",
-  "aventura",
-  "parque",
-  "experiencias",
-  "cine_teatro",
-  "eventos",
-  "espiritual",
-  "todos",
-  "memoria",
-  "arte_urbano",
-  "compras",
-  "playa",
-  "pueblos",
-  "bienestar",
-  "astronomia",
-  "ciencia",
-  "industrial",
-  "nautica",
-  "otro",
+// La interfaz presenta temas amplios para no obligar al viajero a elegir
+// entre subcategorías que describen la misma clase de plan. Internamente
+// cada resultado conserva su categoría precisa para filtros y datos.
+const GRUPOS_CATEGORIA: { id: string; etiqueta: string; icono: string; categorias: CategoriaActividad[] }[] = [
+  { id: "naturaleza", etiqueta: "Naturaleza, parques y fauna", icono: "🌿", categorias: ["naturaleza", "parque", "fauna", "playa", "nautica"] },
+  { id: "aventura", etiqueta: "Aventura y deportes", icono: "🪂", categorias: ["aventura"] },
+  { id: "sabores", etiqueta: "Sabores y vida local", icono: "🍲", categorias: ["restaurante", "experiencias", "compras"] },
+  { id: "cultura", etiqueta: "Cultura e historia", icono: "🏛️", categorias: ["museo", "memoria", "arte_urbano", "industrial", "ciencia"] },
+  { id: "ocio", etiqueta: "Espectáculos y vida nocturna", icono: "🎭", categorias: ["cine_teatro", "discoteca", "eventos"] },
+  { id: "espiritualidad", etiqueta: "Espiritualidad y lugares sagrados", icono: "🕊️", categorias: ["espiritual"] },
+  { id: "familia", etiqueta: "Planes para todas las edades", icono: "🎡", categorias: ["todos"] },
+  { id: "escapadas", etiqueta: "Pueblos y escapadas", icono: "🏘️", categorias: ["pueblos"] },
+  { id: "bienestar", etiqueta: "Bienestar y descanso", icono: "💆", categorias: ["bienestar"] },
+  { id: "cielos", etiqueta: "Astronomía y cielos", icono: "🔭", categorias: ["astronomia"] },
+  { id: "otras", etiqueta: "Otras experiencias", icono: "✨", categorias: ["otro"] },
 ];
+
+const ORDEN_CATEGORIAS: CategoriaActividad[] = GRUPOS_CATEGORIA.flatMap((grupo) => grupo.categorias);
 
 // "sleep" (alojamiento) no cuenta aquí: eso ya lo cubre la sección de
 // Alojamiento, no tiene sentido como "actividad".
@@ -747,28 +740,24 @@ export default function ActividadesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viaje?.id, viaje?.investigacion?.version]);
 
-  // Cuando la persona filtra por una sola categoría y ESA categoría no
-  // tiene ni un solo sitio real de OpenStreetMap en esta ciudad (el caso
-  // de "Fiesta" en ciudades donde OSM no tiene bien mapeada la vida
-  // nocturna), en vez de resignarse a la idea genérica del catálogo se
-  // prueba una búsqueda web real — el mismo buscador ya usado por sitio.
-  // Solo se dispara cuando el usuario de verdad filtró a una categoría
-  // (no en cada carga de página): evita búsquedas de más para categorías
-  // que nadie está mirando.
+  // Si el tema elegido no tiene lugares reales mapeados en la ciudad,
+  // buscar una alternativa web para ese tema amplio.
   useEffect(() => {
     if (!viaje) return;
     let cancelado = false;
     (async () => {
       for (const etapa of etapasDe(viaje)) {
         const categorias = categoriasBuscadasPorEtapa[etapa.id];
-        if (!categorias || categorias.length !== 1) continue;
-        const categoria = categorias[0];
-        const clave = `${etapa.id}:${categoria}`;
+        if (!categorias) continue;
+        const grupo = GRUPOS_CATEGORIA.find((g) => g.categorias.length === categorias.length && g.categorias.every((c) => categorias.includes(c)));
+        if (!grupo) continue;
+        const clave = `${etapa.id}:grupo:${grupo.id}`;
         if (busquedaWebCategoria[clave] !== undefined) continue;
-        const sitiosDeCategoria = (viaje.investigacion?.sitios?.[etapa.nombre] ?? []).filter((s) => s.categoria === categoria);
-        if (sitiosDeCategoria.length > 0) continue;
+        const sitiosDelGrupo = (viaje.investigacion?.sitios?.[etapa.nombre] ?? []).filter((s) => grupo.categorias.includes(s.categoria));
+        if (sitiosDelGrupo.length > 0) continue;
         setBusquedaWebCategoria((prev) => ({ ...prev, [clave]: "cargando" }));
-        const consulta = `${CONSULTA_WEB_CATEGORIA[categoria]} in ${etapa.nombre}`;
+        const consultas = grupo.categorias.map((c) => CONSULTA_WEB_CATEGORIA[c]).join(" ");
+        const consulta = `${consultas} in ${etapa.nombre}`;
         const resultados = await buscarEnLaWeb(consulta);
         if (cancelado) return;
         setBusquedaWebCategoria((prev) => ({ ...prev, [clave]: resultados.length > 0 ? resultados : "sin_datos" }));
@@ -1267,7 +1256,10 @@ export default function ActividadesPage() {
             // búsqueda todavía no haya encontrado lugares para esa ciudad.
             // Así se puede explorar turismo especializado (aves, astronomía,
             // espiritualidad, eventos) sin depender del catálogo inicial.
-            const categoriasDisponibles = [...ORDEN_CATEGORIAS].sort(comparadorPorInteres((c) => c, viaje.contexto.perfilInteres));
+            const categoriasDisponibles = [...GRUPOS_CATEGORIA].sort((a, b) =>
+              Number(b.categorias.some((c) => coincideConInteres(c, viaje.contexto.perfilInteres))) -
+              Number(a.categorias.some((c) => coincideConInteres(c, viaje.contexto.perfilInteres)))
+            );
 
             // El viajero decide qué mirar tocando una caja: nada se
             // preselecciona a partir de lo que escribió al crear el
@@ -1278,6 +1270,9 @@ export default function ActividadesPage() {
             // arranca sin filtro: todas las cajas están visibles y el
             // contenido de abajo se llena solo cuando se toca una.
             const categoriasBuscadas = categoriasBuscadasPorEtapa[etapa.id] ?? null;
+            const grupoSeleccionado = categoriasBuscadas
+              ? GRUPOS_CATEGORIA.find((g) => g.categorias.length === categoriasBuscadas.length && g.categorias.every((c) => categoriasBuscadas.includes(c)))
+              : undefined;
             const resultadosBusqueda = categoriasBuscadas
               ? categoriasBuscadas.flatMap((cat) => items.filter((it) => it.categoria === cat))
               : [];
@@ -1359,27 +1354,25 @@ export default function ActividadesPage() {
                             // veía encendida — parecía que la ciudad solo
                             // tenía dos sitios, en vez de que estábamos
                             // mostrando justo lo que se pidió.
-                            const activo = categoriasBuscadas !== null && categoriasBuscadas.includes(c);
+                            const activo = grupoSeleccionado?.id === c.id;
                             return (
                               <button
-                                key={c}
+                                key={c.id}
                                 type="button"
                                 // Tocar la única caja encendida quita el filtro;
                                 // tocar cualquier otra (o una de varias) filtra
                                 // a esa sola, que es lo que se espera al tocarla.
-                                onClick={() =>
-                                  setCategoriasBuscadasPorEtapa((prev) => ({
-                                    ...prev,
-                                    [etapa.id]: activo && categoriasBuscadas!.length === 1 ? null : [c],
-                                  }))
-                                }
+                                onClick={() => setCategoriasBuscadasPorEtapa((prev) => ({
+                                  ...prev,
+                                  [etapa.id]: activo ? null : c.categorias,
+                                }))}
                                 className={`flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-center transition ${
                                   activo ? "border-coral-300 bg-coral-50 ring-1 ring-coral-200" : "border-neutral-200 bg-white hover:border-marino-300 hover:bg-marino-50"
                                 }`}
                               >
-                                <span className="text-xl">{ETIQUETA_CATEGORIA[c].icono}</span>
+                                <span className="text-xl">{c.icono}</span>
                                 <span className={`text-[11px] font-medium leading-tight ${activo ? "text-coral-700" : "text-neutral-600"}`}>
-                                  {ETIQUETA_CATEGORIA[c].etiqueta}
+                                  {c.etiqueta}
                                 </span>
                               </button>
                             );
@@ -1398,7 +1391,7 @@ export default function ActividadesPage() {
                         <span>
                           Mostrando:{" "}
                           <span className="font-medium">
-                            {categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta.toLowerCase()).join(" y ")}
+                            {grupoSeleccionado?.etiqueta.toLowerCase() ?? categoriasBuscadas.map((c) => ETIQUETA_CATEGORIA[c].etiqueta.toLowerCase()).join(" y ")}
                           </span>
                           .
                         </span>
@@ -1420,11 +1413,10 @@ export default function ActividadesPage() {
                     )}
 
                     {categoriasBuscadas !== null &&
-                      categoriasBuscadas.length === 1 &&
+                      grupoSeleccionado &&
                       !resultadosBusqueda.some((it) => it.esSitioReal) &&
                       (() => {
-                        const categoria = categoriasBuscadas[0];
-                        const estado = busquedaWebCategoria[`${etapa.id}:${categoria}`];
+                        const estado = busquedaWebCategoria[`${etapa.id}:grupo:${grupoSeleccionado.id}`];
                         if (!estado || estado === "sin_datos") return null;
                         if (estado === "cargando") {
                           return (
@@ -1481,9 +1473,9 @@ export default function ActividadesPage() {
                           <input type="number" min="0" className="input text-sm" placeholder="Coste estimado (€)" value={costeNueva} onChange={(e) => setCosteNueva(e.target.value)} />
                         </div>
                         <select className="input text-sm" value={categoriaNueva} onChange={(e) => setCategoriaNueva(e.target.value as CategoriaActividad)}>
-                          {ORDEN_CATEGORIAS.map((c) => (
-                            <option key={c} value={c}>
-                              {ETIQUETA_CATEGORIA[c].icono} {ETIQUETA_CATEGORIA[c].etiqueta}
+                          {GRUPOS_CATEGORIA.map((g) => (
+                            <option key={g.id} value={g.categorias[0]}>
+                              {g.icono} {g.etiqueta}
                             </option>
                           ))}
                         </select>
