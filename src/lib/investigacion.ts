@@ -22,7 +22,7 @@ import { distanciaMetros } from "./geoAudio";
 // inglés en vez de dejarlo en español): un resumen ya guardado en
 // español bajo una versión anterior se vuelve a pedir en vez de quedarse
 // sin traducir para siempre.
-export const VERSION_ENRIQUECIMIENTO_SITIO = 6;
+export const VERSION_ENRIQUECIMIENTO_SITIO = 7;
 
 export interface SitioReal {
   nombre: string;
@@ -581,7 +581,7 @@ function categoriaDeTags(tags: Record<string, string> = {}, dominio: string): Ca
 // importan para planear una visita) y se traducen las abreviaturas al
 // español; las excepciones por fecha puntual se descartan en vez de
 // mostrarse a medias.
-const DIA_ES: Record<string, string> = { Mo: "Mon", Tu: "Tue", We: "Wed", Th: "Thu", Fr: "Fri", Sa: "Sat", Su: "Sun" };
+const DIA_ES: Record<string, string> = { Mo: "Lu", Tu: "Ma", We: "Mi", Th: "Ju", Fr: "Vi", Sa: "Sá", Su: "Do" };
 
 function formatearHorario(raw: string): string | undefined {
   const clausulas = raw.split(";").map((c) => c.trim()).filter(Boolean);
@@ -605,7 +605,7 @@ function webDe(tags: Record<string, string> = {}): string | undefined {
 }
 function precioDe(tags: Record<string, string> = {}): string | undefined {
   if (tags.charge) return tags.charge;
-  if (tags.fee === "no") return "Free";
+  if (tags.fee === "no") return "Gratis";
   return undefined;
 }
 
@@ -615,40 +615,40 @@ function precioDe(tags: Record<string, string> = {}): string | undefined {
 // ";". Solo se traducen las que se entienden sin contexto; el resto se
 // descarta en vez de mostrar la clave cruda.
 const CUISINE_ES: Record<string, string> = {
-  colombian: "Colombian",
+  colombian: "colombiana",
   regional: "regional",
   local: "local",
-  latin_american: "Latin American",
-  international: "international",
-  grill: "grill",
-  steak_house: "steakhouse",
-  seafood: "seafood",
-  fish: "fish",
-  vegetarian: "vegetarian",
-  vegan: "vegan",
+  latin_american: "latinoamericana",
+  international: "internacional",
+  grill: "parrilla",
+  steak_house: "carnes",
+  seafood: "mariscos",
+  fish: "pescados",
+  vegetarian: "vegetariana",
+  vegan: "vegana",
   pizza: "pizza",
-  italian: "Italian",
-  mexican: "Mexican",
-  peruvian: "Peruvian",
-  argentinian: "Argentinian",
-  venezuelan: "Venezuelan",
-  spanish: "Spanish",
-  french: "French",
-  chinese: "Chinese",
-  japanese: "Japanese",
+  italian: "italiana",
+  mexican: "mexicana",
+  peruvian: "peruana",
+  argentinian: "argentina",
+  venezuelan: "venezolana",
+  spanish: "española",
+  french: "francesa",
+  chinese: "china",
+  japanese: "japonesa",
   sushi: "sushi",
-  asian: "Asian",
-  thai: "Thai",
-  indian: "Indian",
-  american: "American",
+  asian: "asiática",
+  thai: "tailandesa",
+  indian: "india",
+  american: "estadounidense",
   burger: "burgers",
-  chicken: "chicken",
-  sandwich: "sandwiches",
-  breakfast: "breakfast",
-  coffee_shop: "coffee shop",
-  bakery: "bakery",
-  dessert: "desserts",
-  ice_cream: "ice cream",
+  chicken: "pollo",
+  sandwich: "sándwiches",
+  breakfast: "desayunos",
+  coffee_shop: "café",
+  bakery: "panadería",
+  dessert: "postres",
+  ice_cream: "helados",
   arepa: "arepas",
   empanada: "empanadas",
 };

@@ -7,12 +7,11 @@ import { ViajeToolsNav } from "@/components/ViajeToolsNav";
 import { EventosEstacionalesDestino } from "@/components/EventosEstacionalesDestino";
 import { useData } from "@/lib/store";
 import { generarId } from "@/lib/id";
-import { actividadesDe, urlBuscarActividad, urlMapsActividad, platosTipicosDe } from "@/lib/catalogo";
-import { destinoParaCatalogo, destinoPrincipal, etapasDe, paisDeEtapa } from "@/lib/viaje";
+import { destinoPrincipal, etapasDe, paisDeEtapa } from "@/lib/viaje";
 import { obtenerGuiaWikivoyage, VERSION_WIKIVOYAGE, type TipoListingWikivoyage } from "@/lib/wikivoyage";
 import { obtenerResumenLugar, obtenerResumenSitio, type ResumenWikipedia } from "@/lib/wikipedia";
 import { entornoCercanoDe } from "@/lib/entornoCercano";
-import { buscarEnLaWeb, describirResultadoWeb, type ResultadoBusquedaWeb } from "@/lib/busquedaWeb";
+import { buscarEnLaWeb, describirResultadoWeb } from "@/lib/busquedaWeb";
 import { enriquecerLugar, hayFuentesComerciales } from "@/lib/enriquecimiento";
 import { descubrirLugaresCercanos, VERSION_DESCUBRIMIENTO } from "@/lib/descubrimientoWikidata";
 import { resolveDestination } from "@/lib/travelBrain/destinationResolver";
@@ -108,8 +107,8 @@ const CONSULTA_WEB_CATEGORIA: Record<CategoriaActividad, string> = {
 function distanciaDelCentro(etapa: Etapa, lat?: number, lon?: number): string | undefined {
   if (etapa.lat === undefined || etapa.lon === undefined || lat === undefined || lon === undefined) return undefined;
   const metros = distanciaMetros(etapa.lat, etapa.lon, lat, lon);
-  if (metros < 150) return "In the centre";
-  return `${formatearDistancia(metros)} from the centre`;
+  if (metros < 150) return "En el centro";
+  return `A ${formatearDistancia(metros)} del centro`;
 }
 
 // Prioridad de fuentes para describir un sitio real, de la más a la
@@ -125,17 +124,52 @@ function distanciaDelCentro(etapa: Etapa, lat?: number, lon?: number): string | 
 // sitios reales, ver el comentario donde se usa.
 const PARECE_EVENTO = /\b(festival|feria|carnaval|bienal|maratón|maraton|concurso|congreso|cumbre|mundial de|copa (mundial|américa|america)|semana santa|temporada de)\b/i;
 
+const DETALLE_ES: Record<string, string> = {
+  restaurant: "Restaurante", café: "Cafetería", "fast food": "Comida rápida", bar: "Bar", museum: "Museo", gallery: "Galería",
+  attraction: "Atracción", viewpoint: "Mirador", park: "Parque", "nature reserve": "Reserva natural", beach: "Playa",
+  waterfall: "Cascada", artwork: "Obra de arte", monument: "Monumento", memorial: "Memorial", castle: "Castillo", ruins: "Ruinas",
+  "archaeological site": "Yacimiento arqueológico", pub: "Pub", nightclub: "Discoteca", "beer garden": "Terraza cervecera",
+  "gift shop": "Tienda de regalos", "souvenir shop": "Tienda de recuerdos", crafts: "Artesanía", "art gallery": "Galería de arte",
+  deli: "Tienda gourmet", "hot spring": "Aguas termales", "theme park": "Parque temático", "water park": "Parque acuático",
+  aquarium: "Acuario", zoo: "Zoológico", spa: "Spa", sauna: "Sauna", "thermal baths": "Baños termales", "horse riding": "Equitación",
+  "adventure park": "Parque de aventura", "sports centre": "Centro deportivo", fishing: "Pesca", winery: "Bodega", brewery: "Cervecería",
+  distillery: "Destilería", market: "Mercado", farm: "Finca", campsite: "Camping", "picnic area": "Zona de pícnic", spring: "Manantial",
+  peak: "Cumbre", cave: "Cueva", garden: "Jardín", "swimming pool": "Piscina", "swimming area": "Zona de baño", bowling: "Bolera",
+  "ice rink": "Pista de hielo", minigolf: "Minigolf", planetarium: "Planetario", "place of worship": "Lugar de culto", monastery: "Monasterio",
+  shrine: "Santuario", "events venue": "Recinto de eventos", "conference centre": "Centro de convenciones", stadium: "Estadio",
+  observatory: "Observatorio", library: "Biblioteca", lighthouse: "Faro", mine: "Mina", vineyard: "Viñedo", "spa resort": "Complejo termal",
+  "national park": "Parque nacional", "protected area": "Área protegida", mountain: "Montaña", volcano: "Volcán", lake: "Lago", river: "Río",
+  island: "Isla", valley: "Valle", port: "Puerto", "botanical garden": "Jardín botánico", "tourist attraction": "Lugar de interés",
+  "visitable mine": "Mina visitable", "art museum": "Museo de arte", "memorial monument": "Monumento conmemorativo", city: "Ciudad",
+  pueblo: "Pueblo", municipio: "Municipio", climbing: "Escalada", paragliding: "Parapente", "hang gliding": "Ala delta", rafting: "Rafting",
+  canyoning: "Barranquismo", surfing: "Surf", "scuba diving": "Buceo", kitesurfing: "Kitesurf", "kayak / canoe": "Kayak o canoa",
+  cycling: "Ciclismo", caving: "Espeleología", "quad biking": "Rutas en quad", "bungee jumping": "Puenting", "hot air ballooning": "Vuelo en globo",
+  skiing: "Esquí", "free flying": "Vuelo libre", snorkelling: "Esnórquel", diving: "Buceo", sailing: "Vela", rowing: "Remo",
+  "boat rental": "Alquiler de embarcaciones", "houseboat rental": "Alquiler de casa flotante", mural: "Mural", graffiti: "Grafiti",
+  "watermill": "Molino de agua", "windmill": "Molino de viento",
+};
+
 function descripcionDeSitio(s: SitioReal): string {
   if (s.resumenWikipedia) return s.resumenWikipedia;
   // La cocina real (cuando OpenStreetMap la trae etiquetada) es justo lo
   // que hace falta para decidir un restaurante — "Restaurante." solo no
   // dice si es de carnes, mariscos o comida colombiana. Se suma a la
   // categoría base, nunca se inventa si el dato no está.
-  const categoriaLabel = s.detalle ? `${s.detalle[0].toUpperCase()}${s.detalle.slice(1)}.` : "Nearby place.";
-  const base = s.cocina ? `${categoriaLabel} Cocina: ${s.cocina}.` : categoriaLabel;
+  const detalle = s.detalle ? DETALLE_ES[s.detalle.toLowerCase()] ?? s.detalle : "";
+  const categoriaLabel = detalle ? `${detalle}.` : "";
+  const base = s.cocina ? `${categoriaLabel} Especialidad: ${s.cocina}.` : categoriaLabel;
   if (s.entornoCercano) return `${base} ${s.entornoCercano}`;
   if (s.resumenWeb) return `${base} ${s.resumenWeb}`;
   return base;
+}
+
+function fichaUtil(it: Item): boolean {
+  if (it.esPropia) return true;
+  const descripcion = it.descripcion.trim();
+  const soloEtiqueta = /^(restaurant|café|fast food|museum|gallery|attraction|viewpoint|park|nature reserve|beach|waterfall|monument|memorial|castle|ruins|archaeological site|pub|nightclub|market|city|pueblo|municipio)\.?$/i;
+  return (descripcion.length >= 65 && !soloEtiqueta.test(descripcion)) || Boolean(
+    it.horario || it.notaPrecio || it.especialidad || it.sendero || it.accesible || it.cocinaLocal
+  );
 }
 
 // La interfaz presenta temas amplios para no obligar al viajero a elegir
@@ -144,9 +178,12 @@ function descripcionDeSitio(s: SitioReal): string {
 const GRUPOS_CATEGORIA: { id: string; etiqueta: string; icono: string; categorias: CategoriaActividad[] }[] = [
   { id: "naturaleza", etiqueta: "Naturaleza, parques y fauna", icono: "🌿", categorias: ["naturaleza", "parque", "fauna", "playa", "nautica"] },
   { id: "aventura", etiqueta: "Aventura y deportes", icono: "🪂", categorias: ["aventura"] },
-  { id: "sabores", etiqueta: "Sabores y vida local", icono: "🍲", categorias: ["restaurante", "experiencias", "compras"] },
+  { id: "sabores", etiqueta: "Gastronomía local", icono: "🍲", categorias: ["restaurante"] },
+  { id: "vida-local", etiqueta: "Vida local y mercados", icono: "🧺", categorias: ["experiencias"] },
+  { id: "compras", etiqueta: "Artesanía y compras", icono: "🛍️", categorias: ["compras"] },
   { id: "cultura", etiqueta: "Cultura e historia", icono: "🏛️", categorias: ["museo", "memoria", "arte_urbano", "industrial", "ciencia"] },
-  { id: "ocio", etiqueta: "Espectáculos y vida nocturna", icono: "🎭", categorias: ["cine_teatro", "discoteca", "eventos"] },
+  { id: "espectaculos", etiqueta: "Cine, teatro y festivales", icono: "🎭", categorias: ["cine_teatro", "eventos"] },
+  { id: "noche", etiqueta: "Vida nocturna", icono: "🌙", categorias: ["discoteca"] },
   { id: "espiritualidad", etiqueta: "Espiritualidad y lugares sagrados", icono: "🕊️", categorias: ["espiritual"] },
   { id: "familia", etiqueta: "Planes para todas las edades", icono: "🎡", categorias: ["todos"] },
   { id: "escapadas", etiqueta: "Pueblos y escapadas", icono: "🏘️", categorias: ["pueblos"] },
@@ -245,13 +282,8 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
 
       <div className="mt-2 flex flex-wrap gap-1.5">
         {it.duracionHoras > 0 && <span className="chip">⏱️ {it.duracionHoras}h</span>}
-        {it.notaPrecio ? (
-          <span className="chip">💵 {it.notaPrecio}</span>
-        ) : it.esSitioReal ? (
-          <span className="chip">💵 Consultar precio</span>
-        ) : (
-          <span className="chip">{it.costeEstimado > 0 ? `💵 ${it.costeEstimado}€` : "🆓 Gratis"}</span>
-        )}
+        {it.notaPrecio && <span className="chip">💵 {it.notaPrecio}</span>}
+        {!it.esSitioReal && it.costeEstimado > 0 && <span className="chip">💵 {it.costeEstimado}€</span>}
         {it.admiteMascotas && <span className="chip">🐾 Admite mascotas</span>}
         {/* Solo cuando OpenStreetMap lo dice de verdad: sin etiqueta no
             se muestra nada, porque "no sabemos" no es "no accesible". */}
@@ -271,65 +303,19 @@ function TarjetaActividad({ it, estado, onCambiarEstado }: { it: Item; estado: E
 
       {it.especialidad && <p className="mt-1.5 text-xs text-neutral-600">🍴 Especialidad: {it.especialidad}</p>}
 
-      {(it.descripcionCompleta && it.descripcionCompleta !== it.descripcion || it.fuenteLecturaUrl) && (
+      {it.descripcionCompleta && it.descripcionCompleta !== it.descripcion && (
         <details className="mt-2 rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <summary className="cursor-pointer text-xs font-medium text-marino-700">Leer más sobre este lugar</summary>
-          {it.descripcionCompleta && it.descripcionCompleta !== it.descripcion && (
-            <p className="mt-2 text-sm leading-relaxed text-neutral-700">{it.descripcionCompleta}</p>
-          )}
-          {it.fuenteLecturaUrl && (
-            <a href={it.fuenteLecturaUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs text-marino-700 underline">
-              Abrir artículo completo{it.fuenteLecturaNombre ? ` (${it.fuenteLecturaNombre})` : ""}
-            </a>
-          )}
+          <summary className="cursor-pointer text-xs font-medium text-marino-700">Más información del lugar</summary>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-700">{it.descripcionCompleta}</p>
         </details>
-      )}
-
-      {it.esGenerica && (
-        <p className="mt-2 text-xs text-amber-700">
-          💡 Idea orientativa, no es un lugar concreto. El coste es una estimación.
-        </p>
       )}
 
       {it.direccion && <p className="mt-2 text-xs text-neutral-500">📍 {it.direccion}</p>}
 
       {it.consejo && <p className="mt-2 text-xs text-neutral-500">💡 {it.consejo}</p>}
 
-      {/* Antes solo se mostraba para el catálogo genérico (esSitioReal
-          false): un restaurante REAL encontrado en OpenStreetMap se
-          quedaba sin ninguna sugerencia de qué pedir, que es justo el
-          dato que más se pidió — un plato típico real no depende de si
-          el restaurante en sí es genérico o real, así que se muestra
-          para los dos. */}
-      {it.categoria === "restaurante" && it.pais && platosTipicosDe(it.pais, it.etapaNombre).length > 0 && (
-        <div className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2">
-          <p className="text-xs font-medium text-amber-800">🍴 Platos locales para probar:</p>
-          <ul className="mt-1 space-y-0.5 text-xs text-amber-700">
-            {platosTipicosDe(it.pais, it.etapaNombre).map((s) => (
-              <li key={s.id}>
-                <span className="font-medium">{s.nombre}</span> — {s.descripcion}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       <div className="mt-2.5 flex flex-wrap gap-2">
-        {/* Para una idea genérica (sin lugar real detrás) no se ofrece un
-            "buscar en Google" ni un mapa de búsqueda: eso es mandar al
-            usuario a averiguarlo por su cuenta en vez de darle información
-            completa. Mapa y web solo aparecen cuando hay un lugar real. */}
-        {!it.esGenerica && it.mapaUrl && (
-          <a href={it.mapaUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:border-marino-500">
-            📍 Ver en el mapa
-          </a>
-        )}
-        {!it.esGenerica && it.webUrl && it.webEsDirecta && (
-          <a href={it.webUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-lg bg-marino-50 border border-marino-200 text-marino-700 hover:bg-marino-100">
-            🔗 Sitio web
-          </a>
-        )}
-            {estado === "disponible" && (
+        {estado === "disponible" && (
           <button onClick={() => onCambiarEstado("planificada")} className="btn-primary px-3 py-1.5 text-sm shadow-none">
             + Añadir al itinerario
           </button>
@@ -381,10 +367,6 @@ export default function ActividadesPage() {
   const [resumenCiudad, setResumenCiudad] = useState<Record<string, ResumenWikipedia | "cargando" | "sin_datos">>({});
   // Por ciudad: qué categoría está seleccionada, si alguna.
   const [categoriasBuscadasPorEtapa, setCategoriasBuscadasPorEtapa] = useState<Record<string, CategoriaActividad[] | null>>({});
-  // Por ciudad+categoría (clave "etapaId:categoria"): resultado de la
-  // búsqueda web de respaldo, solo para cuando esa categoría no tiene
-  // NINGÚN sitio real de OpenStreetMap en esta ciudad.
-  const [busquedaWebCategoria, setBusquedaWebCategoria] = useState<Record<string, ResultadoBusquedaWeb[] | "cargando" | "sin_datos">>({});
 
   // Investigación bajo demanda: al abrir Actividades, se busca la guía
   // Wikivoyage de cada ciudad que aún no la tenga guardada. Una sola vez
@@ -769,35 +751,6 @@ export default function ActividadesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viaje?.id, viaje?.investigacion?.version]);
 
-  // Si el tema elegido no tiene lugares reales mapeados en la ciudad,
-  // buscar una alternativa web para ese tema amplio.
-  useEffect(() => {
-    if (!viaje) return;
-    let cancelado = false;
-    (async () => {
-      for (const etapa of etapasDe(viaje)) {
-        const categorias = categoriasBuscadasPorEtapa[etapa.id];
-        if (!categorias) continue;
-        const grupo = GRUPOS_CATEGORIA.find((g) => g.categorias.length === categorias.length && g.categorias.every((c) => categorias.includes(c)));
-        if (!grupo) continue;
-        const clave = `${etapa.id}:grupo:${grupo.id}`;
-        if (busquedaWebCategoria[clave] !== undefined) continue;
-        const sitiosDelGrupo = (viaje.investigacion?.sitios?.[etapa.nombre] ?? []).filter((s) => grupo.categorias.includes(s.categoria));
-        if (sitiosDelGrupo.length > 0) continue;
-        setBusquedaWebCategoria((prev) => ({ ...prev, [clave]: "cargando" }));
-        const consultas = grupo.categorias.map((c) => CONSULTA_WEB_CATEGORIA[c]).join(" ");
-        const consulta = `${consultas} in ${etapa.nombre}`;
-        const resultados = await buscarEnLaWeb(consulta);
-        if (cancelado) return;
-        setBusquedaWebCategoria((prev) => ({ ...prev, [clave]: resultados.length > 0 ? resultados : "sin_datos" }));
-      }
-    })();
-    return () => {
-      cancelado = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viaje?.id, categoriasBuscadasPorEtapa]);
-
   if (!viaje) {
     return (
       <main className="flex-1 px-5 py-8">
@@ -816,20 +769,7 @@ export default function ActividadesPage() {
   // destino, sitios reales aparte, actividades propias sin ciudad), así que
   // el itinerario nunca sabía de qué ciudad era cada actividad.
   function itemsDeEtapa(etapa: Etapa): Item[] {
-    const destinoEtapa = destinoParaCatalogo(etapa);
-    const delCatalogo: Item[] = actividadesDe(destinoEtapa).map((a) => ({
-      ...a,
-      esPropia: false,
-      esGenerica: true,
-      etapaId: etapa.id,
-      etapaNombre: etapa.nombre,
-      pais: destinoEtapa.pais,
-      // No sabemos el sitio exacto, su horario real ni su web oficial: en
-      // vez de inventarlos, un enlace de búsqueda real a un clic.
-      mapaUrl: urlMapsActividad(a.nombre, etapa.nombre),
-      webUrl: urlBuscarActividad(a.nombre, etapa.nombre),
-    }));
-
+    const paisEtapa = paisDeEtapa(etapa)?.nombre;
     const sitiosDeEtapa = (viaje!.investigacion?.sitios?.[etapa.nombre] ?? []) as SitioReal[];
     const idsPropiosYaAñadidos = new Set(viaje!.actividades.map((a) => a.actividadId));
     const deSitiosReales: Item[] = sitiosDeEtapa
@@ -860,7 +800,7 @@ export default function ActividadesPage() {
         fuenteEtiqueta: "OpenStreetMap",
         etapaId: etapa.id,
         etapaNombre: etapa.nombre,
-        pais: destinoEtapa.pais,
+        pais: paisEtapa,
         // OpenStreetMap primero (es el dato del propio sitio); si no lo
         // tiene, lo que trajo el pipeline comercial. Nunca se inventa: si
         // ninguna fuente lo tiene, la tarjeta lo deja sin decir.
@@ -933,7 +873,7 @@ export default function ActividadesPage() {
             ? `${l.contenido ? acortarTexto(l.contenido, 140) + " " : ""}Comprueba las fechas: es un evento, no un lugar abierto todo el año.`
             : l.contenido
               ? acortarTexto(l.contenido, 160)
-              : "Recomendado en la guía local de Wikivoyage.",
+              : "",
           descripcionCompleta: l.contenido,
           fuenteLecturaUrl: guiaWikivoyage?.url,
           fuenteLecturaNombre: "guía completa de Wikivoyage",
@@ -948,8 +888,8 @@ export default function ActividadesPage() {
           // centro (si se conoce): el punto de referencia que de verdad
           // ayuda a decidir si vale la pena ir hasta allá.
           direccion: [l.direccion, distanciaDelCentro(etapa, l.lat, l.lon)].filter(Boolean).join(" · ") || undefined,
-          mapaUrl: l.lat && l.lon ? `https://www.google.com/maps/search/?api=1&query=${l.lat},${l.lon}` : urlMapsActividad(l.nombre, etapa.nombre),
-          webUrl: l.url || urlBuscarActividad(l.nombre, etapa.nombre),
+          mapaUrl: undefined,
+          webUrl: undefined,
           webEsDirecta: !!l.url,
         },
       ];
@@ -995,8 +935,7 @@ export default function ActividadesPage() {
     function fusionarSitio(base: Item, extra: Item): Item {
       return {
         ...base,
-        descripcionCompleta:
-          base.descripcionCompleta ?? (guiaWikivoyage?.idioma === "es" ? extra.descripcionCompleta : undefined),
+        descripcionCompleta: base.descripcionCompleta ?? extra.descripcionCompleta,
         fuenteLecturaUrl: base.fuenteLecturaUrl ?? extra.fuenteLecturaUrl,
         fuenteLecturaNombre: base.fuenteLecturaNombre ?? extra.fuenteLecturaNombre,
         especialidad: base.especialidad ?? extra.especialidad,
@@ -1014,10 +953,7 @@ export default function ActividadesPage() {
         // app es en español, y mezclar una frase en inglés con el resto de
         // la interfaz (cuando SÍ hay una alternativa clara en español, la
         // de OpenStreetMap) es peor que quedarse con la más simple.
-        descripcion:
-          extra.descripcion && extra.descripcion !== "Recommended in the city's Wikivoyage guide." && guiaWikivoyage?.idioma === "es"
-            ? extra.descripcion
-            : base.descripcion,
+        descripcion: extra.descripcion && extra.descripcion !== "" ? extra.descripcion : base.descripcion,
       };
     }
     const porSlugReal = new Map<string, Item>();
@@ -1038,14 +974,7 @@ export default function ActividadesPage() {
     const sinDuplicar = (lista: Item[]) =>
       lista.filter((it) => !nombresYaMostrados.has(slug(it.nombre)) && nombresYaMostrados.add(slug(it.nombre)));
 
-    // Si ya hay lugares reales de una categoría, la idea genérica del
-    // catálogo para esa misma categoría sobra: antes se mostraba igual, con
-    // un coste inventado, junto al aviso de que no era un lugar investigado
-    // — contradictorio cuando de hecho SÍ había algo real que mostrar.
-    const categoriasConDatosReales = new Set(realesDeEtapa.map((it) => it.categoria));
-    const delCatalogoUtil = delCatalogo.filter((it) => !categoriasConDatosReales.has(it.categoria));
-
-    return [...propiasDeEtapa, ...sinDuplicar(realesDeEtapa), ...sinDuplicar(delCatalogoUtil)];
+    return [...propiasDeEtapa, ...sinDuplicar(realesDeEtapa)];
   }
 
   function setEstado(item: Item, estado: EstadoActividad | null) {
@@ -1305,6 +1234,7 @@ export default function ActividadesPage() {
             const resultadosBusqueda = categoriasBuscadas
               ? categoriasBuscadas.flatMap((cat) => items.filter((it) => it.categoria === cat))
               : [];
+            const resultadosUtiles = resultadosBusqueda.filter(fichaUtil);
 
             // Sin menú de categorías que abrir y cerrar: se muestra la
             // lista directa, ya sea filtrada por la búsqueda o completa.
@@ -1323,7 +1253,7 @@ export default function ActividadesPage() {
             // hay que tocar una caja para ver algo: la persona revisa cada
             // una a su ritmo, no recibe las diez categorías de golpe.
             const listaMostrada = categoriasBuscadas !== null
-              ? [...resultadosBusqueda].sort(
+              ? [...resultadosUtiles].sort(
                   (a, b) =>
                     Number(coincideConInteres(b.categoria, viaje.contexto.perfilInteres)) - Number(coincideConInteres(a.categoria, viaje.contexto.perfilInteres)) ||
                     ORDEN_CATEGORIAS.indexOf(a.categoria) - ORDEN_CATEGORIAS.indexOf(b.categoria) ||
@@ -1441,46 +1371,12 @@ export default function ActividadesPage() {
                       </p>
                     )}
 
-                    {categoriasBuscadas !== null &&
-                      grupoSeleccionado &&
-                      !resultadosBusqueda.some((it) => it.esSitioReal) &&
-                      (() => {
-                        const estado = busquedaWebCategoria[`${etapa.id}:grupo:${grupoSeleccionado.id}`];
-                        if (!estado || estado === "sin_datos") return null;
-                        if (estado === "cargando") {
-                          return (
-                            <p className="text-xs text-neutral-400">
-                              🔎 No hay lugares de esta categoría en el mapa local; buscando más opciones…
-                            </p>
-                          );
-                        }
-                        return (
-                          <div className="rounded-xl border border-dashed border-coral-200 bg-coral-50/50 p-3">
-                            <p className="mb-1.5 text-xs font-medium text-coral-800">
-                              🔎 Otras opciones encontradas en la web para {etapa.nombre}:
-                            </p>
-                            <ul className="space-y-1.5">
-                              {estado.map((r, i) => (
-                                <li key={i} className="text-xs text-neutral-700">
-                                  {r.url ? (
-                                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="font-medium text-coral-700 underline">
-                                      {r.titulo}
-                                    </a>
-                                  ) : (
-                                    <span className="font-medium">{r.titulo}</span>
-                                  )}
-                                  {r.fragmento && <p className="mt-0.5 text-neutral-600">{describirResultadoWeb(r)}</p>}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        );
-                      })()}
-
                     {listaMostrada.length === 0 ? (
                       <p className="text-sm text-neutral-400">
                         {categoriasBuscadas !== null
-                          ? `Aún no encontramos opciones de esta categoría para ${etapa.nombre}. Puedes actualizar la información o añadir un lugar manualmente.`
+                          ? resultadosBusqueda.length > 0
+                            ? `Encontramos lugares, pero no tenemos suficiente información útil para recomendarte alguno en ${etapa.nombre}. Puedes actualizar la investigación o añadir un plan manualmente.`
+                            : `No encontramos lugares concretos de esta categoría para ${etapa.nombre}. Actualiza la investigación o añade un plan manualmente.`
                           : `Elige un tema para ver lugares y actividades de ${etapa.nombre}.`}
                       </p>
                     ) : (
@@ -1539,8 +1435,7 @@ export default function ActividadesPage() {
         </div>
 
         <p className="mt-4 text-xs text-neutral-400">
-          Los precios y horarios son estimados cuando se indica. Para los datos reales se muestra la fuente disponible;
-          confirma la información con el lugar antes de ir, especialmente para eventos con fecha.
+          Solo mostramos horarios y precios cuando una fuente los proporciona; si no aparecen, no hay un dato verificado disponible.
         </p>
 
         {destino && (
