@@ -20,11 +20,11 @@ export function formatearDistancia(metros: number): string {
   return `~${(metros / 1000).toFixed(1)} km`;
 }
 
-export function hablar(texto: string) {
+export function hablar(texto: string, idioma = "es-ES") {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(texto);
-  u.lang = "es-ES";
+  u.lang = idioma;
   u.rate = 0.95;
   window.speechSynthesis.speak(u);
 }

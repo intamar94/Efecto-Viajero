@@ -12,7 +12,14 @@ import { distanciaMetros, hablar, haySintesisDeVoz } from "@/lib/geoAudio";
 import { puntosConCoordenadas } from "@/lib/puntosGeo";
 import { obtenerResumenSitio, type ResumenWikipedia } from "@/lib/wikipedia";
 import { comparadorPorInteres, PERFILES_INTERES } from "@/lib/perfilInteres";
+import { RadarGuia, ANGULO_MIRA } from "@/components/RadarGuia";
+import { diferenciaAngular, escucharRumbo, pedirPermisoBrujula, rumboEntre } from "@/lib/orientacion";
+import { resumenCercano, sitiosCercanos, type SitioCercano } from "@/lib/cercaDeMi";
+import { normalizarTexto } from "@/lib/wikiGeosearch";
 import type { CategoriaActividad } from "@/lib/types";
+
+const RADIO_RADAR_M = 1000;
+const MOVIMIENTO_REFRESCO_M = 150;
 
 // En la app instalada (Android), el GPS lo da el sistema operativo real
 // (@capacitor/geolocation) en vez del navegador: un permiso nativo de
@@ -61,6 +68,13 @@ export default function ModoGuiaPage() {
   const silenciadoRef = useRef(false);
   const pendienteRef = useRef<PuntoGuia | null>(null);
   const [resumenesSitio, setResumenesSitio] = useState<Record<string, ResumenWikipedia | "sin_datos">>({});
+  const [rumbo, setRumbo] = useState<number | null>(null);
+  const [cercanos, setCercanos] = useState<SitioCercano[]>([]);
+  const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
+  const [resumenesCercanos, setResumenesCercanos] = useState<Record<string, { extracto: string; url: string } | "sin_datos">>({});
+  const dejarDeEscucharRumbo = useRef<(() => void) | null>(null);
+  const ultimaBusqueda = useRef<{ lat: number; lon: number } | null>(null);
+  const resumenesCercanosRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     silenciadoRef.current = silenciado;
@@ -69,8 +83,29 @@ export default function ModoGuiaPage() {
     pendienteRef.current = pendiente;
   }, [pendiente]);
 
+  // Sitios reales alrededor de donde estás ahora (Wikipedia geosearch):
+  // así el radar funciona en cualquier sitio, sin tener que investigar la
+  // ciudad en Actividades antes. Se refresca solo si te moviste de verdad.
+  useEffect(() => {
+    if (!posicion) return;
+    const previa = ultimaBusqueda.current;
+    if (previa && distanciaMetros(previa.lat, previa.lon, posicion.lat, posicion.lon) < MOVIMIENTO_REFRESCO_M) return;
+    ultimaBusqueda.current = posicion;
+    sitiosCercanos(posicion.lat, posicion.lon, RADIO_RADAR_M).then(setCercanos);
+  }, [posicion]);
+
+  // Resumen real de los sitios más cercanos, listo antes de apuntarles.
+  useEffect(() => {
+    for (const s of cercanos.slice(0, 8)) {
+      if (resumenesCercanosRef.current.has(s.id)) continue;
+      resumenesCercanosRef.current.add(s.id);
+      resumenCercano(s.nombre).then((r) => setResumenesCercanos((prev) => ({ ...prev, [s.id]: r ?? "sin_datos" })));
+    }
+  }, [cercanos]);
+
   useEffect(() => {
     return () => {
+      dejarDeEscucharRumbo.current?.();
       if (watchId.current !== null) {
         if (NATIVO) Geolocation.clearWatch({ id: String(watchId.current) });
         else navigator.geolocation.clearWatch(watchId.current as number);
@@ -145,7 +180,7 @@ export default function ModoGuiaPage() {
       return {
         id: p.id,
         nombre: p.nombre,
-        texto: `You're near ${p.nombre}. ${rico?.extracto ?? p.detalle ?? `Un sitio recomendado en ${etapa.nombre}.`}`,
+        texto: `You're near ${p.nombre}. ${rico?.extracto ?? p.detalle ?? `A recommended place in ${etapa.nombre}.`}`,
         lat: p.lat,
         lon: p.lon,
         etapaNombre: etapa.nombre,
@@ -163,6 +198,44 @@ export default function ModoGuiaPage() {
   // medida" que pidió. No filtra ni esconde nada: todo sigue en la lista
   // de abajo, solo cambia el orden de prioridad.
   const puntos = [...puntosSinPriorizar].sort(comparadorPorInteres((p) => p.categoria, viaje.contexto.perfilInteres));
+
+  // Radar: los sitios del viaje + los reales que hay alrededor tuyo ahora
+  // (sin duplicar un sitio que ya está en el viaje).
+  const nombresDelViaje = new Set(puntos.map((p) => normalizarTexto(p.nombre)));
+  const sitiosRadar = [
+    ...puntos.map((p) => ({ id: p.id, nombre: p.nombre, lat: p.lat, lon: p.lon })),
+    ...cercanos.filter((c) => !nombresDelViaje.has(normalizarTexto(c.nombre))),
+  ];
+
+  // "En la mira": el sitio más cercano dentro del cono hacia donde apunta el
+  // teléfono. Tocar un punto del radar lo elige a mano y manda sobre esto.
+  const enMira =
+    posicion && rumbo !== null
+      ? sitiosRadar
+          .map((s) => ({ s, d: distanciaMetros(posicion.lat, posicion.lon, s.lat, s.lon), ang: diferenciaAngular(rumboEntre(posicion.lat, posicion.lon, s.lat, s.lon), rumbo) }))
+          .filter((x) => x.d <= RADIO_RADAR_M && Math.abs(x.ang) <= ANGULO_MIRA)
+          .sort((a, b) => a.d - b.d)[0]?.s
+      : undefined;
+  const cercaCount = posicion ? sitiosRadar.filter((s) => distanciaMetros(posicion.lat, posicion.lon, s.lat, s.lon) <= RADIO_RADAR_M).length : 0;
+  const sitioActivo = sitiosRadar.find((s) => s.id === seleccionadoId) ?? enMira;
+  const puntoDelViaje = sitioActivo ? puntos.find((p) => p.id === sitioActivo.id) : undefined;
+  const resumenActivo = sitioActivo && !puntoDelViaje ? resumenesCercanos[sitioActivo.id] : undefined;
+  const textoActivo = puntoDelViaje
+    ? puntoDelViaje.texto
+    : sitioActivo && resumenActivo && resumenActivo !== "sin_datos"
+      ? `${sitioActivo.nombre}. ${resumenActivo.extracto}`
+      : sitioActivo
+        ? sitioActivo.nombre
+        : "";
+
+  function elegirSitio(id: string) {
+    setSeleccionadoId(id);
+    const s = sitiosRadar.find((x) => x.id === id);
+    if (s && !puntos.some((p) => p.id === id) && !resumenesCercanosRef.current.has(id)) {
+      resumenesCercanosRef.current.add(id);
+      resumenCercano(s.nombre).then((r) => setResumenesCercanos((prev) => ({ ...prev, [id]: r ?? "sin_datos" })));
+    }
+  }
 
   function manejarPosicion(pos: { coords: { latitude: number; longitude: number } }) {
     const actual = { lat: pos.coords.latitude, lon: pos.coords.longitude };
@@ -195,6 +268,12 @@ export default function ModoGuiaPage() {
 
   async function activar() {
     setError(null);
+    // Brújula (giroscopio): el permiso en iPhone exige un toque, así que se
+    // pide aquí. Si no hay o se rechaza, el radar sigue con el norte arriba.
+    if (await pedirPermisoBrujula()) {
+      dejarDeEscucharRumbo.current?.();
+      dejarDeEscucharRumbo.current = escucharRumbo(setRumbo);
+    }
     if (NATIVO) {
       try {
         const permiso = await Geolocation.requestPermissions();
@@ -233,6 +312,12 @@ export default function ModoGuiaPage() {
       else navigator.geolocation.clearWatch(watchId.current as number);
     }
     watchId.current = null;
+    dejarDeEscucharRumbo.current?.();
+    dejarDeEscucharRumbo.current = null;
+    ultimaBusqueda.current = null;
+    setRumbo(null);
+    setSeleccionadoId(null);
+    setCercanos([]);
     setActivo(false);
     setPosicion(null);
     setPendiente(null);
@@ -275,28 +360,22 @@ export default function ModoGuiaPage() {
           </a>
         </p>
 
-        {puntos.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-neutral-300 px-6 py-10 text-center text-neutral-500">
-            Todavía no tenemos sitios con ubicación exacta para este viaje. Visita{" "}
-            <span className="font-medium">Actividades</span> para que investiguemos la ciudad primero.
-          </div>
-        ) : (
-          <>
+        <>
             <div className="mb-5 flex flex-wrap items-center gap-2">
               {!activo ? (
                 <button onClick={activar} className="btn-primary flex-1">
-                  🎧 Activar modo guía
+                  🎧 Start guide mode
                 </button>
               ) : (
                 <button onClick={desactivar} className="btn-secondary flex-1">
-                  ⏹️ Detener
+                  ⏹️ Stop
                 </button>
               )}
               <button
                 onClick={() => setSilenciado((v) => !v)}
                 className={`rounded-lg border px-3 py-2 text-sm ${silenciado ? "border-neutral-300 bg-neutral-100 text-neutral-500" : "border-marino-200 bg-marino-50 text-marino-700"}`}
               >
-                {silenciado ? "🔇 Silenciado" : "🔊 With voice"}
+                {silenciado ? "🔇 Muted" : "🔊 With voice"}
               </button>
             </div>
 
@@ -304,18 +383,18 @@ export default function ModoGuiaPage() {
 
             {/* La notificación: nunca habla sola, siempre pregunta primero. */}
             {pendiente && (
-              <div className="mb-5 rounded-2xl border-2 border-marino-400 bg-marino-50 p-4">
-                <p className="text-sm font-medium text-marino-900">📍 Estás cerca de {pendiente.nombre}</p>
+              <div className="mb-5 rounded-2xl border-2 border-marino-500 bg-marino-50 p-4">
+                <p className="text-sm font-medium text-marino-900">📍 You&apos;re near {pendiente.nombre}</p>
                 <p className="mt-1 text-xs text-marino-700">Want to hear about this place?</p>
                 {pendiente.tieneResumenRico && (
                   <p className="mt-2 line-clamp-2 text-xs text-marino-600">{pendiente.texto}</p>
                 )}
                 <div className="mt-3 flex gap-2">
                   <button onClick={() => responderPendiente(true)} className="btn-primary flex-1 text-sm">
-                    🔊 Sí, cuéntame
+                    🔊 Yes, tell me
                   </button>
                   <button onClick={() => responderPendiente(false)} className="btn-secondary flex-1 text-sm">
-                    Ahora no
+                    Not now
                   </button>
                 </div>
               </div>
@@ -327,7 +406,59 @@ export default function ModoGuiaPage() {
               </p>
             )}
 
-            <h2 className="mb-2 font-medium">Places on your trip ({puntos.length})</h2>
+            {/* Radar: tú en el centro, "arriba" es hacia donde apunta el
+                teléfono. Apunta a un punto (o tócalo) para oír su historia. */}
+            {activo && posicion && (
+              <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-4">
+                <RadarGuia
+                  posicion={posicion}
+                  rumbo={rumbo}
+                  sitios={sitiosRadar}
+                  radioMetros={RADIO_RADAR_M}
+                  seleccionadoId={sitioActivo?.id ?? null}
+                  onSeleccionar={elegirSitio}
+                />
+                <p className="mt-2 text-center text-[11px] text-neutral-500">
+                  {rumbo === null
+                    ? "Compass not available: the radar keeps north up. Tap a dot."
+                    : "Turn around: the top is where your phone points. Aim at a dot or tap it."}
+                  {" "}
+                  {cercaCount === 0 ? "Looking for places nearby…" : `${cercaCount} place(s) within 1 km.`}
+                </p>
+
+                {sitioActivo && (
+                  <div className="mt-3 rounded-xl border-2 border-marino-500 bg-marino-50 p-3">
+                    <p className="text-sm font-medium text-marino-900">
+                      {sitioActivo.id === seleccionadoId ? "📍" : "🎯"} {sitioActivo.nombre}
+                      <span className="ml-1 text-xs font-normal text-marino-700">
+                        · {Math.round(distanciaMetros(posicion.lat, posicion.lon, sitioActivo.lat, sitioActivo.lon))} m
+                      </span>
+                    </p>
+                    {resumenActivo && resumenActivo !== "sin_datos" && <p className="mt-1 line-clamp-4 text-xs text-marino-700">{resumenActivo.extracto}</p>}
+                    {resumenActivo === "sin_datos" && <p className="mt-1 text-xs text-marino-700">No article for this place yet.</p>}
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        onClick={() => {
+                          hablar(textoActivo, puntoDelViaje ? "es-ES" : "en-US");
+                          preguntadosRef.current = new Set(preguntadosRef.current).add(sitioActivo.id);
+                          setNarrados((prev) => new Set(prev).add(sitioActivo.id));
+                        }}
+                        className="btn-primary flex-1 text-sm"
+                      >
+                        🔊 Listen
+                      </button>
+                      {resumenActivo && resumenActivo !== "sin_datos" && (
+                        <a href={resumenActivo.url} target="_blank" rel="noopener noreferrer" className="btn-secondary flex-1 text-center text-sm">
+                          📖 Wikipedia
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {puntos.length > 0 && <h2 className="mb-2 font-medium">Places on your trip ({puntos.length})</h2>}
             <ul className="space-y-2">
               {ordenados.map((p) => {
                 const d = posicion ? Math.round(distanciaMetros(posicion.lat, posicion.lon, p.lat, p.lon)) : null;
@@ -342,7 +473,7 @@ export default function ModoGuiaPage() {
                         </p>
                         {p.wikipediaUrl && (
                           <a href={p.wikipediaUrl} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-block text-[11px] text-marino-600 underline">
-                            📖 Historia real en Wikipedia
+                            📖 Real history on Wikipedia
                           </a>
                         )}
                       </div>
@@ -354,7 +485,7 @@ export default function ModoGuiaPage() {
                         }}
                         className="shrink-0 rounded-lg border border-marino-200 bg-marino-50 px-2.5 py-1.5 text-xs font-medium text-marino-700 hover:bg-marino-100"
                       >
-                        🔊 Escuchar
+                        🔊 Listen
                       </button>
                     </div>
                     {narrados.has(p.id) && <span className="mt-1 inline-block text-[11px] text-emerald-600">✓ Already narrated</span>}
@@ -363,7 +494,6 @@ export default function ModoGuiaPage() {
               })}
             </ul>
           </>
-        )}
       </div>
     </main>
   );
