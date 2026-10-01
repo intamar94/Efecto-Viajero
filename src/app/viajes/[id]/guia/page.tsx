@@ -14,12 +14,15 @@ import { obtenerResumenSitio, type ResumenWikipedia } from "@/lib/wikipedia";
 import { comparadorPorInteres, PERFILES_INTERES } from "@/lib/perfilInteres";
 import { RadarGuia, ANGULO_MIRA } from "@/components/RadarGuia";
 import { diferenciaAngular, escucharRumbo, pedirPermisoBrujula, rumboEntre } from "@/lib/orientacion";
-import { resumenCercano, sitiosCercanos, type SitioCercano } from "@/lib/cercaDeMi";
+import { sitiosCercanos, type SitioCercano } from "@/lib/cercaDeMi";
+import { TarjetaSitio } from "@/components/TarjetaSitio";
+import { IDIOMAS, TEMAS, type IdiomaId, type TemaId } from "@/lib/temasGuia";
 import { normalizarTexto } from "@/lib/wikiGeosearch";
 import type { CategoriaActividad } from "@/lib/types";
 
 const RADIO_RADAR_M = 1000;
 const MOVIMIENTO_REFRESCO_M = 150;
+const CLAVE_PREFS = "efecto-viajero:guia-prefs";
 
 // En la app instalada (Android), el GPS lo da el sistema operativo real
 // (@capacitor/geolocation) en vez del navegador: un permiso nativo de
@@ -71,10 +74,10 @@ export default function ModoGuiaPage() {
   const [rumbo, setRumbo] = useState<number | null>(null);
   const [cercanos, setCercanos] = useState<SitioCercano[]>([]);
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
-  const [resumenesCercanos, setResumenesCercanos] = useState<Record<string, { extracto: string; url: string } | "sin_datos">>({});
+  const [idioma, setIdioma] = useState<IdiomaId>("en");
+  const [tema, setTema] = useState<TemaId>("resumen");
   const dejarDeEscucharRumbo = useRef<(() => void) | null>(null);
   const ultimaBusqueda = useRef<{ lat: number; lon: number } | null>(null);
-  const resumenesCercanosRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     silenciadoRef.current = silenciado;
@@ -91,17 +94,41 @@ export default function ModoGuiaPage() {
     const previa = ultimaBusqueda.current;
     if (previa && distanciaMetros(previa.lat, previa.lon, posicion.lat, posicion.lon) < MOVIMIENTO_REFRESCO_M) return;
     ultimaBusqueda.current = posicion;
-    sitiosCercanos(posicion.lat, posicion.lon, RADIO_RADAR_M).then(setCercanos);
+    sitiosCercanos(posicion.lat, posicion.lon, RADIO_RADAR_M, idioma).then(setCercanos);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posicion]);
 
-  // Resumen real de los sitios más cercanos, listo antes de apuntarles.
+  // Preferencias de narración (tema e idioma) recordadas en este dispositivo.
   useEffect(() => {
-    for (const s of cercanos.slice(0, 8)) {
-      if (resumenesCercanosRef.current.has(s.id)) continue;
-      resumenesCercanosRef.current.add(s.id);
-      resumenCercano(s.nombre).then((r) => setResumenesCercanos((prev) => ({ ...prev, [s.id]: r ?? "sin_datos" })));
+    try {
+      const g = JSON.parse(localStorage.getItem(CLAVE_PREFS) ?? "null") as { tema?: TemaId; idioma?: IdiomaId } | null;
+      if (g?.tema && TEMAS.some((t) => t.id === g.tema)) setTema(g.tema);
+      const idiomaNavegador = navigator.language.slice(0, 2) as IdiomaId;
+      const elegido = g?.idioma ?? idiomaNavegador;
+      if (IDIOMAS.some((i) => i.id === elegido)) setIdioma(elegido);
+    } catch {}
+  }, []);
+
+  function cambiarPrefs(nuevo: { tema?: TemaId; idioma?: IdiomaId }) {
+    const t = nuevo.tema ?? tema;
+    const i = nuevo.idioma ?? idioma;
+    setTema(t);
+    if (i !== idioma) {
+      setIdioma(i);
+      // Los títulos de los sitios cambian con el idioma: se buscan de nuevo.
+      ultimaBusqueda.current = null;
+      setCercanos([]);
+      setSeleccionadoId(null);
+      if (posicion) {
+        ultimaBusqueda.current = posicion;
+        sitiosCercanos(posicion.lat, posicion.lon, RADIO_RADAR_M, i).then(setCercanos);
+      }
     }
-  }, [cercanos]);
+    try {
+      localStorage.setItem(CLAVE_PREFS, JSON.stringify({ tema: t, idioma: i }));
+    } catch {}
+  }
+
 
   useEffect(() => {
     return () => {
@@ -219,22 +246,9 @@ export default function ModoGuiaPage() {
   const cercaCount = posicion ? sitiosRadar.filter((s) => distanciaMetros(posicion.lat, posicion.lon, s.lat, s.lon) <= RADIO_RADAR_M).length : 0;
   const sitioActivo = sitiosRadar.find((s) => s.id === seleccionadoId) ?? enMira;
   const puntoDelViaje = sitioActivo ? puntos.find((p) => p.id === sitioActivo.id) : undefined;
-  const resumenActivo = sitioActivo && !puntoDelViaje ? resumenesCercanos[sitioActivo.id] : undefined;
-  const textoActivo = puntoDelViaje
-    ? puntoDelViaje.texto
-    : sitioActivo && resumenActivo && resumenActivo !== "sin_datos"
-      ? `${sitioActivo.nombre}. ${resumenActivo.extracto}`
-      : sitioActivo
-        ? sitioActivo.nombre
-        : "";
 
   function elegirSitio(id: string) {
     setSeleccionadoId(id);
-    const s = sitiosRadar.find((x) => x.id === id);
-    if (s && !puntos.some((p) => p.id === id) && !resumenesCercanosRef.current.has(id)) {
-      resumenesCercanosRef.current.add(id);
-      resumenCercano(s.nombre).then((r) => setResumenesCercanos((prev) => ({ ...prev, [id]: r ?? "sin_datos" })));
-    }
   }
 
   function manejarPosicion(pos: { coords: { latitude: number; longitude: number } }) {
@@ -361,6 +375,33 @@ export default function ModoGuiaPage() {
         </p>
 
         <>
+            {/* Cómo quieres que te cuente cada lugar: por tema y en tu idioma.
+                Todo sale del artículo real de Wikipedia de ese lugar. */}
+            <section className="mb-5 rounded-2xl border border-neutral-200 bg-white p-3">
+              <p className="mb-2 text-xs font-medium text-neutral-500">Tour by</p>
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {TEMAS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => cambiarPrefs({ tema: t.id })}
+                    className={`rounded-full border px-3 py-1 text-xs ${tema === t.id ? "border-marino-500 bg-marino-50 font-medium text-marino-800" : "border-neutral-200 text-neutral-600"}`}
+                  >
+                    {t.icono} {t.etiqueta}
+                  </button>
+                ))}
+              </div>
+              <label className="flex items-center gap-2 text-xs text-neutral-500">
+                Language
+                <select value={idioma} onChange={(e) => cambiarPrefs({ idioma: e.target.value as IdiomaId })} className="input w-auto py-1 text-sm">
+                  {IDIOMAS.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+
             <div className="mb-5 flex flex-wrap items-center gap-2">
               {!activo ? (
                 <button onClick={activar} className="btn-primary flex-1">
@@ -427,33 +468,18 @@ export default function ModoGuiaPage() {
                 </p>
 
                 {sitioActivo && (
-                  <div className="mt-3 rounded-xl border-2 border-marino-500 bg-marino-50 p-3">
-                    <p className="text-sm font-medium text-marino-900">
-                      {sitioActivo.id === seleccionadoId ? "📍" : "🎯"} {sitioActivo.nombre}
-                      <span className="ml-1 text-xs font-normal text-marino-700">
-                        · {Math.round(distanciaMetros(posicion.lat, posicion.lon, sitioActivo.lat, sitioActivo.lon))} m
-                      </span>
-                    </p>
-                    {resumenActivo && resumenActivo !== "sin_datos" && <p className="mt-1 line-clamp-4 text-xs text-marino-700">{resumenActivo.extracto}</p>}
-                    {resumenActivo === "sin_datos" && <p className="mt-1 text-xs text-marino-700">No article for this place yet.</p>}
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        onClick={() => {
-                          hablar(textoActivo, puntoDelViaje ? "es-ES" : "en-US");
-                          preguntadosRef.current = new Set(preguntadosRef.current).add(sitioActivo.id);
-                          setNarrados((prev) => new Set(prev).add(sitioActivo.id));
-                        }}
-                        className="btn-primary flex-1 text-sm"
-                      >
-                        🔊 Listen
-                      </button>
-                      {resumenActivo && resumenActivo !== "sin_datos" && (
-                        <a href={resumenActivo.url} target="_blank" rel="noopener noreferrer" className="btn-secondary flex-1 text-center text-sm">
-                          📖 Wikipedia
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                  <TarjetaSitio
+                    sitio={sitioActivo}
+                    distanciaM={distanciaMetros(posicion.lat, posicion.lon, sitioActivo.lat, sitioActivo.lon)}
+                    elegidoAMano={sitioActivo.id === seleccionadoId}
+                    idioma={idioma}
+                    tema={tema}
+                    textoRespaldo={puntoDelViaje?.texto}
+                    onNarrado={(id) => {
+                      preguntadosRef.current = new Set(preguntadosRef.current).add(id);
+                      setNarrados((prev) => new Set(prev).add(id));
+                    }}
+                  />
                 )}
               </section>
             )}
